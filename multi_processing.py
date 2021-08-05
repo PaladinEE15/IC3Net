@@ -24,11 +24,11 @@ class MultiProcessWorker(mp.Process):
             if task == 'quit':
                 return
             elif task == 'run_batch':
-                batch, stat = self.trainer.run_batch(epoch)
+                batch, stat, comm_info = self.trainer.run_batch(epoch)
                 self.trainer.optimizer.zero_grad()
                 s = self.trainer.compute_grad(batch)
                 merge_stat(s, stat)
-                self.comm.send(stat)
+                self.comm.send((stat,comm_info))
             elif task == 'send_grads':
                 grads = []
                 for p in self.trainer.params:
@@ -77,14 +77,15 @@ class MultiProcessTrainer(object):
             comm.send(['run_batch', epoch])
 
         # run its own trainer
-        batch, stat = self.trainer.run_batch(epoch)
+        batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
         self.trainer.optimizer.zero_grad()
         s = self.trainer.compute_grad(batch)
         merge_stat(s, stat)
 
         # check if workers are finished
         for comm in self.comms:
-            s = comm.recv()
+            s, comm_info = comm.recv()
+            comm_info_acc = torch.cat((comm_info_acc, comm_info), dim=0)
             merge_stat(s, stat)
 
         # add gradients of workers

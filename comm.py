@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
-
+import sys
 from models import MLP
 from action_utils import select_action, translate_action
 
@@ -43,6 +43,20 @@ class CommNetMLP(nn.Module):
             self.comm_mask = torch.ones(self.nagents, self.nagents) \
                             - torch.eye(self.nagents, self.nagents)
 
+        if self.args.comm_detail != 'raw':
+            msg_layers = []
+            msg_layer_num = len(self.args.msg_hid_layer)
+            for i in range(msg_layer_num):
+                if i == 0:
+                    msg_layers.append(nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
+                    msg_layers.append(nn.Relu())
+                else:
+                    msg_layers.append(nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
+                    msg_layers.append(nn.Relu())
+                msg_layers.append(nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
+                if self.args.comm_detail == 'quant':
+                    msg_layers.append(nn.Sigmoid())
+            self.msg_encoder = nn.Sequential(msg_layers)
 
         # Since linear layers in PyTorch now accept * as any number of dimensions
         # between last and first dim, num_agents dimension will be covered.
@@ -74,13 +88,13 @@ class CommNetMLP(nn.Module):
         # Our main function for converting current hidden state to next state
         # self.f = nn.Linear(args.hid_size, args.hid_size)
         if args.share_weights:
-            self.C_module = nn.Linear(args.hid_size, args.hid_size)
+            self.C_module = nn.Linear(args.msg_size, args.hid_size)
             self.C_modules = nn.ModuleList([self.C_module
                                             for _ in range(self.comm_passes)])
         else:
-            self.C_modules = nn.ModuleList([nn.Linear(args.hid_size, args.hid_size)
+            self.C_modules = nn.ModuleList([nn.Linear(args.msg_size, args.hid_size)
                                             for _ in range(self.comm_passes)])
-        # self.C = nn.Linear(args.hid_size, args.hid_size)
+        # self.C = nn.Linear(args.msg_size, args.hid_size)
 
         # initialise weights as 0
         if args.comm_init == 'zeros':
@@ -130,6 +144,20 @@ class CommNetMLP(nn.Module):
 
         return x, hidden_state, cell_state
 
+    def generate_comm(self,raw_comm):
+        if self.args.comm_detail == 'raw':
+            comm = raw_comm.detach()
+        elif self.args.comm_detail == 'mlp' or 'quant':
+            comm = self.msg_encoder(raw_comm.detach()) 
+        else:
+            print('unknown argument! exit')
+            sys.exit(1)
+
+        if self.args.test_quant:
+            comm = comm*self.args.quant_levels
+            comm = torch.round(comm)
+            comm = comm/self.args.quant_levels
+        return comm
 
     def forward(self, x, info={}):
         # TODO: Update dimensions
@@ -176,12 +204,13 @@ class CommNetMLP(nn.Module):
 
         agent_mask_transpose = agent_mask.transpose(1, 2)
 
-        for i in range(self.comm_passes):
+        for i in range(self.comm_passes): #decide how many times to communicate, default 1
             # Choose current or prev depending on recurrent
-            comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
+            raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
 
+            comm = self.generate_comm(raw_comm)
             # Get the next communication vector based on next hidden state
-            comm = comm.unsqueeze(-2).expand(-1, n, n, self.hid_size)
+            comm = comm.unsqueeze(-2).expand(-1, n, n, self.msg_size)
 
             # Create mask for masking self communication
             mask = self.comm_mask.view(1, n, n)
@@ -239,9 +268,9 @@ class CommNetMLP(nn.Module):
             action = [F.log_softmax(head(h), dim=-1) for head in self.heads]
 
         if self.args.recurrent:
-            return action, value_head, (hidden_state.clone(), cell_state.clone())
+            return comm, action, value_head, (hidden_state.clone(), cell_state.clone())
         else:
-            return action, value_head
+            return comm, action, value_head
 
     def init_weights(self, m):
         if type(m) == nn.Linear:

@@ -51,7 +51,8 @@ class Trainer(object):
                     prev_hid = self.policy_net.init_hidden(batch_size=state.shape[0])
 
                 x = [state, prev_hid]
-                action_out, value, prev_hid = self.policy_net(x, info)
+                comm, action_out, value, prev_hid = self.policy_net(x, info)
+                print()
 
                 if (t + 1) % self.args.detach_gap == 0:
                     if self.args.rnn_type == 'LSTM':
@@ -60,7 +61,14 @@ class Trainer(object):
                         prev_hid = prev_hid.detach()
             else:
                 x = state
-                action_out, value = self.policy_net(x, info)
+                comm, action_out, value = self.policy_net(x, info)
+            
+            if t == 0:
+                #init comm
+                comm_stat = comm
+            else:
+                comm_stat = torch.cat((comm_stat, comm),dim = 0)
+
 
             action = select_action(self.args, action_out)
             action, actual = translate_action(self.args, self.env, action)
@@ -123,7 +131,7 @@ class Trainer(object):
 
         if hasattr(self.env, 'get_stat'):
             merge_stat(self.env.get_stat(), stat)
-        return (episode, stat)
+        return (episode, stat, comm_stat)
 
     def compute_grad(self, batch):
         stat = dict()
@@ -231,15 +239,19 @@ class Trainer(object):
         while len(batch) < self.args.batch_size:
             if self.args.batch_size - len(batch) <= self.args.max_steps:
                 self.last_step = True
-            episode, episode_stat = self.get_episode(epoch)
+            episode, episode_stat, comm_stat = self.get_episode(epoch)
             merge_stat(episode_stat, self.stats)
             self.stats['num_episodes'] += 1
+            if len(batch) == 0:
+                comm_stat_acc = comm_stat
+            else:
+                comm_stat_acc = torch.cat((comm_stat_acc,comm_stat),dim=0)
             batch += episode
 
         self.last_step = False
         self.stats['num_steps'] = len(batch)
         batch = Transition(*zip(*batch))
-        return batch, self.stats
+        return batch, self.stats, comm_stat_acc
 
     # only used when nprocesses=1
     def train_batch(self, epoch):
