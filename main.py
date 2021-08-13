@@ -111,13 +111,15 @@ parser.add_argument('--share_weights', default=False, action='store_true',
 # Comm message design details
 parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "quant"], 
                     help="How to process broadcasting messages")
+parser.add_argument('--test', default=False, action='store_true', 
+                    help='Whether test ')
 parser.add_argument('--test_quant', default=False, action='store_true', 
                     help='Whether test and do quantification')
 parser.add_argument('--msg_size', default=128, type=int,
                     help='message size')
 parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
                     help='message layer size')
-parser.add_argument('--quant_levels', default=16, type=int,
+parser.add_argument('--quant_levels', default=40, type=int,
                     help='quantification levels')
 init_args_for_env(parser)
 args = parser.parse_args()
@@ -142,10 +144,28 @@ def signal_handler(signal, frame):
         print('You pressed Ctrl+C! Exiting gracefully.')
         if args.display:
             env.end_display()
-        sys.exit(0)
+        trainer.quit()
+        import os
+        os._exit(0)
+        #sys.exit(0)
 
-def disp():
-    x = disp_trainer.get_episode()
+#def disp():
+#    x = disp_trainer.get_episode()
+
+def test(num_epochs):
+    #running episodes equals to num_epochs*nprocess*batchsize
+    stat = dict()
+    total_test_times = args.batch_size*num_epochs*args.nprocesses
+    for n in range(num_epochs):
+        s = trainer.test_batch(n)
+        merge_stat(s, stat)
+
+    print('avg reward: {}'.format(stat['reward']/total_test_times))
+    if 'entropy' in stat.keys():
+        print('entropy: {}'.format(stat['entropy']))
+    if 'success' in stat.keys():
+        print('avg Success: {:.2f}'.format(stat['success']/total_test_times))
+
 
 def run(num_epochs):
     for ep in range(num_epochs):
@@ -173,7 +193,8 @@ def run(num_epochs):
         print('Epoch {}\tReward {}\tTime {:.2f}s'.format(
                 epoch, stat['reward'], epoch_time
         ))
-
+        if 'entropy' in stat.keys():
+            print('entropy: {}'.format(stat['entropy']))
         if 'enemy_reward' in stat.keys():
             print('Enemy-Reward: {}'.format(stat['enemy_reward']))
         if 'add_rate' in stat.keys():
@@ -266,47 +287,49 @@ if __name__ == '__main__':
         display_models([policy_net])
 
     # share parameters among threads, but not gradients
-    policy_net.share_memory()
-    '''
+    #policy_net.share_memory()
+
     for p in policy_net.parameters():
         p.data.share_memory_()
-    '''
+
     if args.nprocesses > 1:
         trainer = MultiProcessTrainer(args, lambda: Trainer(args, policy_net, data.init(args.env_name, args)))
     else:
         trainer = Trainer(args, policy_net, data.init(args.env_name, args))
 
-    disp_trainer = Trainer(args, policy_net, data.init(args.env_name, args, False))
-    disp_trainer.display = True
+    #disp_trainer = Trainer(args, policy_net, data.init(args.env_name, args, False))
+    #disp_trainer.display = True
 
+    if args.test:
+        test(args.num_epochs)
+    else:
+        log = dict()
+        log['epoch'] = LogField(list(), False, None, None)
+        log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
+        log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
+        log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
+        log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
+        log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
+        log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
+        log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
+        log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+        log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+        log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
 
-    log = dict()
-    log['epoch'] = LogField(list(), False, None, None)
-    log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
+        if args.plot:
+            vis = visdom.Visdom(env=args.plot_env)
 
-    if args.plot:
-        vis = visdom.Visdom(env=args.plot_env)
+        signal.signal(signal.SIGINT, signal_handler)
 
-    signal.signal(signal.SIGINT, signal_handler)
+        if args.load != '':
+            load(args.load)
 
-    if args.load != '':
-        load(args.load)
+        run(args.num_epochs)
+        if args.display:
+            env.end_display()
 
-    run(args.num_epochs)
-    if args.display:
-        env.end_display()
-
-    if args.save != '':
-        save(args.save)
+        if args.save != '':
+            save(args.save)
 
     if sys.flags.interactive == 0 and args.nprocesses > 1:
         trainer.quit()

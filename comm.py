@@ -118,12 +118,15 @@ class CommNetMLP(nn.Module):
             num_agents_alive = agent_mask.sum()
         else:
             agent_mask = torch.ones(n)
-            num_agents_alive = n
+            num_agents_alive = n    
+        
+        record_mask = agent_mask.view(n,1)
+        record_mask = record_mask.expand(n,self.args.msg_size)
 
         agent_mask = agent_mask.view(1, 1, n)
         agent_mask = agent_mask.expand(batch_size, n, n).unsqueeze(-1)
 
-        return num_agents_alive, agent_mask
+        return num_agents_alive, agent_mask, record_mask
 
     def forward_state_encoder(self, x):
         hidden_state, cell_state = None, None
@@ -152,11 +155,11 @@ class CommNetMLP(nn.Module):
         else:
             print('unknown argument! exit')
             sys.exit(1)
-
+        #the message range is (-1, 1)
         if self.args.test_quant:
-            comm = comm*self.args.quant_levels
+            comm = 0.5*comm*self.args.quant_levels
             comm = torch.round(comm)
-            comm = comm/self.args.quant_levels
+            comm = 2*comm/self.args.quant_levels
         return comm
 
     def forward(self, x, info={}):
@@ -193,7 +196,10 @@ class CommNetMLP(nn.Module):
         batch_size = x.size()[0]
         n = self.nagents
 
-        num_agents_alive, agent_mask = self.get_agent_mask(batch_size, info)
+        num_agents_alive, agent_mask, record_mask = self.get_agent_mask(batch_size, info)
+
+        #get mask for record
+
 
         # Hard Attention - action whether an agent communicates or not
         if self.args.hard_attn:
@@ -208,9 +214,11 @@ class CommNetMLP(nn.Module):
             # Choose current or prev depending on recurrent
             raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
 
-            comm = self.generate_comm(raw_comm)
+            broad_comm = self.generate_comm(raw_comm)
+            comm = broad_comm
+            broad_comm = broad_comm * record_mask
             # Get the next communication vector based on next hidden state
-            comm = comm.unsqueeze(-2).expand(-1, n, n, self.msg_size)
+            comm = comm.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
 
             # Create mask for masking self communication
             mask = self.comm_mask.view(1, n, n)
@@ -268,9 +276,9 @@ class CommNetMLP(nn.Module):
             action = [F.log_softmax(head(h), dim=-1) for head in self.heads]
 
         if self.args.recurrent:
-            return comm, action, value_head, (hidden_state.clone(), cell_state.clone())
+            return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone())
         else:
-            return comm, action, value_head
+            return broad_comm, action, value_head
 
     def init_weights(self, m):
         if type(m) == nn.Linear:

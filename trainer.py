@@ -52,7 +52,6 @@ class Trainer(object):
 
                 x = [state, prev_hid]
                 comm, action_out, value, prev_hid = self.policy_net(x, info)
-                print()
 
                 if (t + 1) % self.args.detach_gap == 0:
                     if self.args.rnn_type == 'LSTM':
@@ -65,9 +64,9 @@ class Trainer(object):
             
             if t == 0:
                 #init comm
-                comm_stat = comm
+                comm_stat = torch.squeeze(comm) 
             else:
-                comm_stat = torch.cat((comm_stat, comm),dim = 0)
+                comm_stat = torch.cat((comm_stat, torch.squeeze(comm)),dim = 0)
 
 
             action = select_action(self.args, action_out)
@@ -253,10 +252,31 @@ class Trainer(object):
         batch = Transition(*zip(*batch))
         return batch, self.stats, comm_stat_acc
 
+
+    # only used when nprocesses=1
+    def test_batch(self,epoch):
+        batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
+
+        #calculate entropy here
+        comm_np = comm_info_acc.detach().numpy()    
+        comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
+        entropy_set = map(self.calcu_entropy, comm_np_list)
+        final_entropy = sum(entropy_set)
+        entro_stat = {'entropy':final_entropy}
+        merge_stat(entro_stat, stat)
+
+        return stat
     # only used when nprocesses=1
     def train_batch(self, epoch):
-        batch, stat = self.run_batch(epoch)
+        batch, stat, comm_info_acc = self.run_batch(epoch)
         self.optimizer.zero_grad()
+
+        comm_np = comm_info_acc.detach().numpy()    
+        comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
+        entropy_set = map(self.calcu_entropy, comm_np_list)
+        final_entropy = sum(entropy_set)
+        entro_stat = {'entropy':final_entropy}
+        merge_stat(entro_stat, stat)
 
         s = self.compute_grad(batch)
         merge_stat(s, stat)
