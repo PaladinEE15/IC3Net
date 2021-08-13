@@ -54,8 +54,7 @@ class CommNetMLP(nn.Module):
                     msg_layers.append(nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
                     msg_layers.append(nn.Relu())
                 msg_layers.append(nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
-                if self.args.comm_detail == 'quant':
-                    msg_layers.append(nn.Sigmoid())
+                msg_layers.append(nn.tanh())
             self.msg_encoder = nn.Sequential(msg_layers)
 
         # Since linear layers in PyTorch now accept * as any number of dimensions
@@ -150,7 +149,7 @@ class CommNetMLP(nn.Module):
     def generate_comm(self,raw_comm):
         if self.args.comm_detail == 'raw':
             comm = raw_comm.detach()
-        elif self.args.comm_detail == 'mlp' or 'quant':
+        elif self.args.comm_detail == 'mlp':
             comm = self.msg_encoder(raw_comm.detach()) 
         else:
             print('unknown argument! exit')
