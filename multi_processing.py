@@ -56,6 +56,7 @@ class MultiProcessTrainer(object):
         self.grads = None
         self.worker_grads = None
         self.is_random = args.random
+        self.args = args
 
     def quit(self):
         for comm in self.comms:
@@ -77,9 +78,9 @@ class MultiProcessTrainer(object):
 
     def calcu_entropy(self, comm):
         comm = 0.5*comm*self.args.quant_levels
-        comm = torch.round(comm)
+        comm = np.rint(comm)
         comm = 2*comm/self.args.quant_levels
-        symbol_list = Counter(comm)
+        symbol_list = Counter(comm.flatten())
         symbol_counts = np.array(list(symbol_list.values()))
         symbol_p = symbol_counts/self.args.quant_levels
         entropy = np.sum(symbol_p*np.log(symbol_p))
