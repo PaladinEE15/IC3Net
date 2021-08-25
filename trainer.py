@@ -38,7 +38,7 @@ class Trainer(object):
         info = dict()
         switch_t = -1
 
-        prev_hid = torch.zeros(1, self.args.nagents, self.args.hid_size)
+        prev_hid = torch.zeros(1, self.args.nagents, self.args.hid_size).to(torch.device("cuda"))
 
         for t in range(self.args.max_steps):
             misc = dict()
@@ -140,10 +140,10 @@ class Trainer(object):
         n = self.args.nagents
         batch_size = len(batch.state)
 
-        rewards = torch.Tensor(batch.reward)
-        episode_masks = torch.Tensor(batch.episode_mask)
-        episode_mini_masks = torch.Tensor(batch.episode_mini_mask)
-        actions = torch.Tensor(batch.action)
+        rewards = torch.Tensor(batch.reward).to(torch.device("cuda"))
+        episode_masks = torch.Tensor(batch.episode_mask).to(torch.device("cuda"))
+        episode_mini_masks = torch.Tensor(batch.episode_mini_mask).to(torch.device("cuda"))
+        actions = torch.Tensor(batch.action).to(torch.device("cuda"))
         actions = actions.transpose(1, 2).view(-1, n, dim_actions)
 
         # old_actions = torch.Tensor(np.concatenate(batch.action, 0))
@@ -155,13 +155,13 @@ class Trainer(object):
         action_out = list(zip(*batch.action_out))
         action_out = [torch.cat(a, dim=0) for a in action_out]
 
-        alive_masks = torch.Tensor(np.concatenate([item['alive_mask'] for item in batch.misc])).view(-1)
+        alive_masks = torch.Tensor(np.concatenate([item['alive_mask'] for item in batch.misc])).view(-1).to(torch.device("cuda"))
 
-        coop_returns = torch.Tensor(batch_size, n)
-        ncoop_returns = torch.Tensor(batch_size, n)
-        returns = torch.Tensor(batch_size, n)
-        deltas = torch.Tensor(batch_size, n)
-        advantages = torch.Tensor(batch_size, n)
+        coop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        ncoop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        deltas = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        advantages = torch.Tensor(batch_size, n).to(torch.device("cuda"))
         values = values.view(batch_size, n)
 
         prev_coop_return = 0

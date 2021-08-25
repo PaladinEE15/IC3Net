@@ -27,18 +27,18 @@ def parse_action_args(args):
 def select_action(args, action_out):
     if args.continuous:
         action_mean, _, action_std = action_out
-        action = torch.normal(action_mean, action_std)
+        action = torch.normal(action_mean, action_std).to(torch.device("cuda"))
         return action.detach()
     else:
         log_p_a = action_out
         p_a = [[z.exp() for z in x] for x in log_p_a]
-        ret = torch.stack([torch.stack([torch.multinomial(x, 1).detach() for x in p]) for p in p_a])
+        ret = torch.stack([torch.stack([torch.multinomial(x, 1).cuda().detach() for x in p]) for p in p_a])
         return ret
 
 def translate_action(args, env, action):
     if args.num_actions[0] > 0:
         # environment takes discrete action
-        action = [x.squeeze().data.numpy() for x in action]
+        action = [x.squeeze().cpu().data.numpy() for x in action]
         actual = action
         return action, actual
     else:

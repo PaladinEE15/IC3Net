@@ -20,6 +20,8 @@ torch.utils.backcompat.keepdim_warning.enabled = True
 torch.set_default_tensor_type('torch.DoubleTensor')
 
 parser = argparse.ArgumentParser(description='PyTorch RL trainer')
+
+
 # training
 # note: number of steps per epoch = epoch_size X batch_size x nprocesses
 parser.add_argument('--num_epochs', default=100, type=int,
@@ -219,12 +221,8 @@ def run(num_epochs):
             # save(fname + '_' + str(ep) + '.' + ext)
             save(args.save + '_' + str(ep))
 
-        if args.save != '':
-            save(args.save)
-
 
 if __name__ == '__main__':
-
     if args.ic3net:
         args.commnet = 1
         args.hard_attn = 1
@@ -275,13 +273,13 @@ if __name__ == '__main__':
 
 
     if args.commnet:
-        policy_net = CommNetMLP(args, num_inputs)
+        policy_net = CommNetMLP(args, num_inputs).to(torch.device("cuda"))
     elif args.random:
-        policy_net = Random(args, num_inputs)
+        policy_net = Random(args, num_inputs).to(torch.device("cuda"))
     elif args.recurrent:
-        policy_net = RNN(args, num_inputs)
+        policy_net = RNN(args, num_inputs).to(torch.device("cuda"))
     else:
-        policy_net = MLP(args, num_inputs)
+        policy_net = MLP(args, num_inputs).to(torch.device("cuda"))
 
     if not args.display:
         display_models([policy_net])

@@ -4,7 +4,9 @@ import torch
 import torch.multiprocessing as mp
 from collections import Counter
 
-class MultiProcessWorker(mp.Process):
+ctx = mp.get_context("spawn")
+
+class MultiProcessWorker(ctx.Process):
     # TODO: Make environment init threadsafe
     def __init__(self, id, trainer_maker, comm, seed, *args, **kwargs):
         self.id = id
@@ -49,7 +51,7 @@ class MultiProcessTrainer(object):
         # itself will do the same job as workers
         self.nworkers = args.nprocesses - 1
         for i in range(self.nworkers):
-            comm, comm_remote = mp.Pipe()
+            comm, comm_remote = ctx.Pipe()
             self.comms.append(comm)
             worker = MultiProcessWorker(i, trainer_maker, comm_remote, seed=args.seed)
             worker.start()
@@ -99,7 +101,7 @@ class MultiProcessTrainer(object):
             merge_stat(s, stat)
 
         #calculate entropy here
-        comm_np = comm_info_acc.detach().numpy()    
+        comm_np = comm_info_acc.detach().cpu().numpy()    
         comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
         entropy_set = map(self.calcu_entropy, comm_np_list)
         final_entropy = sum(entropy_set)
@@ -126,7 +128,7 @@ class MultiProcessTrainer(object):
             merge_stat(s, stat)
         
         #calculate entropy here
-        comm_np = comm_info_acc.detach().numpy()    
+        comm_np = comm_info_acc.detach().cpu().numpy()    
         comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
         entropy_set = map(self.calcu_entropy, comm_np_list)
         final_entropy = sum(entropy_set)

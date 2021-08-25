@@ -96,7 +96,7 @@ class GymWrapper(object):
             obs = np.stack(_obs)
 
         obs = obs.reshape(1, -1, self.observation_dim)
-        obs = torch.from_numpy(obs).double()
+        obs = torch.from_numpy(obs).double().to(torch.device("cuda"))
         return obs
 
     def get_stat(self):

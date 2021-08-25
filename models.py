@@ -92,6 +92,6 @@ class RNN(MLP):
 
     def init_hidden(self, batch_size):
         # dim 0 = num of layers * num of direction
-        return tuple(( torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True),
-                       torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True)))
+        return tuple(( torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda")),
+                       torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda"))))
 
