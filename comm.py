@@ -147,9 +147,15 @@ class CommNetMLP(nn.Module):
 
     def generate_comm(self,raw_comm):
         if self.args.comm_detail == 'raw':
-            comm = raw_comm.detach()
+            if self.args.no_input_grad:
+                comm = raw_comm.detach()
+            else:
+                comm = raw_comm
         elif self.args.comm_detail == 'mlp':
-            comm = self.msg_encoder(raw_comm.detach()) 
+            if self.args.no_input_grad:
+                comm = self.msg_encoder(raw_comm.detach())
+            else:
+                comm = self.msg_encoder(raw_comm) 
         else:
             print('unknown argument! exit')
             sys.exit(1)

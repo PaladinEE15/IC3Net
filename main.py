@@ -13,6 +13,7 @@ from utils import *
 from action_utils import parse_action_args
 from trainer import Trainer
 from multi_processing import MultiProcessTrainer
+import os
 
 torch.utils.backcompat.broadcast_warning.enabled = True
 torch.utils.backcompat.keepdim_warning.enabled = True
@@ -123,6 +124,18 @@ parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
                     help='message layer size')
 parser.add_argument('--quant_levels', default=40, type=int,
                     help='quantification levels')
+
+
+# Configs for entropy loss
+parser.add_argument("--loss_detail", type=str, default="raw", choices=["raw", "reward", "emd_loss"], 
+                    help="How to add entropy to the training process. reward: add entropy to the reward. emd_loss: add emd to loss item.")
+parser.add_argument('--loss_alpha', default=0.1, type=float,
+                    help='the weight of entropy loss')
+parser.add_argument('--no_input_grad', default=False, action='store_true', 
+                    help='whether treat encoding input as no-grad. True: no grad. False: grad')
+parser.add_argument("--EMD_rank", type=str, default="one", choices=["one", "two"], 
+                    help="which rank EMD we are using")
+                    
 init_args_for_env(parser)
 args = parser.parse_args()
 
@@ -223,6 +236,7 @@ def run(num_epochs):
 
 
 if __name__ == '__main__':
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
     if args.ic3net:
         args.commnet = 1
         args.hard_attn = 1

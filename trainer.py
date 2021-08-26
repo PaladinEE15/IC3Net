@@ -21,6 +21,7 @@ class Trainer(object):
         self.optimizer = optim.RMSprop(policy_net.parameters(),
             lr = args.lrate, alpha=0.97, eps=1e-6)
         self.params = [p for p in self.policy_net.parameters()]
+        self.mark_reftensor = False #mark whether the reftensor is created
 
 
     def get_episode(self, epoch):
@@ -132,7 +133,7 @@ class Trainer(object):
             merge_stat(self.env.get_stat(), stat)
         return (episode, stat, comm_stat)
 
-    def compute_grad(self, batch):
+    def compute_grad(self, comm_info, batch):
         stat = dict()
         num_actions = self.args.num_actions
         dim_actions = self.args.dim_actions
@@ -168,8 +169,27 @@ class Trainer(object):
         prev_ncoop_return = 0
         prev_value = 0
         prev_advantage = 0
+        
+        if self.args.loss_detail == "emd_loss":
+            #calculate EMD
+            sorted_comm = torch.sort(comm_info,dim=0)
+            if self.mark_reftensor == False:
+                #need to create ref tensor
+                n = sorted_comm.shape[0]
+                l = sorted_comm.shape[1]
+                ref_tensor = (2*torch.arange(0,n)-n)/n
+                self.ref_tensor = ref_tensor.repeat(l,1).t()
+            if self.args.EMD_rank == "one":
+                emd_matrix = torch.abs(sorted_comm - self.ref_tensor)
+                emd_loss = torch.mean(emd_matrix)
+            else:
+                emd_matrix = (sorted_comm - self.ref_tensor)**2
+                emd_loss = torch.mean(emd_matrix)
+        else:
+            emd_loss = 0
 
-        for i in reversed(range(rewards.size(0))):
+
+        for i in reversed(range (rewards.size(0))):
             coop_returns[i] = rewards[i] + self.args.gamma * prev_coop_return * episode_masks[i]
             ncoop_returns[i] = rewards[i] + self.args.gamma * prev_ncoop_return * episode_masks[i] * episode_mini_masks[i]
 
@@ -226,6 +246,7 @@ class Trainer(object):
             if self.args.entr > 0:
                 loss -= self.args.entr * entropy
 
+        loss = loss + emd_loss*self.args.loss_alpha
 
         loss.backward()
 
@@ -278,7 +299,7 @@ class Trainer(object):
         entro_stat = {'entropy':final_entropy}
         merge_stat(entro_stat, stat)
 
-        s = self.compute_grad(batch)
+        s = self.compute_grad(comm_info_acc, batch)
         merge_stat(s, stat)
         for p in self.params:
             if p._grad is not None:

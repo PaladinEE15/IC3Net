@@ -29,12 +29,12 @@ class MultiProcessWorker(ctx.Process):
             elif task == 'run_batch':
                 batch, stat, comm_info = self.trainer.run_batch(epoch)
                 self.trainer.optimizer.zero_grad()
-                s = self.trainer.compute_grad(batch)
+                s = self.trainer.compute_grad(comm_info, batch)
                 merge_stat(s, stat)
-                self.comm.send((stat,comm_info))
+                self.comm.send((stat,comm_info.detach()))
             elif task == 'test_batch':
                 batch, stat, comm_info = self.trainer.run_batch(epoch)
-                self.comm.send((stat,comm_info))
+                self.comm.send((stat,comm_info.detach()))
             elif task == 'send_grads':
                 grads = []
                 for p in self.trainer.params:
@@ -118,7 +118,7 @@ class MultiProcessTrainer(object):
         # run its own trainer
         batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
         self.trainer.optimizer.zero_grad()
-        s = self.trainer.compute_grad(batch)
+        s = self.trainer.compute_grad(comm_info_acc, batch)
         merge_stat(s, stat)
 
         # check if workers are finished
