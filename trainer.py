@@ -63,11 +63,14 @@ class Trainer(object):
                 x = state
                 comm, action_out, value = self.policy_net(x, info)
             
-            if t == 0:
-                #init comm
-                comm_stat = torch.squeeze(comm) 
+            if self.args.calcu_entropy:
+                if t == 0:
+                    #init comm
+                    comm_stat = torch.squeeze(comm) 
+                else:
+                    comm_stat = torch.cat((comm_stat, torch.squeeze(comm)),dim = 0)
             else:
-                comm_stat = torch.cat((comm_stat, torch.squeeze(comm)),dim = 0)
+                comm_stat = torch.zeros(1)
 
 
             action = select_action(self.args, action_out)

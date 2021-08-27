@@ -100,13 +100,14 @@ class MultiProcessTrainer(object):
             comm_info_acc = torch.cat((comm_info_acc, comm_info), dim=0)
             merge_stat(s, stat)
 
-        #calculate entropy here
-        comm_np = comm_info_acc.detach().cpu().numpy()    
-        comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
-        entropy_set = map(self.calcu_entropy, comm_np_list)
-        final_entropy = sum(entropy_set)
-        entro_stat = {'entropy':final_entropy}
-        merge_stat(entro_stat, stat)
+        if self.args.calcu_entropy:
+            #calculate entropy here
+            comm_np = comm_info_acc.detach().cpu().numpy()    
+            comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
+            entropy_set = map(self.calcu_entropy, comm_np_list)
+            final_entropy = sum(entropy_set)
+            entro_stat = {'entropy':final_entropy}
+            merge_stat(entro_stat, stat)
 
         return stat
 
@@ -126,14 +127,15 @@ class MultiProcessTrainer(object):
             s, comm_info = comm.recv()
             comm_info_acc = torch.cat((comm_info_acc, comm_info), dim=0)
             merge_stat(s, stat)
-        
-        #calculate entropy here
-        comm_np = comm_info_acc.detach().cpu().numpy()    
-        comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
-        entropy_set = map(self.calcu_entropy, comm_np_list)
-        final_entropy = sum(entropy_set)
-        entro_stat = {'entropy':final_entropy}
-        merge_stat(entro_stat, stat)
+
+        if self.args.calcu_entropy:
+            #calculate entropy here
+            comm_np = comm_info_acc.detach().cpu().numpy()    
+            comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
+            entropy_set = map(self.calcu_entropy, comm_np_list)
+            final_entropy = sum(entropy_set)
+            entro_stat = {'entropy':final_entropy}
+            merge_stat(entro_stat, stat)
 
         # add gradients of workers
         self.obtain_grad_pointers()

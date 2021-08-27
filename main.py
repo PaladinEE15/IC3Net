@@ -127,6 +127,8 @@ parser.add_argument('--quant_levels', default=40, type=int,
 
 
 # Configs for entropy loss
+parser.add_argument('--calcu_entropy', default=False, action='store_true', 
+                    help='whether calculate entropy. ')
 parser.add_argument("--loss_detail", type=str, default="raw", choices=["raw", "reward", "emd_loss"], 
                     help="How to add entropy to the training process. reward: add entropy to the reward. emd_loss: add emd to loss item.")
 parser.add_argument('--loss_alpha', default=0.1, type=float,
