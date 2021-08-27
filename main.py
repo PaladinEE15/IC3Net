@@ -178,8 +178,8 @@ def test(num_epochs):
         merge_stat(s, stat)
 
     print('avg reward: {}'.format(stat['reward']/total_test_times))
-    if 'entropy' in stat.keys():
-        print('entropy: {}'.format(stat['entropy']))
+    if 'comm_entropy' in stat.keys():
+        print('comm_entropy: {}'.format(stat['comm_entropy']))
     if 'success' in stat.keys():
         print('avg Success: {:.2f}'.format(stat['success']/total_test_times))
 
@@ -210,8 +210,8 @@ def run(num_epochs):
         print('Epoch {}\tReward {}\tTime {:.2f}s'.format(
                 epoch, stat['reward'], epoch_time
         ))
-        if 'entropy' in stat.keys():
-            print('entropy: {}'.format(stat['entropy']))
+        if 'comm_entropy' in stat.keys():
+            print('comm_entropy: {}'.format(stat['comm_entropy']))
         if 'enemy_reward' in stat.keys():
             print('Enemy-Reward: {}'.format(stat['enemy_reward']))
         if 'add_rate' in stat.keys():

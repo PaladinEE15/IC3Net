@@ -241,11 +241,11 @@ class Trainer(object):
 
         if not self.args.continuous:
             # entropy regularization term
-            entropy = 0
-            for i in range(len(log_p_a)):
-                entropy -= (log_p_a[i] * log_p_a[i].exp()).sum()
-            stat['entropy'] = entropy.item()
             if self.args.entr > 0:
+                entropy = 0
+                for i in range(len(log_p_a)):
+                    entropy -= (log_p_a[i] * log_p_a[i].exp()).sum()
+                stat['entropy'] = entropy.item()
                 loss -= self.args.entr * entropy
 
         loss = loss + emd_loss*self.args.loss_alpha
@@ -285,7 +285,7 @@ class Trainer(object):
         comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
         entropy_set = map(self.calcu_entropy, comm_np_list)
         final_entropy = sum(entropy_set)
-        entro_stat = {'entropy':final_entropy}
+        entro_stat = {'comm_entropy':final_entropy}
         merge_stat(entro_stat, stat)
 
         return stat
@@ -298,7 +298,7 @@ class Trainer(object):
         comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
         entropy_set = map(self.calcu_entropy, comm_np_list)
         final_entropy = sum(entropy_set)
-        entro_stat = {'entropy':final_entropy}
+        entro_stat = {'comm_entropy':final_entropy}
         merge_stat(entro_stat, stat)
 
         s = self.compute_grad(comm_info_acc, batch)
