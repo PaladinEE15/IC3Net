@@ -97,9 +97,9 @@ class MultiProcessTrainer(object):
 
         for comm in self.comms:
             comm_stat, steps_taken, success_times = comm.recv()
-            comm_stat_acc = np.concatenate((comm_stat_acc, comm_stat), dim=0)
-            steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), dim=0)
-            success_times_acc =  np.concatenate((success_times_acc,success_times), dim=0)
+            comm_stat_acc = np.concatenate((comm_stat_acc, comm_stat),axis=0)
+            steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), axis=0)
+            success_times_acc =  np.concatenate((success_times_acc,success_times), axis=0)
         
         print('success: ', np.mean(success_times_acc),' std: ', np.std(success_times_acc) )
         print('steps: ', np.mean(steps_taken_acc),' std: ', np.std(steps_taken_acc))

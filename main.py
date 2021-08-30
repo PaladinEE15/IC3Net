@@ -324,27 +324,24 @@ if __name__ == '__main__':
 
     #disp_trainer = Trainer(args, policy_net, data.init(args.env_name, args, False))
     #disp_trainer.display = True
-
+    log = dict()
+    log['epoch'] = LogField(list(), False, None, None)
+    log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
     if args.test_times>0:
         load(args.load)
         trainer.test_batch(args.test_times)
     else:
-        log = dict()
-        log['epoch'] = LogField(list(), False, None, None)
-        log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
-        log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
-        log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
-        log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
-        log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
-        log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
-        log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
-        log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-        log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-        log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
-
         if args.plot:
             vis = visdom.Visdom(env=args.plot_env)
-
         signal.signal(signal.SIGINT, signal_handler)
 
         if args.load != '':
