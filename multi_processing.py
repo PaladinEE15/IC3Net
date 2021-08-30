@@ -33,8 +33,8 @@ class MultiProcessWorker(ctx.Process):
                 merge_stat(s, stat)
                 self.comm.send((stat,comm_info.detach()))
             elif task == 'test_batch':
-                batch, stat, comm_info = self.trainer.run_batch(epoch)
-                self.comm.send((stat,comm_info.detach()))
+                comm_stat, steps_taken, success_times = self.trainer.test(epoch)
+                self.comm.send((comm_stat, steps_taken, success_times))
             elif task == 'send_grads':
                 grads = []
                 for p in self.trainer.params:
@@ -88,28 +88,30 @@ class MultiProcessTrainer(object):
         entropy = np.sum(symbol_p*np.log(symbol_p))
         return entropy
 
-    def test_batch(self,epoch):
+    def test_batch(self,times):
         for comm in self.comms:
-            comm.send(['test_batch', epoch])        
+            comm.send(['test_batch', times])        
 
         # run its own trainer
-        batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
+        comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
 
         for comm in self.comms:
-            s, comm_info = comm.recv()
-            comm_info_acc = torch.cat((comm_info_acc, comm_info), dim=0)
-            merge_stat(s, stat)
+            comm_stat, steps_taken, success_times = comm.recv()
+            comm_stat_acc = np.concatenate((comm_stat_acc, comm_stat), dim=0)
+            steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), dim=0)
+            success_times_acc =  np.concatenate((success_times_acc,success_times), dim=0)
+        
+        print('success: ', np.mean(success_times_acc),' std: ', np.std(success_times_acc) )
+        print('steps: ', np.mean(steps_taken_acc),' std: ', np.std(steps_taken_acc))
 
         if self.args.calcu_entropy:
             #calculate entropy here
-            comm_np = comm_info_acc.detach().cpu().numpy()    
-            comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
+            comm_np_list = np.hsplit(comm_stat_acc,self.args.msg_size) #split matrix for parallelization
             entropy_set = map(self.calcu_entropy, comm_np_list)
             final_entropy = sum(entropy_set)
-            entro_stat = {'comm_entropy':final_entropy}
-            merge_stat(entro_stat, stat)
-
-        return stat
+            print('entropy: ', final_entropy)
+            
+        return
 
     def train_batch(self, epoch):
         # run workers in parallel

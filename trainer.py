@@ -254,6 +254,23 @@ class Trainer(object):
 
         return stat
 
+    def test(self, run_times):
+        steps_taken = []
+        success_times = []
+        for idx in range(run_times):
+            episode, episode_stat, comm_stat = self.get_episode(1000)
+            if idx == 0:
+                comm_stat_acc = comm_stat.detach()
+            else:
+                comm_stat_acc = torch.cat((comm_stat_acc,comm_stat.detach()),dim=0)
+            if self.args.env_name == "traffic_junction":
+                success_times.append(episode_stat['success']/self.args.max_steps) 
+            else:
+                success_times.append(episode_stat['success'])
+            steps_taken.append(episode_stat['steps_taken'])   
+
+        return comm_stat_acc.detach().cpu().numpy(), np.array(steps_taken), np.array(success_times)
+
     def run_batch(self, epoch):
         batch = []
         self.stats = dict()
@@ -277,18 +294,20 @@ class Trainer(object):
 
 
     # only used when nprocesses=1
-    def test_batch(self,epoch):
-        batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
+    def test_batch(self,times):
+        # run its own trainer
+        comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
+        
+        print('success: ', np.mean(success_times_acc),' std: ', np.std(success_times_acc) )
+        print('steps: ', np.mean(steps_taken_acc),' std: ', np.std(steps_taken_acc))
 
-        #calculate entropy here
-        comm_np = comm_info_acc.detach().numpy()    
-        comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
-        entropy_set = map(self.calcu_entropy, comm_np_list)
-        final_entropy = sum(entropy_set)
-        entro_stat = {'comm_entropy':final_entropy}
-        merge_stat(entro_stat, stat)
-
-        return stat
+        if self.args.calcu_entropy:
+            #calculate entropy here
+            comm_np_list = np.hsplit(comm_stat_acc,self.args.msg_size) #split matrix for parallelization
+            entropy_set = map(self.calcu_entropy, comm_np_list)
+            final_entropy = sum(entropy_set)
+            print('entropy: ', final_entropy)
+        return
     # only used when nprocesses=1
     def train_batch(self, epoch):
         batch, stat, comm_info_acc = self.run_batch(epoch)

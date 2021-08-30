@@ -114,8 +114,8 @@ parser.add_argument('--share_weights', default=False, action='store_true',
 # Comm message design details
 parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp"], 
                     help="How to process broadcasting messages")
-parser.add_argument('--test', default=False, action='store_true', 
-                    help='Whether test ')
+parser.add_argument('--test_times', default=0, type=int, 
+                    help='test times')
 parser.add_argument('--test_quant', default=False, action='store_true', 
                     help='Whether test and do quantification')
 parser.add_argument('--msg_size', default=128, type=int,
@@ -168,20 +168,31 @@ def signal_handler(signal, frame):
 
 #def disp():
 #    x = disp_trainer.get_episode()
-
+'''
 def test(num_epochs):
     #running episodes equals to num_epochs*nprocess*batchsize
     stat = dict()
-    total_test_times = args.batch_size*num_epochs*args.nprocesses
-    for n in range(num_epochs):
-        s = trainer.test_batch(n)
-        merge_stat(s, stat)
+    success_set = []
+    steps_set = []
+    entropy_set = []
 
-    print('avg reward: {}'.format(stat['reward']/total_test_times))
+    for n in range(num_epochs):
+        stat = trainer.test_batch(100)
+        if 'comm_entropy' in stat.keys():
+            entropy_set.append(stat['comm_entropy']/(args.batch_size*args.nprocesses))
+        if 'success' in stat.keys():
+            success_set.append(stat['success']/(args.batch_size*args.nprocesses))
+        if 'steps_taken' in stat.keys():
+            steps_set.append(stat['steps_taken']/(args.batch_size*args.nprocesses))
     if 'comm_entropy' in stat.keys():
-        print('comm_entropy: {}'.format(stat['comm_entropy']))
+        print('comm_entropy_mean: ', np.mean(entropy_set),' std: ', np.std(entropy_set))
     if 'success' in stat.keys():
-        print('avg Success: {:.2f}'.format(stat['success']/total_test_times))
+        print('success_mean: ', np.mean(success_set),' std: ', np.std(success_set))
+    if 'steps_taken' in stat.keys():
+        print('steps_taken_mean: ', np.mean(steps_set),' std: ', np.std(steps_set))
+    return
+
+'''
 
 
 def run(num_epochs):
@@ -314,8 +325,9 @@ if __name__ == '__main__':
     #disp_trainer = Trainer(args, policy_net, data.init(args.env_name, args, False))
     #disp_trainer.display = True
 
-    if args.test:
-        test(args.num_epochs)
+    if args.test_times>0:
+        load(args.load)
+        trainer.test_batch(args.test_times)
     else:
         log = dict()
         log['epoch'] = LogField(list(), False, None, None)
