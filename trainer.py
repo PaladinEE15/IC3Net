@@ -260,16 +260,13 @@ class Trainer(object):
         for idx in range(run_times):
             episode, episode_stat, comm_stat = self.get_episode(1000)
             if idx == 0:
-                comm_stat_acc = comm_stat.detach()
+                comm_stat_acc = comm_stat.detach().cpu().numpy()
             else:
-                comm_stat_acc = torch.cat((comm_stat_acc,comm_stat.detach()),dim=0)
-            if self.args.env_name == "traffic_junction":
-                success_times.append(episode_stat['success']/self.args.max_steps) 
-            else:
-                success_times.append(episode_stat['success'])
+                comm_stat_acc = np.concatenate((comm_stat_acc,comm_stat.detach().cpu().numpy()))
+            success_times.append(episode_stat['success'])
             steps_taken.append(episode_stat['steps_taken'])   
 
-        return comm_stat_acc.detach().cpu().numpy(), np.array(steps_taken), np.array(success_times)
+        return comm_stat_acc, np.array(steps_taken), np.array(success_times)
 
     def run_batch(self, epoch):
         batch = []

@@ -211,6 +211,8 @@ def run(num_epochs):
         for k, v in log.items():
             if k == 'epoch':
                 v.data.append(epoch)
+            elif k == 'comm_entropy':
+                stat[k] = stat[k] / (args.epoch_size*args.nprocesses)
             else:
                 if k in stat and v.divide_by is not None and stat[v.divide_by] > 0:
                     stat[k] = stat[k] / stat[v.divide_by]
@@ -336,6 +338,7 @@ if __name__ == '__main__':
     log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
     log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
     log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['comm_entropy'] = LogField(list(), True, 'epoch', None)
     if args.test_times>0:
         load(args.load)
         trainer.test_batch(args.test_times)
