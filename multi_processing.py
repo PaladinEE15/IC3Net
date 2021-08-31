@@ -17,14 +17,13 @@ class MultiProcessWorker(ctx.Process):
         self.args = main_args
 
     def calcu_entropy(self, comm):
-        if self.args.test_quant == False:
-            comm = 0.5*comm*self.args.quant_levels
-            comm = np.rint(comm)
-            comm = 2*comm/self.args.quant_levels
-        symbol_list = Counter(comm.flatten())
-        symbol_counts = np.array(list(symbol_list.values()))
-        symbol_p = symbol_counts/np.sum(symbol_counts)
-        entropy = - np.sum(symbol_p*np.log(symbol_p))
+        comm = (comm+1)*0.5
+        comm = comm*(self.args.quant_levels-1)  
+        calcu_comm = np.rint(comm)      
+        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
+        probs = counts/comm.shape[0]
+        probs[probs==0] = 1 #avoid ln0
+        entropy = np.sum(probs*np.log(probs))
         return entropy
 
 
@@ -44,9 +43,7 @@ class MultiProcessWorker(ctx.Process):
                 if self.args.calcu_entropy:
                     #calculate entropy here
                     comm_np = comm_info.detach().cpu().numpy()    
-                    comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
-                    entropy_set = map(self.calcu_entropy, comm_np_list)
-                    final_entropy = sum(entropy_set)
+                    final_entropy = self.calcu_entropy(comm_np)
                     entro_stat = {'comm_entropy':final_entropy}
                     merge_stat(entro_stat, stat)
                 self.trainer.optimizer.zero_grad()
@@ -57,9 +54,7 @@ class MultiProcessWorker(ctx.Process):
                 comm_stat, steps_taken, success_times = self.trainer.test(epoch)
                 if self.args.calcu_entropy:
                     #calculate entropy here  
-                    comm_np_list = np.hsplit(comm_stat,self.args.msg_size) #split matrix for parallelization
-                    entropy_set = map(self.calcu_entropy, comm_np_list)
-                    final_entropy = sum(entropy_set)    
+                    final_entropy = self.calcu_entropy(comm_stat)    
                 else: 
                     final_entropy = 0    
                 self.comm.send((final_entropy, steps_taken, success_times))
@@ -107,14 +102,13 @@ class MultiProcessTrainer(object):
                 self.worker_grads.append(comm.recv())
 
     def calcu_entropy(self, comm):
-        if self.args.test_quant == False:
-            comm = 0.5*comm*self.args.quant_levels
-            comm = np.rint(comm)
-            comm = 2*comm/self.args.quant_levels
-        symbol_list = Counter(comm.flatten())
-        symbol_counts = np.array(list(symbol_list.values()))
-        symbol_p = symbol_counts/np.sum(symbol_counts)
-        entropy = - np.sum(symbol_p*np.log(symbol_p))
+        comm = (comm+1)*0.5
+        comm = comm*(self.args.quant_levels-1)  
+        calcu_comm = np.rint(comm)      
+        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
+        probs = counts/comm.shape[0]
+        probs[probs==0] = 1 #avoid ln0
+        entropy = np.sum(probs*np.log(probs))
         return entropy
 
     def test_batch(self,times):
@@ -125,9 +119,7 @@ class MultiProcessTrainer(object):
         comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
         if self.args.calcu_entropy:
             #calculate entropy here
-            comm_np_list = np.hsplit(comm_stat_acc,self.args.msg_size) #split matrix for parallelization
-            entropy_set = map(self.calcu_entropy, comm_np_list)
-            final_entropy = sum(entropy_set)  
+            final_entropy = self.calcu_entropy(comm_stat_acc)  
         for comm in self.comms:
             entropy, steps_taken, success_times = comm.recv()
             steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), axis=0)
@@ -154,9 +146,7 @@ class MultiProcessTrainer(object):
         if self.args.calcu_entropy:
             #calculate entropy here
             comm_np = comm_info_acc.detach().cpu().numpy()    
-            comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
-            entropy_set = map(self.calcu_entropy, comm_np_list)
-            final_entropy = sum(entropy_set)   
+            final_entropy = self.calcu_entropy(comm_np)
             entro_stat = {'comm_entropy':final_entropy}
             merge_stat(entro_stat, stat)
         

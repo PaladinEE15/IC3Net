@@ -161,9 +161,11 @@ class CommNetMLP(nn.Module):
             sys.exit(1)
         #the message range is (-1, 1)
         if self.args.test_quant:
-            comm = 0.5*comm*self.args.quant_levels
+            comm = (comm+1)*0.5
+            comm = comm*(self.args.quant_levels-1)
             comm = torch.round(comm)
-            comm = 2*comm/self.args.quant_levels
+            comm = comm/(self.args.quant_levels-1)
+            comm = comm*2-1
         return comm
 
     def forward(self, x, info={}):

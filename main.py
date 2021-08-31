@@ -211,7 +211,7 @@ def run(num_epochs):
         for k, v in log.items():
             if k == 'epoch':
                 v.data.append(epoch)
-            elif k == 'comm_entropy':
+            elif k == 'comm_entropy' and k in stat.keys():
                 stat[k] = stat[k] / (args.epoch_size*args.nprocesses)
             else:
                 if k in stat and v.divide_by is not None and stat[v.divide_by] > 0:
