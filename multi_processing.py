@@ -56,9 +56,8 @@ class MultiProcessWorker(ctx.Process):
             elif task == 'test_batch':
                 comm_stat, steps_taken, success_times = self.trainer.test(epoch)
                 if self.args.calcu_entropy:
-                    #calculate entropy here
-                    comm_np = comm_stat.detach().cpu().numpy()    
-                    comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
+                    #calculate entropy here  
+                    comm_np_list = np.hsplit(comm_stat,self.args.msg_size) #split matrix for parallelization
                     entropy_set = map(self.calcu_entropy, comm_np_list)
                     final_entropy = sum(entropy_set)    
                 else: 
@@ -126,17 +125,16 @@ class MultiProcessTrainer(object):
         comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
         if self.args.calcu_entropy:
             #calculate entropy here
-            comm_np = comm_stat_acc.detach().cpu().numpy()    
-            comm_np_list = np.hsplit(comm_np,self.args.msg_size) #split matrix for parallelization
+            comm_np_list = np.hsplit(comm_stat_acc,self.args.msg_size) #split matrix for parallelization
             entropy_set = map(self.calcu_entropy, comm_np_list)
             final_entropy = sum(entropy_set)  
         for comm in self.comms:
             entropy, steps_taken, success_times = comm.recv()
             steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), axis=0)
-            final_entropy =  np.concatenate((final_entropy,entropy), axis=0)
+            final_entropy =  np.append(final_entropy,entropy)
             success_times_acc =  np.concatenate((success_times_acc,success_times), axis=0)
         
-        print('success: ', np.mean(final_entropy),' std: ', np.std(final_entropy) )
+        print('entropy: ', np.mean(final_entropy),' std: ', np.std(final_entropy) )
         print('success: ', np.mean(success_times_acc),' std: ', np.std(success_times_acc) )
         print('steps: ', np.mean(steps_taken_acc),' std: ', np.std(steps_taken_acc))
            

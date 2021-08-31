@@ -43,18 +43,18 @@ class CommNetMLP(nn.Module):
             self.comm_mask = torch.ones(self.nagents, self.nagents).to(torch.device("cuda")) - torch.eye(self.nagents, self.nagents).to(torch.device("cuda"))
 
         if self.args.comm_detail != 'raw':
-            msg_layers = []
+            self.msg_encoder = nn.Sequential()
             msg_layer_num = len(self.args.msg_hid_layer)
             for i in range(msg_layer_num):
                 if i == 0:
-                    msg_layers.append(nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
-                    msg_layers.append(nn.Relu())
+                    self.msg_encoder.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
+                    self.msg_encoder.add_module('activate1',nn.ReLU())
                 else:
-                    msg_layers.append(nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
-                    msg_layers.append(nn.Relu())
-                msg_layers.append(nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
-                msg_layers.append(nn.tanh())
-            self.msg_encoder = nn.Sequential(msg_layers)
+                    self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
+                    self.msg_encoder.add_module('activate2',nn.ReLU())
+            self.msg_encoder.add_module('fc3',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
+            self.msg_encoder.add_module('activate3',nn.Tanh())
+ 
 
         # Since linear layers in PyTorch now accept * as any number of dimensions
         # between last and first dim, num_agents dimension will be covered.
