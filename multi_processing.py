@@ -23,7 +23,7 @@ class MultiProcessWorker(ctx.Process):
         counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
         probs = counts/comm.shape[0]
         probs[probs==0] = 1 #avoid ln0
-        entropy = np.sum(probs*np.log(probs))
+        entropy = -np.sum(probs*np.log(probs))
         return entropy
 
 
@@ -108,7 +108,7 @@ class MultiProcessTrainer(object):
         counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
         probs = counts/comm.shape[0]
         probs[probs==0] = 1 #avoid ln0
-        entropy = np.sum(probs*np.log(probs))
+        entropy = -np.sum(probs*np.log(probs))
         return entropy
 
     def test_batch(self,times):

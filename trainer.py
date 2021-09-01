@@ -18,7 +18,7 @@ class Trainer(object):
         self.env = env
         self.display = False
         self.last_step = False
-        self.optimizer = optim.Adam(policy_net.parameters(), lr = args.lrate)
+        self.optimizer = optim.RMSprop(policy_net.parameters(), lr = args.lrate, alpha=0.97, eps=1e-6)
         self.params = [p for p in self.policy_net.parameters()]
         self.mark_reftensor = False #mark whether the reftensor is created
 
