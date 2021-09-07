@@ -173,7 +173,8 @@ class Trainer(object):
         prev_advantage = 0
         
         if loss_alpha > 0:
-            #calculate EMD
+            '''
+            #deprecated codes
             sorted_comm, _ = torch.sort(comm_info,dim=0)
             if self.mark_reftensor == False:
                 #need to create ref tensor
@@ -187,6 +188,20 @@ class Trainer(object):
             else:
                 emd_matrix = (sorted_comm - self.ref_tensor)**2
                 emd_loss = torch.mean(emd_matrix)
+            '''
+            #calculate EMD
+            if self.args.comm_detail == 'mlp':
+                ref_info = (comm_info+1)*0.5
+                ref_info = ref_info*(self.args.target_quant_levels-1)  
+                ref_info = torch.round(ref_info).detach()
+                ref_info = ref_info/(self.args.target_quant_levels-1)
+                ref_info = ref_info*2-1
+                emd_matrix = (comm_info-ref_info)**2
+                emd_loss = torch.mean(emd_matrix)
+            else:
+                freq = torch.sum(comm_info, dim=0)/comm_info.shape[0]
+                freq = freq + 1e-20
+                emd_loss = -torch.sum(freq*torch.log(freq))                
         else:
             emd_loss = torch.Tensor([0]).cuda()
 
@@ -248,8 +263,8 @@ class Trainer(object):
                 stat['entropy'] = entropy.item()
                 loss -= self.args.entr * entropy
         stat['other_loss'] = loss.item()
-        stat['emd_loss'] = -emd_loss.item()*loss_alpha
-        loss = loss - emd_loss*loss_alpha #we want to maximize EMD
+        stat['emd_loss'] = emd_loss.item()*loss_alpha
+        loss = loss + emd_loss*loss_alpha #we want to maximize EMD
 
         loss.backward()
 

@@ -5,6 +5,12 @@ import sys
 from models import MLP
 from action_utils import select_action, translate_action
 
+def sample_gumbel(shape, eps=1e-20):
+    U = torch.rand(shape)
+    U = U.cuda()
+    return -torch.log(-torch.log(U + eps) + eps)
+
+
 class CommNetMLP(nn.Module):
     """
     MLP based CommNet. Uses communication vector to communicate info
@@ -54,7 +60,7 @@ class CommNetMLP(nn.Module):
                     self.msg_encoder.add_module('activate2',nn.ReLU())
             self.msg_encoder.add_module('fc3',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
             self.msg_encoder.add_module('activate3',nn.Tanh())
- 
+
 
         # Since linear layers in PyTorch now accept * as any number of dimensions
         # between last and first dim, num_agents dimension will be covered.
@@ -159,11 +165,16 @@ class CommNetMLP(nn.Module):
         else:
             print('unknown argument! exit')
             sys.exit(1)
+        if self.args.comm_detail == 'discrete':
+            comm = comm + sample_gumbel(comm.size())
+            comm = F.softmax(comm,dim=-1)
+            if self.args.test_quant:
+                comm = torch.round(comm).detach()
         #the message range is (-1, 1)
-        if self.args.test_quant:
+        elif self.args.test_quant:
             comm = (comm+1)*0.5
             comm = comm*(self.args.quant_levels-1)
-            comm = torch.round(comm)
+            comm = torch.round(comm).detach()
             comm = comm/(self.args.quant_levels-1)
             comm = comm*2-1
         return comm

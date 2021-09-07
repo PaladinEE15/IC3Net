@@ -6,6 +6,12 @@ from collections import Counter
 
 ctx = mp.get_context("spawn")
 
+def calcu_entropy_onehot(comm):
+    freq = np.sum(comm, axis=0)/comm.shape[0]
+    freq[freq==0] = 1 #avoid ln0
+    entropy = -np.sum(freq*np.log(freq))
+    return entropy
+
 class MultiProcessWorker(ctx.Process):
     # TODO: Make environment init threadsafe
     def __init__(self, id, trainer_maker, comm, main_args, seed, *args, **kwargs):
@@ -26,7 +32,6 @@ class MultiProcessWorker(ctx.Process):
         entropy = -np.sum(probs*np.log(probs))
         return entropy
 
-
     def run(self):
         torch.manual_seed(self.seed + self.id + 1)
         np.random.seed(self.seed + self.id + 1)
@@ -43,7 +48,10 @@ class MultiProcessWorker(ctx.Process):
                 if self.args.calcu_entropy:
                     #calculate entropy here
                     comm_np = comm_info.detach().cpu().numpy()    
-                    final_entropy = self.calcu_entropy(comm_np)
+                    if self.args.comm_detail == 'discrete':
+                        final_entropy = self.calcu_entropy_onehot(comm_np)
+                    else:
+                        final_entropy = self.calcu_entropy(comm_np)
                     entro_stat = {'comm_entropy':final_entropy}
                     merge_stat(entro_stat, stat)
                 self.trainer.optimizer.zero_grad()
@@ -57,7 +65,10 @@ class MultiProcessWorker(ctx.Process):
                 comm_stat, steps_taken, success_times = self.trainer.test(epoch)
                 if self.args.calcu_entropy:
                     #calculate entropy here  
-                    final_entropy = self.calcu_entropy(comm_stat)    
+                    if self.args.comm_detail == 'discrete':
+                        final_entropy = self.calcu_entropy_onehot(comm_stat)
+                    else:
+                        final_entropy = self.calcu_entropy(comm_stat)  
                 else: 
                     final_entropy = 0    
                 self.comm.send((final_entropy, steps_taken, success_times))
@@ -121,8 +132,10 @@ class MultiProcessTrainer(object):
         # run its own trainer
         comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
         if self.args.calcu_entropy:
-            #calculate entropy here
-            final_entropy = self.calcu_entropy(comm_stat_acc)  
+            if self.args.comm_detail == 'discrete':
+                final_entropy = self.calcu_entropy_onehot(comm_stat_acc)
+            else:
+                final_entropy = self.calcu_entropy(comm_stat_acc) 
         for comm in self.comms:
             entropy, steps_taken, success_times = comm.recv()
             steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), axis=0)
@@ -152,7 +165,10 @@ class MultiProcessTrainer(object):
         if self.args.calcu_entropy:
             #calculate entropy here
             comm_np = comm_info_acc.detach().cpu().numpy()    
-            final_entropy = self.calcu_entropy(comm_np)
+            if self.args.comm_detail == 'discrete':
+                final_entropy = self.calcu_entropy_onehot(comm_np)
+            else:
+                final_entropy = self.calcu_entropy(comm_np) 
             entro_stat = {'comm_entropy':final_entropy}
             merge_stat(entro_stat, stat)
         
