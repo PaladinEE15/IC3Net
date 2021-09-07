@@ -125,13 +125,17 @@ parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
 parser.add_argument('--quant_levels', default=40, type=int,
                     help='quantification levels')
 
-
+# set GPU
+parser.add_argument('--GPU', default=0, type=int, 
+                    help='run on which GPU')
 # Configs for entropy loss
 parser.add_argument('--calcu_entropy', default=False, action='store_true', 
                     help='whether calculate entropy. ')
-parser.add_argument("--loss_detail", type=str, default="raw", choices=["raw", "reward", "emd_loss"], 
-                    help="How to add entropy to the training process. reward: add entropy to the reward. emd_loss: add emd to loss item.")
-parser.add_argument('--loss_alpha', default=0.1, type=float,
+parser.add_argument('--no_mask', default=False, action='store_true', 
+                    help='when calculating entropy, whether consider mask')
+parser.add_argument('--loss_start', default=0, type=int, 
+                    help='which epoch starts EMD loss calculate')
+parser.add_argument('--loss_alpha', default=0, type=float,
                     help='the weight of entropy loss')
 parser.add_argument('--no_input_grad', default=False, action='store_true', 
                     help='whether treat encoding input as no-grad. True: no grad. False: grad')
@@ -251,7 +255,7 @@ def run(num_epochs):
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
     if args.ic3net:
         args.commnet = 1
         args.hard_attn = 1

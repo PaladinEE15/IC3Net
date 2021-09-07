@@ -222,7 +222,10 @@ class CommNetMLP(nn.Module):
 
             broad_comm = self.generate_comm(raw_comm)
             comm = broad_comm
-            broad_comm = broad_comm * record_mask
+            if self.args.no_mask:
+                broad_comm = broad_comm
+            else:
+                broad_comm = broad_comm * record_mask
             # Get the next communication vector based on next hidden state
             comm = comm.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
 

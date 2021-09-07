@@ -135,7 +135,7 @@ class Trainer(object):
             merge_stat(self.env.get_stat(), stat)
         return (episode, stat, comm_stat)
 
-    def compute_grad(self, comm_info, batch):
+    def compute_grad(self, comm_info, batch, loss_alpha):
         stat = dict()
         num_actions = self.args.num_actions
         dim_actions = self.args.dim_actions
@@ -172,15 +172,15 @@ class Trainer(object):
         prev_value = 0
         prev_advantage = 0
         
-        if self.args.loss_detail == "emd_loss":
+        if loss_alpha > 0:
             #calculate EMD
-            sorted_comm = torch.sort(comm_info,dim=0)
+            sorted_comm, _ = torch.sort(comm_info,dim=0)
             if self.mark_reftensor == False:
                 #need to create ref tensor
                 n = sorted_comm.shape[0]
                 l = sorted_comm.shape[1]
                 ref_tensor = (2*torch.arange(0,n)-n)/n
-                self.ref_tensor = ref_tensor.repeat(l,1).t()
+                self.ref_tensor = ref_tensor.repeat(l,1).t().cuda()
             if self.args.EMD_rank == "one":
                 emd_matrix = torch.abs(sorted_comm - self.ref_tensor)
                 emd_loss = torch.mean(emd_matrix)
@@ -248,7 +248,7 @@ class Trainer(object):
                 stat['entropy'] = entropy.item()
                 loss -= self.args.entr * entropy
 
-        loss = loss + emd_loss*self.args.loss_alpha
+        loss = loss - emd_loss*loss_alpha #we want to maximize EMD
 
         loss.backward()
 
