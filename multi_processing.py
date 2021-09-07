@@ -143,7 +143,10 @@ class MultiProcessTrainer(object):
         # run its own trainer
         batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
         self.trainer.optimizer.zero_grad()
-        s = self.trainer.compute_grad(comm_info_acc, batch)
+        if epoch>self.args.loss_start:
+            s = self.trainer.compute_grad(comm_info_acc, batch, self.args.loss_alpha)
+        else:
+            s = self.trainer.compute_grad(comm_info_acc, batch, 0)
         merge_stat(s, stat)
 
         if self.args.calcu_entropy:

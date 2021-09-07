@@ -188,9 +188,9 @@ class Trainer(object):
                 emd_matrix = (sorted_comm - self.ref_tensor)**2
                 emd_loss = torch.mean(emd_matrix)
         else:
-            emd_loss = 0
+            emd_loss = torch.Tensor([0]).cuda()
 
-
+        
         for i in reversed(range (rewards.size(0))):
             coop_returns[i] = rewards[i] + self.args.gamma * prev_coop_return * episode_masks[i]
             ncoop_returns[i] = rewards[i] + self.args.gamma * prev_ncoop_return * episode_masks[i] * episode_mini_masks[i]
@@ -247,7 +247,8 @@ class Trainer(object):
                     entropy -= (log_p_a[i] * log_p_a[i].exp()).sum()
                 stat['entropy'] = entropy.item()
                 loss -= self.args.entr * entropy
-
+        stat['other_loss'] = loss.item()
+        stat['emd_loss'] = -emd_loss.item()*loss_alpha
         loss = loss - emd_loss*loss_alpha #we want to maximize EMD
 
         loss.backward()

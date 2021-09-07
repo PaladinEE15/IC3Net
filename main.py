@@ -241,6 +241,10 @@ def run(num_epochs):
             print('Comm-Action: {}'.format(stat['comm_action']))
         if 'enemy_comm' in stat.keys():
             print('Enemy-Comm: {}'.format(stat['enemy_comm']))
+        if 'emd_loss' in stat.keys():
+            print('Emd_loss: {}'.format(stat['emd_loss']))
+        if 'other_loss' in stat.keys():
+            print('other_loss: {}'.format(stat['other_loss']))
 
         if args.plot:
             for k, v in log.items():
@@ -341,6 +345,8 @@ if __name__ == '__main__':
     log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
     log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
     log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['emd_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['other_loss'] = LogField(list(), True, 'epoch', 'num_steps')
     log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
     log['comm_entropy'] = LogField(list(), True, 'epoch', None)
     if args.test_times>0:
@@ -353,6 +359,7 @@ if __name__ == '__main__':
 
         if args.load != '':
             load(args.load)
+            print('loading successful!')
 
         run(args.num_epochs)
         if args.display:
