@@ -59,7 +59,10 @@ class CommNetMLP(nn.Module):
                     self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
                     self.msg_encoder.add_module('activate2',nn.ReLU())
             self.msg_encoder.add_module('fc3',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
-            self.msg_encoder.add_module('activate3',nn.Tanh())
+            if self.args.comm_detail !='binary':
+                self.msg_encoder.add_module('activate3',nn.Tanh())
+            else:
+                self.msg_encoder.add_module('activate3',nn.Sigmoid())
 
 
         # Since linear layers in PyTorch now accept * as any number of dimensions
@@ -157,14 +160,11 @@ class CommNetMLP(nn.Module):
                 comm = raw_comm.detach()
             else:
                 comm = raw_comm
-        elif self.args.comm_detail == 'mlp':
+        else :
             if self.args.no_input_grad:
                 comm = self.msg_encoder(raw_comm.detach())
             else:
                 comm = self.msg_encoder(raw_comm) 
-        else:
-            print('unknown argument! exit')
-            sys.exit(1)
         if self.args.comm_detail == 'discrete':
             comm = comm + sample_gumbel(comm.size())
             comm = F.softmax(comm,dim=-1)
@@ -172,11 +172,14 @@ class CommNetMLP(nn.Module):
                 comm = torch.round(comm).detach()
         #the message range is (-1, 1)
         elif self.args.test_quant:
-            comm = (comm+1)*0.5
-            comm = comm*(self.args.quant_levels-1)
-            comm = torch.round(comm).detach()
-            comm = comm/(self.args.quant_levels-1)
-            comm = comm*2-1
+            if self.args.comm_detail == 'binary':
+                comm = torch.round(comm).detach()
+            else:
+                comm = (comm+1)*0.5
+                comm = comm*(self.args.quant_levels-1)
+                comm = torch.round(comm).detach()
+                comm = comm/(self.args.quant_levels-1)
+                comm = comm*2-1
         return comm
 
     def forward(self, x, info={}):

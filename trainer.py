@@ -10,7 +10,6 @@ from action_utils import *
 Transition = namedtuple('Transition', ('state', 'action', 'action_out', 'value', 'episode_mask', 'episode_mini_mask', 'next_state',
                                        'reward', 'misc'))
 
-
 class Trainer(object):
     def __init__(self, args, policy_net, env):
         self.args = args
@@ -135,6 +134,9 @@ class Trainer(object):
             merge_stat(self.env.get_stat(), stat)
         return (episode, stat, comm_stat)
 
+
+
+
     def compute_grad(self, comm_info, batch, loss_alpha):
         stat = dict()
         num_actions = self.args.num_actions
@@ -198,6 +200,19 @@ class Trainer(object):
                 ref_info = ref_info*2-1
                 emd_matrix = (comm_info-ref_info)**2
                 emd_loss = torch.mean(emd_matrix)
+            elif self.args.comm_detail == 'triangle':
+                ref_info = (comm_info+1)*0.5
+                ref_info = ref_info*(self.args.quant_levels-1) 
+                emd_loss = 0
+                for target in range(self.args.quant_levels):
+                    targetmat = torch.min(nn.functional.relu(ref_info-target+1), nn.functional.relu(-ref_info+target+1))
+                    freq = torch.mean(targetmat,dim=0)+1e-20
+                    freq = -freq*torch.log(freq)
+                    emd_loss += torch.mean(freq)
+            elif self.args.comm_detail == 'binary':
+                freq = torch.mean(comm_info, dim=0)
+                entropy_set = -(freq+1e-20)*torch.log(freq+1e-20) -(1-freq+1e-20)*torch.log(1-freq+1e-20)
+                emd_loss = torch.mean(entropy_set)
             else:
                 freq = torch.sum(comm_info, dim=0)/comm_info.shape[0]
                 freq = freq + 1e-20

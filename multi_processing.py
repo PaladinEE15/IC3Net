@@ -12,6 +12,14 @@ def calcu_entropy_onehot(comm):
     entropy = -np.sum(freq*np.log(freq))
     return entropy
 
+def calcu_entropy_binary(comm):
+    comm = np.rint(comm)
+    freq = np.mean(comm, axis=0)
+    entropy_set = -(freq+1e-20)*np.log(freq+1e-20) -(1-freq+1e-20)*np.log(1-freq+1e-20)
+    entropy = np.sum(entropy_set)
+    return entropy
+
+
 class MultiProcessWorker(ctx.Process):
     # TODO: Make environment init threadsafe
     def __init__(self, id, trainer_maker, comm, main_args, seed, *args, **kwargs):
@@ -49,13 +57,15 @@ class MultiProcessWorker(ctx.Process):
                     #calculate entropy here
                     comm_np = comm_info.detach().cpu().numpy()    
                     if self.args.comm_detail == 'discrete':
-                        final_entropy = self.calcu_entropy_onehot(comm_np)
+                        final_entropy = calcu_entropy_onehot(comm_np)
+                    elif self.args.comm_detail == 'binary':
+                        final_entropy = calcu_entropy_binary(comm_np)
                     else:
                         final_entropy = self.calcu_entropy(comm_np)
                     entro_stat = {'comm_entropy':final_entropy}
                     merge_stat(entro_stat, stat)
                 self.trainer.optimizer.zero_grad()
-                if epoch>self.args.loss_start:
+                if epoch>=self.args.loss_start:
                     s = self.trainer.compute_grad(comm_info, batch, self.args.loss_alpha)
                 else:
                     s = self.trainer.compute_grad(comm_info, batch, 0)
@@ -66,7 +76,9 @@ class MultiProcessWorker(ctx.Process):
                 if self.args.calcu_entropy:
                     #calculate entropy here  
                     if self.args.comm_detail == 'discrete':
-                        final_entropy = self.calcu_entropy_onehot(comm_stat)
+                        final_entropy = calcu_entropy_onehot(comm_stat)
+                    elif self.args.comm_detail == 'binary':
+                        final_entropy = calcu_entropy_binary(comm_stat)
                     else:
                         final_entropy = self.calcu_entropy(comm_stat)  
                 else: 
@@ -133,7 +145,9 @@ class MultiProcessTrainer(object):
         comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
         if self.args.calcu_entropy:
             if self.args.comm_detail == 'discrete':
-                final_entropy = self.calcu_entropy_onehot(comm_stat_acc)
+                final_entropy = calcu_entropy_onehot(comm_stat_acc)
+            elif self.args.comm_detail == 'binary':
+                final_entropy = calcu_entropy_binary(comm_stat_acc)
             else:
                 final_entropy = self.calcu_entropy(comm_stat_acc) 
         for comm in self.comms:
@@ -156,7 +170,7 @@ class MultiProcessTrainer(object):
         # run its own trainer
         batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
         self.trainer.optimizer.zero_grad()
-        if epoch>self.args.loss_start:
+        if epoch>=self.args.loss_start:
             s = self.trainer.compute_grad(comm_info_acc, batch, self.args.loss_alpha)
         else:
             s = self.trainer.compute_grad(comm_info_acc, batch, 0)
@@ -166,7 +180,9 @@ class MultiProcessTrainer(object):
             #calculate entropy here
             comm_np = comm_info_acc.detach().cpu().numpy()    
             if self.args.comm_detail == 'discrete':
-                final_entropy = self.calcu_entropy_onehot(comm_np)
+                final_entropy = calcu_entropy_onehot(comm_np)
+            elif self.args.comm_detail == 'binary':
+                final_entropy = calcu_entropy_binary(comm_np)
             else:
                 final_entropy = self.calcu_entropy(comm_np) 
             entro_stat = {'comm_entropy':final_entropy}
