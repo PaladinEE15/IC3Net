@@ -135,7 +135,7 @@ def signal_handler(signal, frame):
 def disp():
     x = disp_trainer.get_episode()
 
- def run(num_epochs):
+def run(num_epochs):
     for ep in range(num_epochs):
         epoch_begin_time = time.time()
         stat = dict()
@@ -189,7 +189,7 @@ def disp():
         if args.save != '':
             save(args.save)
 if __name__ == '__main__':
-+    if args.ic3net:
+    if args.ic3net:
         args.commnet = 1
         args.hard_attn = 1
         args.mean_ratio = 0
