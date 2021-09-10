@@ -112,98 +112,30 @@ parser.add_argument('--share_weights', default=False, action='store_true',
 init_args_for_env(parser)
 args = parser.parse_args()
 
-if args.ic3net:
-    args.commnet = 1
-    args.hard_attn = 1
-    args.mean_ratio = 0
+def save(path):
+    d = dict()
+    d['policy_net'] = policy_net.state_dict()
+    d['log'] = log
+    d['trainer'] = trainer.state_dict()
+    torch.save(d, path)
 
-    # For TJ set comm action to 1 as specified in paper to showcase
-    # importance of individual rewards even in cooperative games
-    if args.env_name == "traffic_junction":
-        args.comm_action_one = True
-# Enemy comm
-args.nfriendly = args.nagents
-if hasattr(args, 'enemy_comm') and args.enemy_comm:
-    if hasattr(args, 'nenemies'):
-        args.nagents += args.nenemies
-    else:
-        raise RuntimeError("Env. needs to pass argument 'nenemy'.")
+def load(path):
+    d = torch.load(path)
+    # log.clear()
+    policy_net.load_state_dict(d['policy_net'])
+    log.update(d['log'])
+    trainer.load_state_dict(d['trainer'])
 
-env = data.init(args.env_name, args, False)
+def signal_handler(signal, frame):
+        print('You pressed Ctrl+C! Exiting gracefully.')
+        if args.display:
+            env.end_display()
+        sys.exit(0)
 
-num_inputs = env.observation_dim
-args.num_actions = env.num_actions
-
-# Multi-action
-if not isinstance(args.num_actions, (list, tuple)): # single action case
-    args.num_actions = [args.num_actions]
-args.dim_actions = env.dim_actions
-args.num_inputs = num_inputs
-
-# Hard attention
-if args.hard_attn and args.commnet:
-    # add comm_action as last dim in actions
-    args.num_actions = [*args.num_actions, 2]
-    args.dim_actions = env.dim_actions + 1
-
-# Recurrence
-if args.commnet and (args.recurrent or args.rnn_type == 'LSTM'):
-    args.recurrent = True
-    args.rnn_type = 'LSTM'
-
-
-parse_action_args(args)
-
-if args.seed == -1:
-    args.seed = np.random.randint(0,10000)
-torch.manual_seed(args.seed)
-
-print(args)
-
-
-if args.commnet:
-    policy_net = CommNetMLP(args, num_inputs)
-elif args.random:
-    policy_net = Random(args, num_inputs)
-elif args.recurrent:
-    policy_net = RNN(args, num_inputs)
-else:
-    policy_net = MLP(args, num_inputs)
-
-if not args.display:
-    display_models([policy_net])
-
-# share parameters among threads, but not gradients
-for p in policy_net.parameters():
-    p.data.share_memory_()
-
-if args.nprocesses > 1:
-    trainer = MultiProcessTrainer(args, lambda: Trainer(args, policy_net, data.init(args.env_name, args)))
-else:
-    trainer = Trainer(args, policy_net, data.init(args.env_name, args))
-
-disp_trainer = Trainer(args, policy_net, data.init(args.env_name, args, False))
-disp_trainer.display = True
 def disp():
     x = disp_trainer.get_episode()
 
-log = dict()
-log['epoch'] = LogField(list(), False, None, None)
-log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
-log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
-log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
-log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
-log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
-log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
-log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
-log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
-
-if args.plot:
-    vis = visdom.Visdom(env=args.plot_env)
-
-def run(num_epochs):
+ def run(num_epochs):
     for ep in range(num_epochs):
         epoch_begin_time = time.time()
         stat = dict()
@@ -256,40 +188,107 @@ def run(num_epochs):
 
         if args.save != '':
             save(args.save)
+if __name__ == '__main__':
++    if args.ic3net:
+        args.commnet = 1
+        args.hard_attn = 1
+        args.mean_ratio = 0
 
-def save(path):
-    d = dict()
-    d['policy_net'] = policy_net.state_dict()
-    d['log'] = log
-    d['trainer'] = trainer.state_dict()
-    torch.save(d, path)
+        # For TJ set comm action to 1 as specified in paper to showcase
+        # importance of individual rewards even in cooperative games
+        if args.env_name == "traffic_junction":
+            args.comm_action_one = True
+    # Enemy comm
+    args.nfriendly = args.nagents
+    if hasattr(args, 'enemy_comm') and args.enemy_comm:
+        if hasattr(args, 'nenemies'):
+            args.nagents += args.nenemies
+        else:
+            raise RuntimeError("Env. needs to pass argument 'nenemy'.")
 
-def load(path):
-    d = torch.load(path)
-    # log.clear()
-    policy_net.load_state_dict(d['policy_net'])
-    log.update(d['log'])
-    trainer.load_state_dict(d['trainer'])
+    env = data.init(args.env_name, args, False)
 
-def signal_handler(signal, frame):
-        print('You pressed Ctrl+C! Exiting gracefully.')
-        if args.display:
-            env.end_display()
-        sys.exit(0)
+    num_inputs = env.observation_dim
+    args.num_actions = env.num_actions
 
-signal.signal(signal.SIGINT, signal_handler)
+    # Multi-action
+    if not isinstance(args.num_actions, (list, tuple)): # single action case
+        args.num_actions = [args.num_actions]
+    args.dim_actions = env.dim_actions
+    args.num_inputs = num_inputs
 
-if args.load != '':
-    load(args.load)
+    # Hard attention
+    if args.hard_attn and args.commnet:
+        # add comm_action as last dim in actions
+        args.num_actions = [*args.num_actions, 2]
+        args.dim_actions = env.dim_actions + 1
 
-run(args.num_epochs)
-if args.display:
-    env.end_display()
+    # Recurrence
+    if args.commnet and (args.recurrent or args.rnn_type == 'LSTM'):
+        args.recurrent = True
+        args.rnn_type = 'LSTM'
 
-if args.save != '':
-    save(args.save)
 
-if sys.flags.interactive == 0 and args.nprocesses > 1:
-    trainer.quit()
-    import os
-    os._exit(0)
+    parse_action_args(args)
+
+    if args.seed == -1:
+        args.seed = np.random.randint(0,10000)
+    torch.manual_seed(args.seed)
+
+    print(args)
+
+
+    if args.commnet:
+        policy_net = CommNetMLP(args, num_inputs)
+    elif args.random:
+        policy_net = Random(args, num_inputs)
+    elif args.recurrent:
+        policy_net = RNN(args, num_inputs)
+    else:
+        policy_net = MLP(args, num_inputs)
+
+    if not args.display:
+        display_models([policy_net])
+
+    # share parameters among threads, but not gradients
+    policy_net.share_memory()
+    '''
+    for p in policy_net.parameters():
+        p.data.share_memory_()
+    '''
+    if args.nprocesses > 1:
+        trainer = MultiProcessTrainer(args, lambda: Trainer(args, policy_net, data.init(args.env_name, args)))
+    else:
+        trainer = Trainer(args, policy_net, data.init(args.env_name, args))
+
+    disp_trainer = Trainer(args, policy_net, data.init(args.env_name, args, False))
+    disp_trainer.display = True
+
+
+    log = dict()
+    log['epoch'] = LogField(list(), False, None, None)
+    log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
+
+    if args.plot:
+        vis = visdom.Visdom(env=args.plot_env)
+    signal.signal(signal.SIGINT, signal_handler)
+    if args.load != '':
+        load(args.load)
+    run(args.num_epochs)
+    if args.display:
+        env.end_display()
+    if args.save != '':
+        save(args.save)
+    if sys.flags.interactive == 0 and args.nprocesses > 1:
+        trainer.quit()
+        import os
+        os._exit(0)
