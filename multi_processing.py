@@ -137,6 +137,16 @@ class MultiProcessTrainer(object):
         entropy = -np.sum(probs*np.log(probs))
         return entropy
 
+    def show_distribution(self, comm):
+        comm = (comm+1)*0.5
+        comm = comm*(self.args.quant_levels-1)  
+        calcu_comm = np.rint(comm)      
+        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
+        probs = counts/comm.shape[0]
+        print('output distribution: ', probs)
+        return
+
+
     def test_batch(self,times):
         for comm in self.comms:
             comm.send(['test_batch', times])        
@@ -150,6 +160,7 @@ class MultiProcessTrainer(object):
                 final_entropy = calcu_entropy_binary(comm_stat_acc)
             else:
                 final_entropy = self.calcu_entropy(comm_stat_acc) 
+                self.show_distribution(comm_stat_acc)
         for comm in self.comms:
             entropy, steps_taken, success_times = comm.recv()
             steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), axis=0)

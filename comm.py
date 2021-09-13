@@ -5,10 +5,10 @@ import sys
 from models import MLP
 from action_utils import select_action, translate_action
 
-def sample_gumbel(shape, eps=1e-20):
+def sample_gumbel(shape):
     U = torch.rand(shape)
     U = U.cuda()
-    return -torch.log(-torch.log(U + eps) + eps)
+    return -torch.log(-torch.log(U))
 
 
 class CommNetMLP(nn.Module):
@@ -63,6 +63,9 @@ class CommNetMLP(nn.Module):
                 self.msg_encoder.add_module('activate3',nn.Tanh())
             else:
                 self.msg_encoder.add_module('activate3',nn.Sigmoid())
+
+
+
 
 
         # Since linear layers in PyTorch now accept * as any number of dimensions
@@ -170,16 +173,22 @@ class CommNetMLP(nn.Module):
             comm = F.softmax(comm,dim=-1)
             if self.args.test_quant:
                 comm = torch.round(comm).detach()
+        elif self.args.comm_detail == 'binary':
+            U = torch.rand(2, self.args.msg_size).cuda()
+            noise_0 = -torch.log(-torch.log(U[0,:]))
+            noise_1 = -torch.log(-torch.log(U[1,:]))
+            comm_0 = torch.exp((torch.log(comm)+noise_0)/self.args.gumbel_gamma)
+            comm_1 = torch.exp((torch.log(comm)+noise_1)/self.args.gumbel_gamma)
+            comm = comm_1/(comm_0+comm_1)
+            if self.args.test_quant:
+                comm = torch.round(comm).detach()
         #the message range is (-1, 1)
         elif self.args.test_quant:
-            if self.args.comm_detail == 'binary':
-                comm = torch.round(comm).detach()
-            else:
-                comm = (comm+1)*0.5
-                comm = comm*(self.args.quant_levels-1)
-                comm = torch.round(comm).detach()
-                comm = comm/(self.args.quant_levels-1)
-                comm = comm*2-1
+            comm = (comm+1)*0.5
+            comm = comm*(self.args.quant_levels-1)
+            comm = torch.round(comm).detach()
+            comm = comm/(self.args.quant_levels-1)
+            comm = comm*2-1
         return comm
 
     def forward(self, x, info={}):

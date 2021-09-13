@@ -143,6 +143,9 @@ parser.add_argument('--no_input_grad', default=False, action='store_true',
                     help='whether treat encoding input as no-grad. True: no grad. False: grad')
 parser.add_argument("--EMD_rank", type=str, default="one", choices=["one", "two"], 
                     help="which rank EMD we are using")
+# Configs for gumbel-softmax
+parser.add_argument('--gumbel_gamma', default=1, type=float,
+                    help='gamma of gumbel-softmax')
                     
 init_args_for_env(parser)
 args = parser.parse_args()
