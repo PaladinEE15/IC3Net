@@ -122,7 +122,7 @@ parser.add_argument('--msg_size', default=128, type=int,
                     help='message size')
 parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
                     help='message layer size')
-parser.add_argument('--quant_levels', default=40, type=int,
+parser.add_argument('--quant_levels', default=17, type=int,
                     help='quantification levels')                 
 
 # set GPU
