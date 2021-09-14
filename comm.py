@@ -5,12 +5,6 @@ import sys
 from models import MLP
 from action_utils import select_action, translate_action
 
-def sample_gumbel(shape):
-    U = torch.rand(shape)
-    U = U.cuda()
-    return -torch.log(-torch.log(U))
-
-
 class CommNetMLP(nn.Module):
     """
     MLP based CommNet. Uses communication vector to communicate info
@@ -159,21 +153,10 @@ class CommNetMLP(nn.Module):
 
     def generate_comm(self,raw_comm):
         if self.args.comm_detail == 'raw':
-            if self.args.no_input_grad:
-                comm = raw_comm.detach()
-            else:
-                comm = raw_comm
+            comm = raw_comm
         else :
-            if self.args.no_input_grad:
-                comm = self.msg_encoder(raw_comm.detach())
-            else:
-                comm = self.msg_encoder(raw_comm) 
-        if self.args.comm_detail == 'discrete':
-            comm = comm + sample_gumbel(comm.size())
-            comm = F.softmax(comm,dim=-1)
-            if self.args.test_quant:
-                comm = torch.round(comm).detach()
-        elif self.args.comm_detail == 'binary':
+            comm = self.msg_encoder(raw_comm) 
+        if self.args.comm_detail == 'binary':
             U = torch.rand(2, self.args.msg_size).cuda()
             noise_0 = -torch.log(-torch.log(U[0,:]))
             noise_1 = -torch.log(-torch.log(U[1,:]))
@@ -243,11 +226,12 @@ class CommNetMLP(nn.Module):
             # Choose current or prev depending on recurrent
             raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
 
-            broad_comm = self.generate_comm(raw_comm)
-            comm = broad_comm
-            if self.args.no_mask:
-                broad_comm = broad_comm
+            comm = self.generate_comm(raw_comm)
+            if self.args.no_input_grad:
+                broad_comm = self.generate_comm(raw_comm.detach())
             else:
+                broad_comm = comm
+            if self.args.no_mask == False:
                 broad_comm = broad_comm * record_mask
             # Get the next communication vector based on next hidden state
             comm = comm.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)

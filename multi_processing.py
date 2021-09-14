@@ -56,9 +56,7 @@ class MultiProcessWorker(ctx.Process):
                 if self.args.calcu_entropy:
                     #calculate entropy here
                     comm_np = comm_info.detach().cpu().numpy()    
-                    if self.args.comm_detail == 'discrete':
-                        final_entropy = calcu_entropy_onehot(comm_np)
-                    elif self.args.comm_detail == 'binary':
+                    if self.args.comm_detail == 'binary':
                         final_entropy = calcu_entropy_binary(comm_np)
                     else:
                         final_entropy = self.calcu_entropy(comm_np)
@@ -154,9 +152,7 @@ class MultiProcessTrainer(object):
         # run its own trainer
         comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
         if self.args.calcu_entropy:
-            if self.args.comm_detail == 'discrete':
-                final_entropy = calcu_entropy_onehot(comm_stat_acc)
-            elif self.args.comm_detail == 'binary':
+            if self.args.comm_detail == 'binary':
                 final_entropy = calcu_entropy_binary(comm_stat_acc)
             else:
                 final_entropy = self.calcu_entropy(comm_stat_acc) 

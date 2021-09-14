@@ -112,7 +112,7 @@ parser.add_argument('--share_weights', default=False, action='store_true',
                     help='Share weights for hops')
 
 # Comm message design details
-parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "discrete", "triangle", "binary"], 
+parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "binary"], 
                     help="How to process broadcasting messages")
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')
@@ -136,13 +136,11 @@ parser.add_argument('--calcu_entropy', default=False, action='store_true',
 parser.add_argument('--no_mask', default=False, action='store_true', 
                     help='when calculating entropy, whether consider mask')
 parser.add_argument('--loss_start', default=0, type=int, 
-                    help='which epoch starts EMD loss calculate')
+                    help='which epoch starts comm_entro loss calculate')
 parser.add_argument('--loss_alpha', default=0, type=float,
                     help='the weight of entropy loss')
 parser.add_argument('--no_input_grad', default=False, action='store_true', 
                     help='whether treat encoding input as no-grad. True: no grad. False: grad')
-parser.add_argument("--EMD_rank", type=str, default="one", choices=["one", "two"], 
-                    help="which rank EMD we are using")
 # Configs for gumbel-softmax
 parser.add_argument('--gumbel_gamma', default=1, type=float,
                     help='gamma of gumbel-softmax')
@@ -246,8 +244,8 @@ def run(num_epochs):
             print('Comm-Action: {}'.format(stat['comm_action']))
         if 'enemy_comm' in stat.keys():
             print('Enemy-Comm: {}'.format(stat['enemy_comm']))
-        if 'emd_loss' in stat.keys():
-            print('Emd_loss: {}'.format(stat['emd_loss']))
+        if 'comm_entro_loss' in stat.keys():
+            print('comm_entro_loss: {}'.format(stat['comm_entro_loss']))
         if 'other_loss' in stat.keys():
             print('other_loss: {}'.format(stat['other_loss']))
 
@@ -350,7 +348,7 @@ if __name__ == '__main__':
     log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
     log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
     log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['emd_loss'] = LogField(list(), True, 'epoch', 'num_steps')
+    log['comm_entro_loss'] = LogField(list(), True, 'epoch', 'num_steps')
     log['other_loss'] = LogField(list(), True, 'epoch', 'num_steps')
     log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
     log['comm_entropy'] = LogField(list(), True, 'epoch', None)

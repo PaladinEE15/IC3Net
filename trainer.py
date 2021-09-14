@@ -17,7 +17,8 @@ class Trainer(object):
         self.env = env
         self.display = False
         self.last_step = False
-        self.optimizer = optim.RMSprop(policy_net.parameters(), lr = args.lrate, alpha=0.97, eps=1e-6)
+        #self.optimizer = optim.RMSprop(policy_net.parameters(), lr = args.lrate, alpha=0.97, eps=1e-6)
+        self.optimizer = optim.Adam(policy_net.parameters(),lr=args.lrate)
         self.params = [p for p in self.policy_net.parameters()]
         self.mark_reftensor = False #mark whether the reftensor is created
 
@@ -175,50 +176,33 @@ class Trainer(object):
         prev_advantage = 0
         
         if loss_alpha > 0:
-            '''
-            #deprecated codes
-            sorted_comm, _ = torch.sort(comm_info,dim=0)
-            if self.mark_reftensor == False:
-                #need to create ref tensor
-                n = sorted_comm.shape[0]
-                l = sorted_comm.shape[1]
-                ref_tensor = (2*torch.arange(0,n)-n)/n
-                self.ref_tensor = ref_tensor.repeat(l,1).t().cuda()
-            if self.args.EMD_rank == "one":
-                emd_matrix = torch.abs(sorted_comm - self.ref_tensor)
-                emd_loss = torch.mean(emd_matrix)
-            else:
-                emd_matrix = (sorted_comm - self.ref_tensor)**2
-                emd_loss = torch.mean(emd_matrix)
-            '''
-            #calculate EMD
             if self.args.comm_detail == 'mlp':
                 ref_info = (comm_info+1)*0.5
                 ref_info = ref_info*(self.args.target_quant_levels-1)  
                 ref_info = torch.round(ref_info).detach()
                 ref_info = ref_info/(self.args.target_quant_levels-1)
                 ref_info = ref_info*2-1
-                emd_matrix = (comm_info-ref_info)**2
-                emd_loss = torch.mean(emd_matrix)
+                comm_entro_matrix = (comm_info-ref_info)**2
+                comm_entro_loss = torch.mean(comm_entro_matrix)
             elif self.args.comm_detail == 'triangle':
                 ref_info = (comm_info+1)*0.5
                 ref_info = ref_info*(self.args.quant_levels-1) 
-                emd_loss = 0
+                comm_entro_loss = 0
                 for target in range(self.args.quant_levels):
                     targetmat = torch.min(nn.functional.relu(ref_info-target+1), nn.functional.relu(-ref_info+target+1))
                     freq = torch.mean(targetmat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
-                    emd_loss += torch.mean(freq)
+                    comm_entro_loss += torch.mean(freq)
             elif self.args.comm_detail == 'binary':
                 freq = torch.mean(comm_info, dim=0)
                 entropy_set = -(freq+1e-20)*torch.log(freq+1e-20) -(1-freq+1e-20)*torch.log(1-freq+1e-20)
-                emd_loss = torch.mean(entropy_set)
+                comm_entro_loss = torch.mean(entropy_set)
             else:
                 freq = torch.sum(comm_info, dim=0)/comm_info.shape[0]
                 freq = freq + 1e-20
-                emd_loss = -torch.sum(freq*torch.log(freq))                
+                comm_entro_loss = -torch.sum(freq*torch.log(freq))                
         else:
-            emd_loss = torch.Tensor([0]).cuda()
+            comm_entro_loss = torch.Tensor([0]).cuda()
 
         
         for i in reversed(range (rewards.size(0))):
@@ -278,8 +262,8 @@ class Trainer(object):
                 stat['entropy'] = entropy.item()
                 loss -= self.args.entr * entropy
         stat['other_loss'] = loss.item()
-        stat['emd_loss'] = emd_loss.item()*loss_alpha
-        loss = loss + emd_loss*loss_alpha #we want to maximize EMD
+        stat['comm_entro_loss'] = comm_entro_loss.item()*loss_alpha
+        loss = loss + comm_entro_loss*loss_alpha #we want to maximize comm_entro
 
         loss.backward()
 
