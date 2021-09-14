@@ -1,6 +1,7 @@
 from collections import namedtuple
 from inspect import getargspec
 import numpy as np
+import math
 import torch
 from torch import optim
 import torch.nn as nn
@@ -176,21 +177,19 @@ class Trainer(object):
         prev_advantage = 0
         
         if loss_alpha > 0:
-            if self.args.comm_detail == 'mlp':
-                ref_info = (comm_info+1)*0.5
-                ref_info = ref_info*(self.args.target_quant_levels-1)  
-                ref_info = torch.round(ref_info).detach()
-                ref_info = ref_info/(self.args.target_quant_levels-1)
-                ref_info = ref_info*2-1
-                comm_entro_matrix = (comm_info-ref_info)**2
-                comm_entro_loss = torch.mean(comm_entro_matrix)
-            elif self.args.comm_detail == 'triangle':
+            if self.args.comm_detail == 'triangle':
                 ref_info = (comm_info+1)*0.5
                 ref_info = ref_info*(self.args.quant_levels-1) 
                 comm_entro_loss = 0
                 for target in range(self.args.quant_levels):
-                    targetmat = torch.min(nn.functional.relu(ref_info-target+1), nn.functional.relu(-ref_info+target+1))
-                    freq = torch.mean(targetmat,dim=0)+1e-20
+                    mid_mat = torch.min(nn.functional.relu(ref_info-target+1), nn.functional.relu(-ref_info+target+1),dim=0)
+                    freq = torch.mean(mid_mat,dim=0)+1e-20
+                    freq = -freq*torch.log(freq)
+                    comm_entro_loss += torch.mean(freq)
+            elif self.args.comm_detail == 'cos':
+                for target in range(self.args.quant_levels):
+                    mid_mat = 0.5*(comm_info>target-1)*(comm_info<target+1)*(torch.cos(math.pi*comm_info)+1)
+                    freq = torch.mean(mid_mat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)
             elif self.args.comm_detail == 'binary':

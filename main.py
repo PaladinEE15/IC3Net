@@ -112,7 +112,7 @@ parser.add_argument('--share_weights', default=False, action='store_true',
                     help='Share weights for hops')
 
 # Comm message design details
-parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "binary"], 
+parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "cos", "binary"], 
                     help="How to process broadcasting messages")
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')
@@ -123,9 +123,7 @@ parser.add_argument('--msg_size', default=128, type=int,
 parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
                     help='message layer size')
 parser.add_argument('--quant_levels', default=40, type=int,
-                    help='quantification levels')
-parser.add_argument('--target_quant_levels', default=4, type=int,
-                    help='desired quantification levels')                    
+                    help='quantification levels')                 
 
 # set GPU
 parser.add_argument('--GPU', default=0, type=int, 
