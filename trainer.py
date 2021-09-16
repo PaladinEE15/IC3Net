@@ -187,6 +187,7 @@ class Trainer(object):
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)
             elif self.args.comm_detail == 'cos':
+                comm_entro_loss = 0
                 for target in range(self.args.quant_levels):
                     mid_mat = 0.5*(comm_info>target-1)*(comm_info<target+1)*(torch.cos(math.pi*(comm_info-target))+1)
                     freq = torch.mean(mid_mat,dim=0)+1e-20
