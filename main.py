@@ -112,7 +112,7 @@ parser.add_argument('--share_weights', default=False, action='store_true',
                     help='Share weights for hops')
 
 # Comm message design details
-parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "cos", "binary"], 
+parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "cos", "binary", "mim"], 
                     help="How to process broadcasting messages")
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')
@@ -129,6 +129,8 @@ parser.add_argument('--quant_levels', default=17, type=int,
 parser.add_argument('--GPU', default=0, type=int, 
                     help='run on which GPU')
 # Configs for entropy loss
+parser.add_argument('--mim_gauss_var', default=1/9, type=float,
+                    help='the variance of ref gaussian in mutual information minimization')
 parser.add_argument('--calcu_entropy', default=False, action='store_true', 
                     help='whether calculate entropy. ')
 parser.add_argument('--no_mask', default=False, action='store_true', 

@@ -197,10 +197,10 @@ class Trainer(object):
                 freq = torch.mean(comm_info, dim=0)
                 entropy_set = -(freq+1e-20)*torch.log(freq+1e-20) -(1-freq+1e-20)*torch.log(1-freq+1e-20)
                 comm_entro_loss = torch.mean(entropy_set)
-            else:
-                freq = torch.sum(comm_info, dim=0)/comm_info.shape[0]
-                freq = freq + 1e-20
-                comm_entro_loss = -torch.sum(freq*torch.log(freq))                
+            elif self.args.comm_detail == 'mim':
+                _, mu, lnsigma = torch.split(comm_info,3,1) 
+                loss_mat = 0.5*(mu**2 + (torch.exp(lnsigma))**2)/self.args.mim_gauss_var - lnsigma    
+                comm_entro_loss = torch.mean(loss_mat)        
         else:
             comm_entro_loss = torch.Tensor([0]).cuda()
 

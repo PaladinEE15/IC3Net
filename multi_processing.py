@@ -31,6 +31,8 @@ class MultiProcessWorker(ctx.Process):
         self.args = main_args
 
     def calcu_entropy(self, comm):
+        if self.args.comm_detail == 'mim':
+            comm = np.split(comm,3,1)[0]
         comm = (comm+1)*0.5
         comm = comm*(self.args.quant_levels-1)  
         calcu_comm = np.rint(comm)      
@@ -126,6 +128,8 @@ class MultiProcessTrainer(object):
                 self.worker_grads.append(comm.recv())
 
     def calcu_entropy(self, comm):
+        if self.args.comm_detail == 'mim':
+            comm = np.split(comm,3,1)[0]        
         comm = (comm+1)*0.5
         comm = comm*(self.args.quant_levels-1)  
         calcu_comm = np.rint(comm)      
