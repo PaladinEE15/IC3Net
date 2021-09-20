@@ -126,6 +126,7 @@ class MultiEnvTrainer(object):
                     prev_hid_set = self.policy_net.init_hidden(batch_size=n_envs)
                 else:
                     prev_hid_set = torch.zeros(n_envs, self.args.nagents, self.args.hid_size).to(torch.device("cuda"))
+                n_agents = self.args.nagents
                 success_record = []
                 steps_record = []
                 entropy_record = []
@@ -137,12 +138,8 @@ class MultiEnvTrainer(object):
                         for i in range(n_envs):
                             if t_set[i]+1 % self.args.detach_gap == 0:
                                 if self.args.rnn_type == 'LSTM':
-                                    prev_hid_0 = prev_hid_set[0].clone()#avoid inplace 
-                                    prev_hid_1 = prev_hid_set[1].clone()
-                                    this should be changed! prev_hid_set is 36*128 instead of 12*3*128!
-                                    prev_hid_0[i,:] = prev_hid_0[i,:].detach()
-                                    prev_hid_1[i,:] = prev_hid_1[i,:].detach() #inplace action?
-                                    prev_hid_set = [prev_hid_0, prev_hid_1]
+                                    prev_hid_set[0][i*n_agents:(i+1)*n_agents,:] = prev_hid_set[0][i*n_agents:(i+1)*n_agents,:].detach()
+                                    prev_hid_set[1][i*n_agents:(i+1)*n_agents,:] = prev_hid_set[1][i*n_agents:(i+1)*n_agents,:].detach()
                                 else:
                                     prev_hid_set[i,:] = prev_hid_set[i,:].detach()
                     else:
@@ -196,10 +193,7 @@ class MultiEnvTrainer(object):
                                 reward += add_reward
 
                             parent_pipe.send('get_stat')
-                            new_prev_hid_A, new_prev_hid_B = self.policy_net.init_hidden(batch_size=1)
-                            #we should resize prev_hid to do inplace!
-                            #prev_hid is 36 * 128
-                            new_prev_hid_set[0][idx,:], new_prev_hid_set[1][idx,:] = new_prev_hid_A.squeeze(), new_prev_hid_B.squeeze()
+                            prev_hid_set[0][idx*n_agents:(idx+1)*n_agents,:], prev_hid_set[1][idx*n_agents:(idx+1)*n_agents,:] = self.policy_net.init_hidden(batch_size=1)
                             info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int) #inplace action
                             steps_record.append(t_set[idx])
                             success_record.append(parent_pipe.recv()['success'])
@@ -221,7 +215,6 @@ class MultiEnvTrainer(object):
                                 episode_set[idx].append(trans)
                     total_steps += n_envs
                     state_set = new_state_set
-                    prev_hid_set = new_prev_hid_set
                     if total_steps >= self.args.batch_size and np.sum(continue_training) == 0:
                         break
                 #begin training
