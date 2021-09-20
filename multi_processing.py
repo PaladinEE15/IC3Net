@@ -3,14 +3,16 @@ from utils import *
 import torch
 import torch.multiprocessing as mp
 from collections import Counter
+import data
+from inspect import getargspec
+from utils import *
+from action_utils import *
+import time
+
+Transition = namedtuple('Transition', ('state', 'action', 'action_out', 'value', 'episode_mask', 'episode_mini_mask', 'next_state',
+                                       'reward', 'misc'))
 
 ctx = mp.get_context("spawn")
-
-def calcu_entropy_onehot(comm):
-    freq = np.sum(comm, axis=0)/comm.shape[0]
-    freq[freq==0] = 1 #avoid ln0
-    entropy = -np.sum(freq*np.log(freq))
-    return entropy
 
 def calcu_entropy_binary(comm):
     comm = np.rint(comm)
@@ -20,116 +22,390 @@ def calcu_entropy_binary(comm):
     return entropy
 
 
-class MultiProcessWorker(ctx.Process):
-    # TODO: Make environment init threadsafe
-    def __init__(self, id, trainer_maker, comm, main_args, seed, *args, **kwargs):
+
+class MultiEnvWorker(ctx.Process):
+    def __init__(self, id, comm, main_args, seed):
         self.id = id
         self.seed = seed
-        super(MultiProcessWorker, self).__init__()
-        self.trainer = trainer_maker()
+        super(MultiEnvWorker, self).__init__()
+        self.env = data.init(main_args.env_name, main_args, False)
         self.comm = comm
         self.args = main_args
 
-    def calcu_entropy(self, comm):
-        if self.args.comm_detail == 'mim':
-            comm = np.split(comm,3,1)[0]
-        comm = (comm+1)*0.5
-        comm = comm*(self.args.quant_levels-1)  
-        calcu_comm = np.rint(comm)      
-        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
-        probs = counts/comm.shape[0]
-        probs[probs==0] = 1 #avoid ln0
-        entropy = -np.sum(probs*np.log(probs))
-        return entropy
 
     def run(self):
         torch.manual_seed(self.seed + self.id + 1)
         np.random.seed(self.seed + self.id + 1)
-
         while True:
             task = self.comm.recv()
+            data = None
             if type(task) == list:
-                task, epoch = task
-
-            if task == 'quit':
-                return
-            elif task == 'run_batch':
-                batch, stat, comm_info = self.trainer.run_batch(epoch)
-                if self.args.calcu_entropy:
-                    #calculate entropy here
-                    comm_np = comm_info.detach().cpu().numpy()    
-                    if self.args.comm_detail == 'binary':
-                        final_entropy = calcu_entropy_binary(comm_np)
-                    else:
-                        final_entropy = self.calcu_entropy(comm_np)
-                    entro_stat = {'comm_entropy':final_entropy}
-                    merge_stat(entro_stat, stat)
-                self.trainer.optimizer.zero_grad()
-                if epoch>=self.args.loss_start:
-                    s = self.trainer.compute_grad(comm_info, batch, self.args.loss_alpha)
+                task, data = task  
+            if task == 'reset':
+                if data == None:
+                    self.comm.send(self.env.reset())
                 else:
-                    s = self.trainer.compute_grad(comm_info, batch, 0)
-                merge_stat(s, stat)
-                self.comm.send(stat)
-            elif task == 'test_batch':
-                comm_stat, steps_taken, success_times = self.trainer.test(epoch)
-                if self.args.calcu_entropy:
-                    #calculate entropy here  
-                    if self.args.comm_detail == 'discrete':
-                        final_entropy = calcu_entropy_onehot(comm_stat)
-                    elif self.args.comm_detail == 'binary':
-                        final_entropy = calcu_entropy_binary(comm_stat)
-                    else:
-                        final_entropy = self.calcu_entropy(comm_stat)  
-                else: 
-                    final_entropy = 0    
-                self.comm.send((final_entropy, steps_taken, success_times))
-            elif task == 'send_grads':
-                grads = []
-                for p in self.trainer.params:
-                    if p._grad is not None:
-                        grads.append(p._grad.data)
+                    self.comm.send(self.env.reset(data))  
+            elif task == 'step':
+                self.comm.send(self.env.step(data))  
+            elif task == 'reward_terminal':
+                self.comm.send(self.env.reward_terminal())   
+            elif task == 'get_stat':
+                self.comm.send(self.env.get_stat())    
 
-                self.comm.send(grads)
-
-
-class MultiProcessTrainer(object):
-    def __init__(self, args, trainer_maker):
-        self.comms = []
-        self.trainer = trainer_maker()
-        # itself will do the same job as workers
-        self.nworkers = args.nprocesses - 1
-        for i in range(self.nworkers):
-            comm, comm_remote = ctx.Pipe()
-            self.comms.append(comm)
-            worker = MultiProcessWorker(i, trainer_maker, comm_remote, args, seed=args.seed)
-            worker.start()
-        self.grads = None
-        self.worker_grads = None
-        self.is_random = args.random
+class MultiEnvTrainer(object):
+    def __init__(self, args, policy_net):
+        self.policy_net = policy_net
+        self.optimizer = torch.optim.Adam(self.policy_net.parameters(),lr=args.lrate)
         self.args = args
+        self.parent_pipes, self.child_pipes = zip(*[mp.Pipe() for _ in range(self.args.nprocesses)])
+        self.workers = []
 
-    def quit(self):
-        for comm in self.comms:
-            comm.send('quit')
+        for idx, child_pipe in enumerate(self.child_pipes):
+            process = MultiEnvWorker(idx, child_pipe, args, args.seed)
+            self.workers.append(process)
+            process.start()
+    
+    def save(self, train_log, path):
+        d = dict()
+        d['policy_net'] = self.policy_net.state_dict()
+        d['log'] = train_log
+        d['trainer'] = self.state_dict()
+        torch.save(d, path)        
 
-    def obtain_grad_pointers(self):
-        # only need perform this once
-        if self.grads is None:
-            self.grads = []
-            for p in self.trainer.params:
-                if p._grad is not None:
-                    self.grads.append(p._grad.data)
+    def load(self, path):
+        d = torch.load(path)
+        self.policy_net.load_state_dict(d['policy_net'])
+        self.load_state_dict(d['trainer'])
 
-        if self.worker_grads is None:
-            self.worker_grads = []
-            for comm in self.comms:
-                comm.send('send_grads')
-                self.worker_grads.append(comm.recv())
+    def train(self, total_epoch):
+        episode_set = []
+        n_envs = self.args.nprocesses
+        episode_set = [[] for i in range(n_envs)]
+
+        train_log = dict()
+        train_log['success'] = []
+        train_log['steps_mean'] = []
+        train_log['steps_std'] = []
+        train_log['main_loss'] = []
+        train_log['main_loss_std'] = []
+
+
+        for epoch in range(total_epoch):
+            success_set = []
+            steps_set = []
+            main_loss_set = []
+            entropy_loss_set = []
+            epoch_begin_time = time.time()
+        
+            for mini_epoch in range(self.args.epoch_size):
+                #prepare for collecting episodes
+                state_set = None
+                if self.args.reset_withepoch:
+                    for parent_pipe in self.parent_pipes:
+                        parent_pipe.send(['reset',epoch])
+                else:
+                    for parent_pipe in self.parent_pipes:
+                        parent_pipe.send('reset')  
+                info = dict()
+                misc = dict()
+                misc['alive_mask'] = np.ones(self.args.nagents) #ignore starcraft scenerio
+                for parent_pipe in self.parent_pipes:
+                    state = parent_pipe.recv()
+                    if state_set == None:
+                        state_set = state
+                    else:
+                        state_set = torch.cat((state_set, state), 0)
+                comm_acc = None
+                t_set = np.zeros(n_envs) #record t of each environment. remember to make zero after reset
+                continue_training = np.ones(n_envs) #this is used to indicate whether the training should be stopped
+                total_steps = 0
+                if self.args.hard_attn and self.args.commnet:
+                    info['comm_action'] = np.zeros((n_envs,self.args.nagents), dtype=int)
+                if self.args.rnn_type == 'LSTM' and self.args.recurrent:
+                    prev_hid_set = self.policy_net.init_hidden(batch_size=n_envs)
+                else:
+                    prev_hid_set = torch.zeros(n_envs, self.args.nagents, self.args.hid_size).to(torch.device("cuda"))
+                success_record = []
+                steps_record = []
+                entropy_record = []
+                while True:
+                    #the envs will run asynchronously. if one done, just reset related info and continue, unless steps reach max batch size
+                    if self.args.recurrent:
+                        x = [state_set, prev_hid_set]
+                        comm_set, action_out_set, value_set, prev_hid_set = self.policy_net(x, info)
+                        for i in range(n_envs):
+                            if t_set[i]+1 % self.args.detach_gap == 0:
+                                if self.args.rnn_type == 'LSTM':
+                                    prev_hid_0 = prev_hid_set[0]
+                                    prev_hid_1 = prev_hid_set[1]
+                                    prev_hid_0[i,:] = prev_hid_0[i,:].detach()
+                                    prev_hid_1[i,:] = prev_hid_1[i,:].detach()
+                                    prev_hid_set = [prev_hid_0, prev_hid_1]
+                                else:
+                                    prev_hid_set[i,:] = prev_hid_set[i,:].detach()
+                    else:
+                        x = state_set
+                        comm_set, action_out_set, value_set = self.policy_net(x, info)
+                
+                    if self.args.calcu_entropy:
+                        comm = torch.flatten(comm_set,0,-2)
+                        if comm_acc == None:
+                            comm_acc = comm
+                        else:
+                            comm_acc = torch.cat((comm_acc,comm),0)
+                    action_set = select_action(self.args, action_out_set)
+                    action_set, actual = translate_action(self.args, action_set)
+                    #need to split it 
+                    #action_set and actual are both [batchsize x n, batchsize x n]     
+                    actual = list(zip(actual[0],actual[1]))
+                    for idx, parent_pipe in enumerate(self.parent_pipes):
+                        parent_pipe.send(['step', actual[idx]])
+                    # store comm_action in info for next step
+                    if self.args.hard_attn and self.args.commnet:
+                        info['comm_action'] = action_set[-1] if not self.args.comm_action_one else np.ones((n_envs,self.args.nagents), dtype=int)
+                    action_set = list(zip(action_set[0],action_set[1]))
+                    action_out_set = list(zip(action_out_set[0],action_out_set[1]))
+                    #we do not need to record comm_action                     
+                    for idx, parent_pipe in enumerate(self.parent_pipes):
+                        next_state, reward, done, env_info = parent_pipe.recv()
+                        real_done = done or t_set[idx] == self.args.max_steps - 1
+                        if real_done:
+                            episode_mask = np.zeros(reward.shape)
+                        else:
+                            episode_mask = np.ones(reward.shape)
+                            if 'is_completed' in env_info:
+                                episode_mini_mask = 1 - env_info['is_completed'].reshape(-1)
+                            else:
+                                episode_mini_mask = np.ones(reward.shape)
+                        state = state_set[idx,:].unsqueeze(0)
+                        
+                        action = action_set[idx]
+                        action_out = action_out_set[idx]
+                        temp1 = action_out[0].unsqueeze(0)
+                        temp2 = action_out[1].unsqueeze(0)
+                        action_out = [temp1, temp2]
+                        value = value_set[idx,:].unsqueeze(1)
+                        if real_done:
+                            if self.args.reward_terminal:
+                                parent_pipe.send('reward_terminal')
+                                add_reward = parent_pipe.recv()
+                                reward += add_reward
+
+                            parent_pipe.send('get_stat')
+                                
+                            prev_hid_set = self.policy_net.init_hidden(batch_size=n_envs)
+                            info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int)
+                            steps_record.append(t_set[idx])
+                            success_record.append(parent_pipe.recv()['success'])
+                            t_set[idx] = 0
+                            trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
+                            episode_set[idx].append(trans)
+                            if total_steps >= self.args.batch_size:
+                                continue_training[idx] = 0
+                            if self.args.reset_withepoch:
+                                parent_pipe.send(['reset',epoch])
+                            else:
+                                parent_pipe.send('reset')      
+                            state_set[idx,:] = parent_pipe.recv()
+                        else:
+                            t_set[idx] += 1   
+                            state_set[idx,:] = next_state        
+                            if continue_training[idx] == 1: #the training is not complete, continue adding trans. else, trans should not be added to buffer                                           
+                                trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
+                                episode_set[idx].append(trans)
+                    total_steps += n_envs
+                    if total_steps >= self.args.batch_size and np.sum(continue_training) == 0:
+                        break
+                #begin training
+                #collect batch
+                batch = []
+                for episodes in episode_set:
+                    batch += episodes
+                #comm is stored in comm_acc
+                batch = Transition(*zip(*batch))
+                if self.args.loss_alpha>0 and epoch>self.args.loss_start:
+                    train_info = self.step_train(batch, comm_acc)
+                else:
+                    train_info = self.step_train(batch)
+                #calculate entropy if needed
+                if self.args.calcu_entropy:
+                    entropy = self.calcu_entropy(comm_acc.detach().cpu().numpy())
+                    entropy_record.append(entropy)
+                #store training info and prepare for output
+                success_set += success_record
+                steps_set += steps_record
+                main_loss_set.append(train_info['main_loss'])
+                entropy_loss_set.append('comm_entro_loss')
+            
+            #a batch is completed, print stat and record  
+            epoch_end_time = time.time()
+            epoch_run_time = epoch_end_time - epoch_begin_time
+            mean_success = np.mean(np.array(success_set))
+            mean_steps, std_steps = np.mean(np.array(steps_set)), np.std(np.array(steps_set))
+            mean_main_loss, std_main_loss = np.mean(np.array(main_loss_set)), np.std(np.array(main_loss_set))
+            
+            print('epoch: ', epoch, ' time: ', epoch_run_time, 's')
+            print('success: ', mean_success)
+            print('steps: ', mean_steps, ' std: ', std_steps)
+            print('main loss: ', mean_main_loss, ' std: ', std_main_loss)
+            
+            if self.args.calcu_entropy:
+                mean_entropy, std_entropy = np.mean(np.array(entropy_record)), np.std(np.array(entropy_record))
+                mean_entropy_loss, std_entropy_loss = np.mean(np.array(entropy_loss_set)), np.std(np.array(entropy_loss_set))
+                print('entropy loss: ', mean_entropy_loss, ' std: ', std_entropy_loss)
+                print('entropy: ', mean_entropy, ' std: ', std_entropy)
+            train_log['success'].append(mean_success)
+            train_log['steps_mean'].append(mean_steps)
+            train_log['steps_std'].append(std_steps)
+            train_log['main_loss'].append(mean_entropy_loss)
+            train_log['main_loss_std'].append(std_main_loss)
+
+            if self.args.save_every and epoch and self.args.save != '' and epoch % self.args.save_every == 0:
+                self.save(self.args.save + '_' + str(epoch))
+        self.save(self.args.save)
+        return train_log
+
+
+    def step_train(self, batch, comm_info=None):
+        self.optimizer.zero_grad()
+        stat = dict()
+        num_actions = self.args.num_actions
+        dim_actions = self.args.dim_actions
+
+        n = self.args.nagents
+        batch_size = len(batch.state)
+
+        rewards = torch.Tensor(batch.reward).to(torch.device("cuda"))
+        episode_masks = torch.Tensor(batch.episode_mask).to(torch.device("cuda"))
+        episode_mini_masks = torch.Tensor(batch.episode_mini_mask).to(torch.device("cuda"))
+        actions = torch.Tensor(batch.action).to(torch.device("cuda"))
+        actions = actions.transpose(1, 2).view(-1, n, dim_actions)
+
+        # can't do batch forward.
+        values = torch.cat(batch.value, dim=0)
+        action_out = list(zip(*batch.action_out))
+        action_out = [torch.cat(a, dim=0) for a in action_out]
+
+        alive_masks = torch.Tensor(np.concatenate([item['alive_mask'] for item in batch.misc])).view(-1).to(torch.device("cuda"))
+
+        coop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        ncoop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        deltas = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        advantages = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        values = values.view(batch_size, n)
+
+        prev_coop_return = 0
+        prev_ncoop_return = 0
+        prev_value = 0
+        prev_advantage = 0
+        
+        if comm_info != None:
+            if self.args.comm_detail == 'triangle':
+                ref_info = (comm_info+1)*0.5
+                ref_info = ref_info*(self.args.quant_levels-1) 
+                comm_entro_loss = 0
+                for target in range(self.args.quant_levels):
+                    mid_mat = torch.min(1.25*(ref_info-target+0.8), -1.25*(ref_info-target-0.8))
+                    mid_mat = torch.clamp(mid_mat,min=0,max=1)
+                    freq = torch.mean(mid_mat,dim=0)+1e-20
+                    freq = -freq*torch.log(freq)
+                    comm_entro_loss += torch.mean(freq)
+            elif self.args.comm_detail == 'cos':
+                comm_entro_loss = 0
+                for target in range(self.args.quant_levels):
+                    mid_mat = 0.5*(comm_info>target-1)*(comm_info<target+1)*(torch.cos(math.pi*(comm_info-target))+1)
+                    freq = torch.mean(mid_mat,dim=0)+1e-20
+                    freq = -freq*torch.log(freq)
+                    comm_entro_loss += torch.mean(freq)
+            elif self.args.comm_detail == 'binary':
+                freq = torch.mean(comm_info, dim=0)
+                entropy_set = -(freq+1e-20)*torch.log(freq+1e-20) -(1-freq+1e-20)*torch.log(1-freq+1e-20)
+                comm_entro_loss = torch.mean(entropy_set)
+            elif self.args.comm_detail == 'mim':
+                _, mu, lnsigma = torch.split(comm_info,3,1) 
+                loss_mat = 0.5*(mu**2 + (torch.exp(lnsigma))**2)/self.args.mim_gauss_var - lnsigma    
+                comm_entro_loss = torch.mean(loss_mat)        
+        else:
+            comm_entro_loss = torch.Tensor([0]).cuda()
+
+        
+        for i in reversed(range (rewards.size(0))):
+            coop_returns[i] = rewards[i] + self.args.gamma * prev_coop_return * episode_masks[i]
+            ncoop_returns[i] = rewards[i] + self.args.gamma * prev_ncoop_return * episode_masks[i] * episode_mini_masks[i]
+
+            prev_coop_return = coop_returns[i].clone()
+            prev_ncoop_return = ncoop_returns[i].clone()
+
+            returns[i] = (self.args.mean_ratio * coop_returns[i].mean()) \
+                        + ((1 - self.args.mean_ratio) * ncoop_returns[i])
+
+
+        for i in reversed(range(rewards.size(0))):
+            advantages[i] = returns[i] - values.data[i]
+
+        if self.args.normalize_rewards:
+            advantages = (advantages - advantages.mean()) / advantages.std()
+
+        if self.args.continuous:
+            action_means, action_log_stds, action_stds = action_out
+            log_prob = normal_log_density(actions, action_means, action_log_stds, action_stds)
+        else:
+            log_p_a = [action_out[i].view(-1, num_actions[i]) for i in range(dim_actions)]
+            actions = actions.contiguous().view(-1, dim_actions)
+
+            if self.args.advantages_per_action:
+                log_prob = multinomials_log_densities(actions, log_p_a)
+            else:
+                log_prob = multinomials_log_density(actions, log_p_a)
+
+        if self.args.advantages_per_action:
+            action_loss = -advantages.view(-1).unsqueeze(-1) * log_prob
+            action_loss *= alive_masks.unsqueeze(-1)
+        else:
+            action_loss = -advantages.view(-1) * log_prob.squeeze()
+            action_loss *= alive_masks
+
+        action_loss = action_loss.sum()
+        stat['action_loss'] = action_loss.item()
+
+        # value loss term
+        targets = returns
+        value_loss = (values - targets).pow(2).view(-1)
+        value_loss *= alive_masks
+        value_loss = value_loss.sum()
+
+        stat['value_loss'] = value_loss.item()
+        loss = action_loss + self.args.value_coeff * value_loss
+
+        if not self.args.continuous:
+            # entropy regularization term
+            if self.args.entr > 0:
+                entropy = 0
+                for i in range(len(log_p_a)):
+                    entropy -= (log_p_a[i] * log_p_a[i].exp()).sum()
+                stat['entropy'] = entropy.item()
+                loss -= self.args.entr * entropy
+        loss = loss/batch_size #get mean
+        stat['main_loss'] = loss.item()
+        stat['comm_entro_loss'] = comm_entro_loss.item()*self.args.loss_alpha
+        loss = loss + comm_entro_loss*self.args.loss_alpha #we want to maximize comm_entro
+
+        loss.backward()
+        self.optimizer.step()        
+        return stat
+    
 
     def calcu_entropy(self, comm):
         if self.args.comm_detail == 'mim':
-            comm = np.split(comm,3,1)[0]        
+            comm = np.split(comm,3,1)[0]
+        elif self.args.comm_detail == 'binary':
+            comm = np.rint(comm)
+            freq = np.mean(comm, axis=0)
+            entropy_set = -(freq+1e-20)*np.log(freq+1e-20) -(1-freq+1e-20)*np.log(1-freq+1e-20)
+            entropy = np.sum(entropy_set)
+            return entropy
         comm = (comm+1)*0.5
         comm = comm*(self.args.quant_levels-1)  
         calcu_comm = np.rint(comm)      
@@ -137,82 +413,8 @@ class MultiProcessTrainer(object):
         probs = counts/comm.shape[0]
         probs[probs==0] = 1 #avoid ln0
         entropy = -np.sum(probs*np.log(probs))
-        return entropy
+        return entropy                           
 
-    def show_distribution(self, comm):
-        comm = (comm+1)*0.5
-        comm = comm*(self.args.quant_levels-1)  
-        calcu_comm = np.rint(comm)      
-        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
-        probs = counts/comm.shape[0]
-        print('output distribution: ', probs)
-        return
-
-
-    def test_batch(self,times):
-        for comm in self.comms:
-            comm.send(['test_batch', times])        
-
-        # run its own trainer
-        comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
-        if self.args.calcu_entropy:
-            if self.args.comm_detail == 'binary':
-                final_entropy = calcu_entropy_binary(comm_stat_acc)
-            else:
-                final_entropy = self.calcu_entropy(comm_stat_acc) 
-                self.show_distribution(comm_stat_acc)
-        for comm in self.comms:
-            entropy, steps_taken, success_times = comm.recv()
-            steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), axis=0)
-            final_entropy =  np.append(final_entropy,entropy)
-            success_times_acc =  np.concatenate((success_times_acc,success_times), axis=0)
-        
-        print('entropy: ', np.mean(final_entropy),' std: ', np.std(final_entropy) )
-        print('success: ', np.mean(success_times_acc),' std: ', np.std(success_times_acc) )
-        print('steps: ', np.mean(steps_taken_acc),' std: ', np.std(steps_taken_acc))
-           
-        return
-
-    def train_batch(self, epoch):
-        # run workers in parallel
-        for comm in self.comms:
-            comm.send(['run_batch', epoch])
-
-        # run its own trainer
-        batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
-        self.trainer.optimizer.zero_grad()
-        if epoch>=self.args.loss_start:
-            s = self.trainer.compute_grad(comm_info_acc, batch, self.args.loss_alpha)
-        else:
-            s = self.trainer.compute_grad(comm_info_acc, batch, 0)
-        merge_stat(s, stat)
-
-        if self.args.calcu_entropy:
-            #calculate entropy here
-            comm_np = comm_info_acc.detach().cpu().numpy()    
-            if self.args.comm_detail == 'discrete':
-                final_entropy = calcu_entropy_onehot(comm_np)
-            elif self.args.comm_detail == 'binary':
-                final_entropy = calcu_entropy_binary(comm_np)
-            else:
-                final_entropy = self.calcu_entropy(comm_np) 
-            entro_stat = {'comm_entropy':final_entropy}
-            merge_stat(entro_stat, stat)
-        
-        # check if workers are finished
-        for comm in self.comms:
-            s= comm.recv()
-            merge_stat(s, stat)
-
-        # add gradients of workers
-        self.obtain_grad_pointers()
-        for i in range(len(self.grads)):
-            for g in self.worker_grads:
-                self.grads[i] += g[i]
-            self.grads[i] /= stat['num_steps']
-
-        self.trainer.optimizer.step()
-        return stat
 
     def state_dict(self):
         return self.trainer.state_dict()

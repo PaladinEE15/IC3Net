@@ -43,11 +43,14 @@ class Trainer(object):
 
         for t in range(self.args.max_steps):
             misc = dict()
+            
+            #the following is a reset behavior!
             if t == 0 and self.args.hard_attn and self.args.commnet:
                 info['comm_action'] = np.zeros(self.args.nagents, dtype=int)
 
             # recurrence over time
             if self.args.recurrent:
+                #another reset behavior
                 if self.args.rnn_type == 'LSTM' and t == 0:
                     prev_hid = self.policy_net.init_hidden(batch_size=state.shape[0])
 
@@ -74,7 +77,7 @@ class Trainer(object):
 
 
             action = select_action(self.args, action_out)
-            action, actual = translate_action(self.args, self.env, action)
+            action, actual = translate_action(self.args, action)
             next_state, reward, done, info = self.env.step(actual)
 
             # store comm_action in info for next step
@@ -182,7 +185,8 @@ class Trainer(object):
                 ref_info = ref_info*(self.args.quant_levels-1) 
                 comm_entro_loss = 0
                 for target in range(self.args.quant_levels):
-                    mid_mat = torch.min(nn.functional.relu(ref_info-target+1), nn.functional.relu(-ref_info+target+1),dim=0)
+                    mid_mat = torch.min(1,1.25*(ref_info-target+0.8), -1.25*(ref_info-target-0.8))
+                    mid_mat = torch.max(mid_mat,0)
                     freq = torch.mean(mid_mat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)

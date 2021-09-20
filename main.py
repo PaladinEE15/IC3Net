@@ -12,9 +12,9 @@ from comm import CommNetMLP
 from utils import *
 from action_utils import parse_action_args
 from trainer import Trainer
-from multi_processing import MultiProcessTrainer
+from multi_processing import MultiEnvTrainer
 import os
-
+from inspect import getargspec
 torch.utils.backcompat.broadcast_warning.enabled = True
 torch.utils.backcompat.keepdim_warning.enabled = True
 
@@ -133,36 +133,16 @@ parser.add_argument('--mim_gauss_var', default=1/9, type=float,
                     help='the variance of ref gaussian in mutual information minimization')
 parser.add_argument('--calcu_entropy', default=False, action='store_true', 
                     help='whether calculate entropy. ')
-parser.add_argument('--no_mask', default=False, action='store_true', 
-                    help='when calculating entropy, whether consider mask')
 parser.add_argument('--loss_start', default=0, type=int, 
                     help='which epoch starts comm_entro loss calculate')
 parser.add_argument('--loss_alpha', default=0, type=float,
                     help='the weight of entropy loss')
-parser.add_argument('--no_input_grad', default=False, action='store_true', 
-                    help='whether treat encoding input as no-grad. True: no grad. False: grad')
 # Configs for gumbel-softmax
 parser.add_argument('--gumbel_gamma', default=1, type=float,
                     help='gamma of gumbel-softmax')
                     
 init_args_for_env(parser)
 args = parser.parse_args()
-
-
-
-def save(path):
-    d = dict()
-    d['policy_net'] = policy_net.state_dict()
-    d['log'] = log
-    d['trainer'] = trainer.state_dict()
-    torch.save(d, path)
-
-def load(path):
-    d = torch.load(path)
-    # log.clear()
-    policy_net.load_state_dict(d['policy_net'])
-    log.update(d['log'])
-    trainer.load_state_dict(d['trainer'])
 
 def signal_handler(signal, frame):
         print('You pressed Ctrl+C! Exiting gracefully.')
@@ -172,94 +152,6 @@ def signal_handler(signal, frame):
         import os
         os._exit(0)
         #sys.exit(0)
-
-#def disp():
-#    x = disp_trainer.get_episode()
-'''
-def test(num_epochs):
-    #running episodes equals to num_epochs*nprocess*batchsize
-    stat = dict()
-    success_set = []
-    steps_set = []
-    entropy_set = []
-
-    for n in range(num_epochs):
-        stat = trainer.test_batch(100)
-        if 'comm_entropy' in stat.keys():
-            entropy_set.append(stat['comm_entropy']/(args.batch_size*args.nprocesses))
-        if 'success' in stat.keys():
-            success_set.append(stat['success']/(args.batch_size*args.nprocesses))
-        if 'steps_taken' in stat.keys():
-            steps_set.append(stat['steps_taken']/(args.batch_size*args.nprocesses))
-    if 'comm_entropy' in stat.keys():
-        print('comm_entropy_mean: ', np.mean(entropy_set),' std: ', np.std(entropy_set))
-    if 'success' in stat.keys():
-        print('success_mean: ', np.mean(success_set),' std: ', np.std(success_set))
-    if 'steps_taken' in stat.keys():
-        print('steps_taken_mean: ', np.mean(steps_set),' std: ', np.std(steps_set))
-    return
-
-'''
-
-
-def run(num_epochs):
-    for ep in range(num_epochs):
-        epoch_begin_time = time.time()
-        stat = dict()
-        for n in range(args.epoch_size):
-            if n == args.epoch_size - 1 and args.display:
-                trainer.display = True
-            s = trainer.train_batch(ep)
-            merge_stat(s, stat)
-            trainer.display = False
-
-        epoch_time = time.time() - epoch_begin_time
-        epoch = len(log['epoch'].data) + 1
-        for k, v in log.items():
-            if k == 'epoch':
-                v.data.append(epoch)
-            elif k == 'comm_entropy' and k in stat.keys():
-                stat[k] = stat[k] / (args.epoch_size*args.nprocesses)
-            else:
-                if k in stat and v.divide_by is not None and stat[v.divide_by] > 0:
-                    stat[k] = stat[k] / stat[v.divide_by]
-                v.data.append(stat.get(k, 0))
-
-        np.set_printoptions(precision=2)
-
-        print('Epoch {}\tReward {}\tTime {:.2f}s'.format(
-                epoch, stat['reward'], epoch_time
-        ))
-        if 'comm_entropy' in stat.keys():
-            print('comm_entropy: {}'.format(stat['comm_entropy']))
-        if 'enemy_reward' in stat.keys():
-            print('Enemy-Reward: {}'.format(stat['enemy_reward']))
-        if 'add_rate' in stat.keys():
-            print('Add-Rate: {:.2f}'.format(stat['add_rate']))
-        if 'success' in stat.keys():
-            print('Success: {:.2f}'.format(stat['success']))
-        if 'steps_taken' in stat.keys():
-            print('Steps-taken: {:.2f}'.format(stat['steps_taken']))
-        if 'comm_action' in stat.keys():
-            print('Comm-Action: {}'.format(stat['comm_action']))
-        if 'enemy_comm' in stat.keys():
-            print('Enemy-Comm: {}'.format(stat['enemy_comm']))
-        if 'comm_entro_loss' in stat.keys():
-            print('comm_entro_loss: {}'.format(stat['comm_entro_loss']))
-        if 'other_loss' in stat.keys():
-            print('other_loss: {}'.format(stat['other_loss']))
-
-        if args.plot:
-            for k, v in log.items():
-                if v.plot and len(v.data) > 0:
-                    vis.line(np.asarray(v.data), np.asarray(log[v.x_axis].data[-len(v.data):]),
-                    win=k, opts=dict(xlabel=v.x_axis, ylabel=k))
-
-        if args.save_every and ep and args.save != '' and ep % args.save_every == 0:
-            # fname, ext = args.save.split('.')
-            # save(fname + '_' + str(ep) + '.' + ext)
-            save(args.save + '_' + str(ep))
-
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
@@ -281,6 +173,16 @@ if __name__ == '__main__':
             raise RuntimeError("Env. needs to pass argument 'nenemy'.")
 
     env = data.init(args.env_name, args, False)
+    args.action_space = env.action_space
+    reset_args = getargspec(env.reset).args
+    if 'epoch' in reset_args:
+        args.reset_withepoch = True
+    else:
+        args.reset_withepoch = False
+    if hasattr(env, 'reward_terminal'):
+        args.reward_terminal = True
+    else:
+        args.reward_terminal = False
 
     num_inputs = env.observation_dim
     args.num_actions = env.num_actions
@@ -301,8 +203,6 @@ if __name__ == '__main__':
     if args.commnet and (args.recurrent or args.rnn_type == 'LSTM'):
         args.recurrent = True
         args.rnn_type = 'LSTM'
-
-
     parse_action_args(args)
 
     if args.seed == -1:
@@ -310,7 +210,6 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     print(args)
-
 
     if args.commnet:
         policy_net = CommNetMLP(args, num_inputs).to(torch.device("cuda"))
@@ -326,50 +225,14 @@ if __name__ == '__main__':
 
     # share parameters among threads, but not gradients
     #policy_net.share_memory()
-
+    '''
     for p in policy_net.parameters():
-        p.data.share_memory_()
+        p.data.share_memory_()    
+    '''
+    trainer = MultiEnvTrainer(args, policy_net)
 
-    if args.nprocesses > 1:
-        trainer = MultiProcessTrainer(args, lambda: Trainer(args, policy_net, data.init(args.env_name, args)))
-    else:
-        trainer = Trainer(args, policy_net, data.init(args.env_name, args))
+    train_log = trainer.train(args.num_epochs)
 
-    #disp_trainer = Trainer(args, policy_net, data.init(args.env_name, args, False))
-    #disp_trainer.display = True
-    log = dict()
-    log['epoch'] = LogField(list(), False, None, None)
-    log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
-    log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['value_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['action_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['comm_entro_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['other_loss'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
-    log['comm_entropy'] = LogField(list(), True, 'epoch', None)
-    if args.test_times>0:
-        load(args.load)
-        trainer.test_batch(args.test_times)
-    else:
-        if args.plot:
-            vis = visdom.Visdom(env=args.plot_env)
-        signal.signal(signal.SIGINT, signal_handler)
-
-        if args.load != '':
-            load(args.load)
-            print('loading successful!')
-
-        run(args.num_epochs)
-        if args.display:
-            env.end_display()
-
-        if args.save != '':
-            save(args.save)
 
     if sys.flags.interactive == 0 and args.nprocesses > 1:
         trainer.quit()

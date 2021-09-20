@@ -72,12 +72,6 @@ class CommNetMLP(nn.Module):
             else:
                 self.msg_encoder.add_module('activate3',nn.Tanh())
 
-                
-
-
-
-
-
         # Since linear layers in PyTorch now accept * as any number of dimensions
         # between last and first dim, num_agents dimension will be covered.
         # The network below is function r in the paper for encoding
@@ -129,25 +123,6 @@ class CommNetMLP(nn.Module):
 
         self.value_head = nn.Linear(self.hid_size, 1)
 
-
-    def get_agent_mask(self, batch_size, info):
-        n = self.nagents
-
-        if 'alive_mask' in info:
-            agent_mask = torch.from_numpy(info['alive_mask']).to(torch.device("cuda"))
-            num_agents_alive = agent_mask.sum()
-        else:
-            agent_mask = torch.ones(n).to(torch.device("cuda"))
-            num_agents_alive = n    
-        
-        record_mask = agent_mask.view(n,1)
-        record_mask = record_mask.expand(n,self.args.msg_size)
-
-        agent_mask = agent_mask.view(1, 1, n)
-        agent_mask = agent_mask.expand(batch_size, n, n).unsqueeze(-1)
-
-        return num_agents_alive, agent_mask, record_mask
-
     def forward_state_encoder(self, x):
         hidden_state, cell_state = None, None
 
@@ -173,10 +148,12 @@ class CommNetMLP(nn.Module):
         else :
             comm = self.msg_encoder(raw_comm) 
         comm_info = 0     
+        #comm size should be batchsize x n x msg_size
         if self.args.comm_detail == 'binary':
-            U = torch.rand(2, self.args.msg_size).cuda()
-            noise_0 = -torch.log(-torch.log(U[0,:]))
-            noise_1 = -torch.log(-torch.log(U[1,:]))
+            U1 = torch.rand_like(comm).cuda()
+            U2 = torch.rand_like(comm).cuda()
+            noise_0 = -torch.log(-torch.log(U1))
+            noise_1 = -torch.log(-torch.log(U2))
             comm_0 = torch.exp((torch.log(comm)+noise_0)/self.args.gumbel_gamma)
             comm_1 = torch.exp((torch.log(comm)+noise_1)/self.args.gumbel_gamma)
             comm = comm_1/(comm_0+comm_1)
@@ -189,6 +166,8 @@ class CommNetMLP(nn.Module):
             comm = mu + torch.exp(lnsigma)*(torch.randn_like(lnsigma).cuda())
             comm = torch.clamp(comm,min=-1,max=1)
             comm_info = torch.cat((comm,mu,lnsigma),-1)
+        else:
+            comm_info = comm
         #the message range is (-1, 1)
         if self.args.test_quant:
             comm = (comm+1)*0.5
@@ -196,6 +175,7 @@ class CommNetMLP(nn.Module):
             comm = torch.round(comm).detach()
             comm = comm/(self.args.quant_levels-1)
             comm = comm*2-1
+            comm_info = torch.cat((comm,mu,lnsigma),-1)
         return comm, comm_info
         
 
@@ -233,7 +213,7 @@ class CommNetMLP(nn.Module):
         batch_size = x.size()[0]
         n = self.nagents
 
-        num_agents_alive, agent_mask, record_mask = self.get_agent_mask(batch_size, info)
+        num_agents_alive = n
 
         #get mask for record
 
@@ -241,33 +221,27 @@ class CommNetMLP(nn.Module):
         # Hard Attention - action whether an agent communicates or not
         if self.args.hard_attn:
             comm_action = torch.tensor(info['comm_action']).to(torch.device("cuda"))
-            comm_action_mask = comm_action.expand(batch_size, n, n).unsqueeze(-1)
-            # action 1 is talk, 0 is silent i.e. act as dead for comm purposes.
-            agent_mask = agent_mask*comm_action_mask.double()
+            #comm_action is batchsize x nagents
+            comm_action_mask = comm_action.unsqueeze(-1).unsqueeze(-1).expand(batch_size, n, n, self.args.msg_size)
+            agent_mask = comm_action_mask.double()
 
-        agent_mask_transpose = agent_mask.transpose(1, 2)
+        agent_mask_transpose = agent_mask.transpose(1, 2)#this is used to mask dead agents
 
         for i in range(self.comm_passes): #decide how many times to communicate, default 1
             # Choose current or prev depending on recurrent
             raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
+            comm, broad_comm = self.generate_comm(raw_comm)
+            #comm should be batchsize x n x msg-size
 
-            if self.args.comm_detail == 'mim':
-                comm, broad_comm = self.generate_comm(raw_comm)
-            else:
-                comm, _  = self.generate_comm(raw_comm)       
-                if self.args.no_input_grad:
-                    broad_comm, _ = self.generate_comm(raw_comm.detach())
-                else:
-                    broad_comm = comm
-                if self.args.no_mask == False:
-                    broad_comm = broad_comm * record_mask
             # Get the next communication vector based on next hidden state
             comm = comm.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
+            #comm-unsqueeze -> batchsize x n x 1 x msg-size, and expand to batchsize n n msg-size
 
             # Create mask for masking self communication
             mask = self.comm_mask.view(1, n, n)
             mask = mask.expand(comm.shape[0], n, n)
             mask = mask.unsqueeze(-1)
+            #batchsize n n 1
 
             mask = mask.expand_as(comm)
             comm = comm * mask
@@ -306,8 +280,8 @@ class CommNetMLP(nn.Module):
 
         # v = torch.stack([self.value_head(hidden_state[:, i, :]) for i in range(n)])
         # v = v.view(hidden_state.size(0), n, -1)
-        value_head = self.value_head(hidden_state)
         h = hidden_state.view(batch_size, n, self.hid_size)
+        value_head = self.value_head(h)
 
         if self.continuous:
             action_mean = self.action_mean(h)

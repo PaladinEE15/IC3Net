@@ -35,7 +35,7 @@ def select_action(args, action_out):
         ret = torch.stack([torch.stack([torch.multinomial(x, 1).cuda().detach() for x in p]) for p in p_a])
         return ret
 
-def translate_action(args, env, action):
+def translate_action(args, action):
     if args.num_actions[0] > 0:
         # environment takes discrete action
         action = [x.squeeze().cpu().data.numpy() for x in action]
@@ -47,8 +47,8 @@ def translate_action(args, env, action):
             cp_action = action.copy()
             # clip and scale action to correct range
             for i in range(len(action)):
-                low = env.action_space.low[i]
-                high = env.action_space.high[i]
+                low = args.action_space.low[i]
+                high = args.action_space.high[i]
                 cp_action[i] = cp_action[i] * args.action_scale
                 cp_action[i] = max(-1.0, min(cp_action[i], 1.0))
                 cp_action[i] = 0.5 * (cp_action[i] + 1.0) * (high - low) + low
@@ -56,8 +56,8 @@ def translate_action(args, env, action):
         else:
             actual = np.zeros(len(action))
             for i in range(len(action)):
-                low = env.action_space.low[i]
-                high = env.action_space.high[i]
+                low = args.action_space.low[i]
+                high = args.action_space.high[i]
                 actual[i] = action[i].data.squeeze()[0] * (high - low) / (args.naction_heads[i] - 1) + low
             action = [x.squeeze().data[0] for x in action]
             return action, actual
