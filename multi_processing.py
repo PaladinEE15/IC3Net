@@ -137,10 +137,10 @@ class MultiEnvTrainer(object):
                         for i in range(n_envs):
                             if t_set[i]+1 % self.args.detach_gap == 0:
                                 if self.args.rnn_type == 'LSTM':
-                                    prev_hid_0 = prev_hid_set[0]
-                                    prev_hid_1 = prev_hid_set[1]
+                                    prev_hid_0 = prev_hid_set[0].clone()#avoid inplace 
+                                    prev_hid_1 = prev_hid_set[1].clone()
                                     prev_hid_0[i,:] = prev_hid_0[i,:].detach()
-                                    prev_hid_1[i,:] = prev_hid_1[i,:].detach()
+                                    prev_hid_1[i,:] = prev_hid_1[i,:].detach() #inplace action?
                                     prev_hid_set = [prev_hid_0, prev_hid_1]
                                 else:
                                     prev_hid_set[i,:] = prev_hid_set[i,:].detach()
@@ -166,7 +166,11 @@ class MultiEnvTrainer(object):
                         info['comm_action'] = action_set[-1] if not self.args.comm_action_one else np.ones((n_envs,self.args.nagents), dtype=int)
                     action_set = list(zip(action_set[0],action_set[1]))
                     action_out_set = list(zip(action_out_set[0],action_out_set[1]))
-                    #we do not need to record comm_action                     
+                    #we do not need to record comm_action        
+                    #the following are used to avoid inplace
+                    new_info = dict()
+                    new_info['comm_action'] = info['comm_action'].clone()
+                    new_state_set = torch.zeros_like(state_set)
                     for idx, parent_pipe in enumerate(self.parent_pipes):
                         next_state, reward, done, env_info = parent_pipe.recv()
                         real_done = done or t_set[idx] == self.args.max_steps - 1
@@ -195,7 +199,7 @@ class MultiEnvTrainer(object):
                             parent_pipe.send('get_stat')
                                 
                             prev_hid_set = self.policy_net.init_hidden(batch_size=n_envs)
-                            info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int)
+                            new_info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int) #inplace action
                             steps_record.append(t_set[idx])
                             success_record.append(parent_pipe.recv()['success'])
                             t_set[idx] = 0
@@ -207,14 +211,16 @@ class MultiEnvTrainer(object):
                                 parent_pipe.send(['reset',epoch])
                             else:
                                 parent_pipe.send('reset')      
-                            state_set[idx,:] = parent_pipe.recv()
+                            new_state_set[idx,:] = parent_pipe.recv() #inplace action
                         else:
                             t_set[idx] += 1   
-                            state_set[idx,:] = next_state        
+                            new_state_set[idx,:] = next_state #inplace action       
                             if continue_training[idx] == 1: #the training is not complete, continue adding trans. else, trans should not be added to buffer                                           
                                 trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
                                 episode_set[idx].append(trans)
                     total_steps += n_envs
+                    info = new_info
+                    state_set = new_state_set
                     if total_steps >= self.args.batch_size and np.sum(continue_training) == 0:
                         break
                 #begin training
