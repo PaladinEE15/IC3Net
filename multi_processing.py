@@ -79,10 +79,7 @@ class MultiEnvTrainer(object):
         self.load_state_dict(d['trainer'])
 
     def train(self, total_epoch):
-        episode_set = []
         n_envs = self.args.nprocesses
-        episode_set = [[] for i in range(n_envs)]
-
         train_log = dict()
         train_log['success'] = []
         train_log['steps_mean'] = []
@@ -99,6 +96,8 @@ class MultiEnvTrainer(object):
             epoch_begin_time = time.time()
         
             for mini_epoch in range(self.args.epoch_size):
+                episode_set = []
+                episode_set = [[] for i in range(n_envs)]
                 #prepare for collecting episodes
                 state_set = None
                 if self.args.reset_withepoch:
@@ -108,8 +107,7 @@ class MultiEnvTrainer(object):
                     for parent_pipe in self.parent_pipes:
                         parent_pipe.send('reset')  
                 info = dict()
-                misc = dict()
-                misc['alive_mask'] = np.ones(self.args.nagents) #ignore starcraft scenerio
+
                 for parent_pipe in self.parent_pipes:
                     state = parent_pipe.recv()
                     if state_set == None:
@@ -168,6 +166,8 @@ class MultiEnvTrainer(object):
                     #the following are used to avoid inplace
                     new_state_set = torch.zeros_like(state_set)
                     for idx, parent_pipe in enumerate(self.parent_pipes):
+                        misc = dict()
+                        misc['alive_mask'] = np.ones(self.args.nagents) #ignore starcraft scenerio
                         next_state, reward, done, env_info = parent_pipe.recv()
                         real_done = done or t_set[idx] == self.args.max_steps - 1
                         if real_done:
@@ -194,10 +194,11 @@ class MultiEnvTrainer(object):
 
                             parent_pipe.send('get_stat')
                             prev_hid_set[0][idx*n_agents:(idx+1)*n_agents,:], prev_hid_set[1][idx*n_agents:(idx+1)*n_agents,:] = self.policy_net.init_hidden(batch_size=1)
-                            info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int) #inplace action
+                            info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int) 
                             steps_record.append(t_set[idx])
                             success_record.append(parent_pipe.recv()['success'])
                             t_set[idx] = 0
+
                             trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
                             episode_set[idx].append(trans)
                             if total_steps >= self.args.batch_size:
@@ -236,7 +237,7 @@ class MultiEnvTrainer(object):
                 success_set += success_record
                 steps_set += steps_record
                 main_loss_set.append(train_info['main_loss'])
-                entropy_loss_set.append('comm_entro_loss')
+                entropy_loss_set.append(train_info['comm_entro_loss'])
             
             #a batch is completed, print stat and record  
             epoch_end_time = time.time()
@@ -392,7 +393,7 @@ class MultiEnvTrainer(object):
         stat['comm_entro_loss'] = comm_entro_loss.item()*self.args.loss_alpha
         loss = loss + comm_entro_loss*self.args.loss_alpha #we want to maximize comm_entro
 
-        loss.backward()
+        loss.backward(retain_graph = True)
         self.optimizer.step()        
         return stat
     
