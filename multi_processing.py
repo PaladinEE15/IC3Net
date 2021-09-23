@@ -259,12 +259,12 @@ class MultiEnvTrainer(object):
             train_log['success'].append(mean_success)
             train_log['steps_mean'].append(mean_steps)
             train_log['steps_std'].append(std_steps)
-            train_log['main_loss'].append(mean_entropy_loss)
+            train_log['main_loss'].append(mean_main_loss)
             train_log['main_loss_std'].append(std_main_loss)
 
             if self.args.save_every and epoch and self.args.save != '' and epoch % self.args.save_every == 0:
-                self.save(self.args.save + '_' + str(epoch))
-        self.save(self.args.save)
+                self.save(train_log, self.args.save + '_' + str(epoch))
+        self.save(train_log, self.args.save)
         return train_log
 
 
