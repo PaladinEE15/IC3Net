@@ -310,14 +310,20 @@ class MultiEnvTrainer(object):
                 for target in range(self.args.quant_levels):
                     mid_mat = torch.min(1.25*(ref_info-target+0.8), -1.25*(ref_info-target-0.8))
                     mid_mat = torch.clamp(mid_mat,min=0,max=1)
-                    freq = torch.mean(mid_mat,dim=0)+1e-20
+                    square_mat = (comm_info>target-0.5)*(comm_info<target+0.5)*torch.ones_like(comm_info).to(torch.device("cuda"))
+                    final_mat = (square_mat-mid_mat).detach()+mid_mat
+                    freq = torch.mean(final_mat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)
             elif self.args.comm_detail == 'cos':
+                ref_info = (comm_info+1)*0.5
+                ref_info = ref_info*(self.args.quant_levels-1) 
                 comm_entro_loss = 0
                 for target in range(self.args.quant_levels):
-                    mid_mat = 0.5*(comm_info>target-1)*(comm_info<target+1)*(torch.cos(math.pi*(comm_info-target))+1)
-                    freq = torch.mean(mid_mat,dim=0)+1e-20
+                    mid_mat = 0.5*(ref_info>target-1)*(ref_info<target+1)*(torch.cos(math.pi*(ref_info-target))+1)
+                    square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
+                    final_mat = (square_mat-mid_mat).detach()+mid_mat
+                    freq = torch.mean(final_mat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)
             elif self.args.comm_detail == 'binary':

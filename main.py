@@ -116,8 +116,8 @@ parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "m
                     help="How to process broadcasting messages")
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')
-parser.add_argument('--test_quant', default=False, action='store_true', 
-                    help='Whether test and do quantification')
+parser.add_argument('--quant', default=False, action='store_true', 
+                    help='Whether do quantification')
 parser.add_argument('--msg_size', default=128, type=int,
                     help='message size')
 parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
