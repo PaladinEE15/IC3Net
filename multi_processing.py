@@ -138,12 +138,14 @@ class MultiEnvTrainer(object):
                 while True:
                     #the envs will run asynchronously. if one done, just reset related info and continue, unless steps reach max batch size
                     if self.args.recurrent:
-                        prev_hid_set[0] = prev_hid_set[0].view(n_envs*n_agents,self.args.hid_size)
-                        prev_hid_set[1] = prev_hid_set[1].view(n_envs*n_agents,self.args.hid_size)
+                        prev_hid_set_0 = prev_hid_set[0].view(n_envs*n_agents,self.args.hid_size)
+                        prev_hid_set_1 = prev_hid_set[1].view(n_envs*n_agents,self.args.hid_size)
+                        prev_hid_set = (prev_hid_set_0, prev_hid_set_1)
                         x = [state_set, prev_hid_set]
                         comm_set, action_out_set, value_set, prev_hid_set = self.policy_net(x, info)
-                        prev_hid_set[0] = prev_hid_set[0].view(n_envs,n_agents,self.args.hid_size)
-                        prev_hid_set[1] = prev_hid_set[1].view(n_envs,n_agents,self.args.hid_size)
+                        prev_hid_set_0 = prev_hid_set[0].view(n_envs,n_agents,self.args.hid_size)
+                        prev_hid_set_1 = prev_hid_set[1].view(n_envs,n_agents,self.args.hid_size)
+                        prev_hid_set = (prev_hid_set_0, prev_hid_set_1)
                         for i in range(n_envs):
                             if t_set[i]+1 % self.args.detach_gap == 0:
                                 if self.args.rnn_type == 'LSTM':
