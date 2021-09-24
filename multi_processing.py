@@ -51,7 +51,9 @@ class MultiEnvWorker(ctx.Process):
             elif task == 'reward_terminal':
                 self.comm.send(self.env.reward_terminal())   
             elif task == 'get_stat':
-                self.comm.send(self.env.get_stat())    
+                self.comm.send(self.env.get_stat())   
+            elif task == 'quit':
+                return 
 
 class MultiEnvTrainer(object):
     def __init__(self, args, policy_net):
@@ -66,6 +68,9 @@ class MultiEnvTrainer(object):
             self.workers.append(process)
             process.start()
     
+    def quit(self):
+        for parent_pipe in self.parent_pipes:
+            parent_pipe.send('quit')
     def save(self, train_log, path):
         d = dict()
         d['policy_net'] = self.policy_net.state_dict()
