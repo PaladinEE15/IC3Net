@@ -96,6 +96,8 @@ class MultiEnvTrainer(object):
             epoch_begin_time = time.time()
         
             for mini_epoch in range(self.args.epoch_size):
+                misc = dict()
+                misc['alive_mask'] = np.ones(self.args.nagents) #ignore starcraft scenerio
                 episode_set = []
                 episode_set = [[] for i in range(n_envs)]
                 #prepare for collecting episodes
@@ -131,13 +133,17 @@ class MultiEnvTrainer(object):
                 while True:
                     #the envs will run asynchronously. if one done, just reset related info and continue, unless steps reach max batch size
                     if self.args.recurrent:
+                        prev_hid_set[0] = prev_hid_set[0].view(n_envs*n_agents,self.args.hid_size)
+                        prev_hid_set[1] = prev_hid_set[1].view(n_envs*n_agents,self.args.hid_size)
                         x = [state_set, prev_hid_set]
                         comm_set, action_out_set, value_set, prev_hid_set = self.policy_net(x, info)
+                        prev_hid_set[0] = prev_hid_set[0].view(n_envs,n_agents,self.args.hid_size)
+                        prev_hid_set[1] = prev_hid_set[1].view(n_envs,n_agents,self.args.hid_size)
                         for i in range(n_envs):
                             if t_set[i]+1 % self.args.detach_gap == 0:
                                 if self.args.rnn_type == 'LSTM':
-                                    prev_hid_set[0][i*n_agents:(i+1)*n_agents,:] = prev_hid_set[0][i*n_agents:(i+1)*n_agents,:].detach()
-                                    prev_hid_set[1][i*n_agents:(i+1)*n_agents,:] = prev_hid_set[1][i*n_agents:(i+1)*n_agents,:].detach()
+                                    prev_hid_set[0][i,:] = prev_hid_set[0][i,:].detach()
+                                    prev_hid_set[1][i,:] = prev_hid_set[1][i,:].detach()
                                 else:
                                     prev_hid_set[i,:] = prev_hid_set[i,:].detach()
                     else:
@@ -166,12 +172,13 @@ class MultiEnvTrainer(object):
                     #the following are used to avoid inplace
                     new_state_set = torch.zeros_like(state_set)
                     for idx, parent_pipe in enumerate(self.parent_pipes):
-                        misc = dict()
-                        misc['alive_mask'] = np.ones(self.args.nagents) #ignore starcraft scenerio
+
                         next_state, reward, done, env_info = parent_pipe.recv()
                         real_done = done or t_set[idx] == self.args.max_steps - 1
+
                         if real_done:
                             episode_mask = np.zeros(reward.shape)
+                            episode_mini_mask = np.ones(reward.shape)
                         else:
                             episode_mask = np.ones(reward.shape)
                             if 'is_completed' in env_info:
@@ -185,7 +192,7 @@ class MultiEnvTrainer(object):
                         temp1 = action_out[0].unsqueeze(0)
                         temp2 = action_out[1].unsqueeze(0)
                         action_out = [temp1, temp2]
-                        value = value_set[idx,:].unsqueeze(1)
+                        value = value_set[idx,:]
                         if real_done:
                             if self.args.reward_terminal:
                                 parent_pipe.send('reward_terminal')
@@ -193,14 +200,14 @@ class MultiEnvTrainer(object):
                                 reward += add_reward
 
                             parent_pipe.send('get_stat')
-                            prev_hid_set[0][idx*n_agents:(idx+1)*n_agents,:], prev_hid_set[1][idx*n_agents:(idx+1)*n_agents,:] = self.policy_net.init_hidden(batch_size=1)
+                            prev_hid_set[0][idx,:], prev_hid_set[1][idx,:] = self.policy_net.init_hidden(batch_size=1)
                             info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int) 
                             steps_record.append(t_set[idx])
                             success_record.append(parent_pipe.recv()['success'])
                             t_set[idx] = 0
-
-                            trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
-                            episode_set[idx].append(trans)
+                            if continue_training[idx] == 1:
+                                trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
+                                episode_set[idx].append(trans)
                             if total_steps >= self.args.batch_size:
                                 continue_training[idx] = 0
                             if self.args.reset_withepoch:
@@ -422,9 +429,8 @@ class MultiEnvTrainer(object):
         entropy = -np.sum(probs*np.log(probs))
         return entropy                           
 
-
     def state_dict(self):
-        return self.trainer.state_dict()
+        return self.optimizer.state_dict()
 
     def load_state_dict(self, state):
-        self.trainer.load_state_dict(state)
+        self.optimizer.load_state_dict(state)

@@ -223,7 +223,8 @@ class CommNetMLP(nn.Module):
         if self.args.hard_attn:
             comm_action = torch.tensor(info['comm_action']).to(torch.device("cuda"))
             #comm_action is batchsize x nagents
-            comm_action_mask = comm_action.unsqueeze(-1).unsqueeze(-1).expand(batch_size, n, n, self.args.msg_size)
+            comm_action_mask = comm_action.unsqueeze(-1).expand(batch_size, n, n)
+            comm_action_mask = comm_action_mask.unsqueeze(-1).expand(batch_size, n, n, self.args.msg_size)
             agent_mask = comm_action_mask.double()
 
         agent_mask_transpose = agent_mask.transpose(1, 2)#this is used to mask dead agents
