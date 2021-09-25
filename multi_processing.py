@@ -103,7 +103,6 @@ class MultiEnvTrainer(object):
             for mini_epoch in range(self.args.epoch_size):
                 misc = dict()
                 misc['alive_mask'] = np.ones(self.args.nagents) #ignore starcraft scenerio
-                episode_set = []
                 episode_set = [[] for i in range(n_envs)]
                 #prepare for collecting episodes
                 state_set = None
@@ -230,7 +229,7 @@ class MultiEnvTrainer(object):
                                 episode_set[idx].append(trans)
                     total_steps += n_envs
                     state_set = new_state_set
-                    if total_steps >= self.args.batch_size and np.sum(continue_training) == 0:
+                    if np.sum(continue_training) == 0:
                         break
                 #begin training
                 #collect batch

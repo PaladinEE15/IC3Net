@@ -1,4 +1,5 @@
-    def compute_grad(self, comm_info, batch, loss_alpha):
+    def step_train(self, batch, comm_info=None):
+        self.optimizer.zero_grad()
         stat = dict()
         num_actions = self.args.num_actions
         dim_actions = self.args.dim_actions
@@ -11,10 +12,6 @@
         episode_mini_masks = torch.Tensor(batch.episode_mini_mask).to(torch.device("cuda"))
         actions = torch.Tensor(batch.action).to(torch.device("cuda"))
         actions = actions.transpose(1, 2).view(-1, n, dim_actions)
-
-        # old_actions = torch.Tensor(np.concatenate(batch.action, 0))
-        # old_actions = old_actions.view(-1, n, dim_actions)
-        # print(old_actions == actions)
 
         # can't do batch forward.
         values = torch.cat(batch.value, dim=0)
@@ -35,21 +32,28 @@
         prev_value = 0
         prev_advantage = 0
         
-        if loss_alpha > 0:
+        if comm_info != None:
             if self.args.comm_detail == 'triangle':
                 ref_info = (comm_info+1)*0.5
                 ref_info = ref_info*(self.args.quant_levels-1) 
                 comm_entro_loss = 0
                 for target in range(self.args.quant_levels):
-                    mid_mat = torch.min(nn.functional.relu(ref_info-target+1), nn.functional.relu(-ref_info+target+1),dim=0)
-                    freq = torch.mean(mid_mat,dim=0)+1e-20
+                    mid_mat = torch.min(1.25*(ref_info-target+0.8), -1.25*(ref_info-target-0.8))
+                    mid_mat = torch.clamp(mid_mat,min=0,max=1)
+                    square_mat = (comm_info>target-0.5)*(comm_info<target+0.5)*torch.ones_like(comm_info).to(torch.device("cuda"))
+                    final_mat = (square_mat-mid_mat).detach()+mid_mat
+                    freq = torch.mean(final_mat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)
             elif self.args.comm_detail == 'cos':
+                ref_info = (comm_info+1)*0.5
+                ref_info = ref_info*(self.args.quant_levels-1) 
                 comm_entro_loss = 0
                 for target in range(self.args.quant_levels):
-                    mid_mat = 0.5*(comm_info>target-1)*(comm_info<target+1)*(torch.cos(math.pi*(comm_info-target))+1)
-                    freq = torch.mean(mid_mat,dim=0)+1e-20
+                    mid_mat = 0.5*(ref_info>target-1)*(ref_info<target+1)*(torch.cos(math.pi*(ref_info-target))+1)
+                    square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
+                    final_mat = (square_mat-mid_mat).detach()+mid_mat
+                    freq = torch.mean(final_mat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)
             elif self.args.comm_detail == 'binary':
@@ -120,10 +124,11 @@
                     entropy -= (log_p_a[i] * log_p_a[i].exp()).sum()
                 stat['entropy'] = entropy.item()
                 loss -= self.args.entr * entropy
-        stat['other_loss'] = loss.item()
-        stat['comm_entro_loss'] = comm_entro_loss.item()*loss_alpha
-        loss = loss + comm_entro_loss*loss_alpha #we want to maximize comm_entro
+        loss = loss/batch_size #get mean
+        stat['main_loss'] = loss.item()
+        stat['comm_entro_loss'] = comm_entro_loss.item()*self.args.loss_alpha
+        loss = loss + comm_entro_loss*self.args.loss_alpha #we want to maximize comm_entro
 
-        loss.backward()
-
+        loss.backward(retain_graph = True)
+        self.optimizer.step()        
         return stat
