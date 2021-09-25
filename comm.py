@@ -72,12 +72,6 @@ class CommNetMLP(nn.Module):
             else:
                 self.msg_encoder.add_module('activate3',nn.Tanh())
 
-                
-
-
-
-
-
         # Since linear layers in PyTorch now accept * as any number of dimensions
         # between last and first dim, num_agents dimension will be covered.
         # The network below is function r in the paper for encoding
@@ -92,8 +86,10 @@ class CommNetMLP(nn.Module):
 
         if args.recurrent:
             self.init_hidden(args.batch_size)
-            self.f_module = nn.LSTMCell(args.hid_size, args.hid_size)
-
+            if args.rnn_type == 'LSTM':
+                self.f_module = nn.LSTMCell(args.hid_size, args.hid_size)
+            else:
+                self.f_module = nn.GRUCell(args.hid_size, args.hid_size)
         else:
             if args.share_weights:
                 self.f_module = nn.Linear(args.hid_size, args.hid_size)
@@ -295,10 +291,12 @@ class CommNetMLP(nn.Module):
 
                 inp = inp.view(batch_size * n, self.hid_size)
 
-                output = self.f_module(inp, (hidden_state, cell_state))
-
-                hidden_state = output[0]
-                cell_state = output[1]
+                if self.args.rnn_type == 'LSTM':
+                    output = self.f_module(inp, (hidden_state, cell_state))
+                    hidden_state = output[0]
+                    cell_state = output[1]
+                else: #GRU
+                    hidden_state = self.f_module(inp, hidden_state)
 
             else: # MLP|RNN
                 # Get next hidden state from f node
@@ -321,8 +319,11 @@ class CommNetMLP(nn.Module):
             # discrete actions
             action = [F.log_softmax(head(h), dim=-1) for head in self.heads]
 
-        if self.args.recurrent:
-            return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone())
+        if self.args.recurrent :
+            if self.args.rnn_type == 'LSTM':
+                return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone())
+            else:
+                return broad_comm, action, value_head, hidden_state.clone()
         else:
             return broad_comm, action, value_head
 
@@ -332,6 +333,9 @@ class CommNetMLP(nn.Module):
 
     def init_hidden(self, batch_size):
         # dim 0 = num of layers * num of direction
-        return tuple(( torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda")),
+        if self.args.rnn_type == 'LSTM':
+            return tuple(( torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda")),
                        torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda"))))
+        else:
+            return torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda"))
 

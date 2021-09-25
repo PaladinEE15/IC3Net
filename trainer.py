@@ -48,7 +48,7 @@ class Trainer(object):
 
             # recurrence over time
             if self.args.recurrent:
-                if self.args.rnn_type == 'LSTM' and t == 0:
+                if t == 0:
                     prev_hid = self.policy_net.init_hidden(batch_size=state.shape[0])
 
                 x = [state, prev_hid]
@@ -57,7 +57,7 @@ class Trainer(object):
                 if (t + 1) % self.args.detach_gap == 0:
                     if self.args.rnn_type == 'LSTM':
                         prev_hid = (prev_hid[0].detach(), prev_hid[1].detach())
-                    else:
+                    else:#GRU
                         prev_hid = prev_hid.detach()
             else:
                 x = state
