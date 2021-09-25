@@ -180,8 +180,9 @@ class CommNetMLP(nn.Module):
             comm_0 = torch.exp((torch.log(comm)+noise_0)/self.args.gumbel_gamma)
             comm_1 = torch.exp((torch.log(comm)+noise_1)/self.args.gumbel_gamma)
             comm = comm_1/(comm_0+comm_1)
-            if self.args.test_quant:
-                comm = torch.round(comm).detach()
+            if self.args.quant:
+                qt_comm = torch.round(comm)
+                comm = (qt_comm-comm).detach() + comm
             return comm, None
         elif self.args.comm_detail == 'mim':
             mu = self.mu_layer(comm)
@@ -190,12 +191,13 @@ class CommNetMLP(nn.Module):
             comm = torch.clamp(comm,min=-1,max=1)
             comm_info = torch.cat((comm,mu,lnsigma),-1)
         #the message range is (-1, 1)
-        if self.args.test_quant:
-            comm = (comm+1)*0.5
-            comm = comm*(self.args.quant_levels-1)
-            comm = torch.round(comm).detach()
-            comm = comm/(self.args.quant_levels-1)
-            comm = comm*2-1
+        if self.args.quant:
+            qt_comm = (comm+1)*0.5
+            qt_comm = qt_comm*(self.args.quant_levels-1)
+            qt_comm = torch.round(qt_comm)
+            qt_comm = qt_comm/(self.args.quant_levels-1)
+            qt_comm = qt_comm*2-1
+            comm = (qt_comm-comm).detach()+comm
         return comm, comm_info
         
 
