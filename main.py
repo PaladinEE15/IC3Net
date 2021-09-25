@@ -153,6 +153,12 @@ def signal_handler(signal, frame):
         os._exit(0)
         #sys.exit(0)
 
+def load(path):
+    d = torch.load(path)
+    # log.clear()
+    policy_net.load_state_dict(d['policy_net'])
+    trainer.load_state_dict(d['trainer'])
+
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
     if args.ic3net:
@@ -230,7 +236,9 @@ if __name__ == '__main__':
         p.data.share_memory_()    
     '''
     trainer = MultiEnvTrainer(args, policy_net)
-
+    if args.load != '':
+        load(args.load)
+        print('loading successful!')
     train_log = trainer.train(args.num_epochs)
 
 
