@@ -412,7 +412,7 @@ class MultiEnvTrainer(object):
         stat['comm_entro_loss'] = comm_entro_loss.item()*self.args.loss_alpha
         loss = loss + comm_entro_loss*self.args.loss_alpha #we want to maximize comm_entro
 
-        loss.backward(retain_graph = True)
+        loss.backward()
         self.optimizer.step()        
         return stat
     
