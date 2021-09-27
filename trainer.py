@@ -259,6 +259,8 @@ class Trainer(object):
         stat['value_loss'] = value_loss.item()
         loss = action_loss + self.args.value_coeff * value_loss
 
+        comm_entro_loss = comm_entro_loss*batch_size #to keep in pace with other loss
+
         if not self.args.continuous:
             # entropy regularization term
             if self.args.entr > 0:

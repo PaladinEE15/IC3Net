@@ -168,7 +168,8 @@ class CommNetMLP(nn.Module):
             comm = raw_comm
         else :
             comm = self.msg_encoder(raw_comm) 
-        comm_info = 0     
+        comm_inuse = comm
+        comm_info = comm     
         if self.args.comm_detail == 'binary':
             U = torch.rand(2, self.args.msg_size).cuda()
             noise_0 = -torch.log(-torch.log(U[0,:]))
@@ -176,25 +177,31 @@ class CommNetMLP(nn.Module):
             comm_0 = torch.exp((torch.log(comm)+noise_0)/self.args.gumbel_gamma)
             comm_1 = torch.exp((torch.log(comm)+noise_1)/self.args.gumbel_gamma)
             comm = comm_1/(comm_0+comm_1)
+            comm_info = comm
+
             if self.args.quant:
                 qt_comm = torch.round(comm)
-                comm = (qt_comm-comm).detach() + comm
-            return comm, None
+                comm_inuse = (qt_comm-comm).detach() + comm
+            else:
+                comm_inuse = comm
+            return comm_inuse, comm_info
         elif self.args.comm_detail == 'mim':
             mu = self.mu_layer(comm)
             lnsigma = self.lnsigma_layer(comm)
             comm = mu + torch.exp(lnsigma)*(torch.randn_like(lnsigma).cuda())
             comm = torch.clamp(comm,min=-1,max=1)
             comm_info = torch.cat((comm,mu,lnsigma),-1)
+            comm_inuse = comm
         #the message range is (-1, 1)
         if self.args.quant:
+            comm_info = comm
             qt_comm = (comm+1)*0.5
             qt_comm = qt_comm*(self.args.quant_levels-1)
             qt_comm = torch.round(qt_comm)
             qt_comm = qt_comm/(self.args.quant_levels-1)
             qt_comm = qt_comm*2-1
-            comm = (qt_comm-comm).detach()+comm
-        return comm, comm_info
+            comm_inuse = (qt_comm-comm).detach()+comm
+        return comm_inuse, comm_info
         
 
     def forward(self, x, info={}):
@@ -248,17 +255,7 @@ class CommNetMLP(nn.Module):
         for i in range(self.comm_passes): #decide how many times to communicate, default 1
             # Choose current or prev depending on recurrent
             raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
-
-            if self.args.comm_detail == 'mim':
-                comm, broad_comm = self.generate_comm(raw_comm)
-            else:
-                comm, _  = self.generate_comm(raw_comm)       
-                if self.args.no_input_grad:
-                    broad_comm, _ = self.generate_comm(raw_comm.detach())
-                else:
-                    broad_comm = comm
-                if self.args.no_mask == False:
-                    broad_comm = broad_comm * record_mask
+            comm, broad_comm = self.generate_comm(raw_comm)
             # Get the next communication vector based on next hidden state
             comm = comm.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
 
