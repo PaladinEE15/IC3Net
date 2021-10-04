@@ -21,39 +21,28 @@ def calcu_entropy_binary(comm):
     entropy = np.sum(entropy_set)
     return entropy
 
-
-
-class MultiEnvWorker(ctx.Process):
-    def __init__(self, id, comm, main_args, seed):
-        self.id = id
-        self.seed = seed
-        super(MultiEnvWorker, self).__init__()
-        self.env = data.init(main_args.env_name, main_args, False)
-        self.comm = comm
-        self.args = main_args
-
-
-    def run(self):
-        torch.manual_seed(self.seed + self.id + 1)
-        np.random.seed(self.seed + self.id + 1)
-        while True:
-            task = self.comm.recv()
-            data = None
-            if type(task) == list:
-                task, data = task  
-            if task == 'reset':
-                if data == None:
-                    self.comm.send(self.env.reset())
-                else:
-                    self.comm.send(self.env.reset(data))  
-            elif task == 'step':
-                self.comm.send(self.env.step(data))  
-            elif task == 'reward_terminal':
-                self.comm.send(self.env.reward_terminal())   
-            elif task == 'get_stat':
-                self.comm.send(self.env.get_stat())   
-            elif task == 'quit':
-                return 
+def multi_env_process(id, comm, main_args):
+    env = data.init(main_args.env_name, main_args, False)
+    torch.manual_seed(id + 1)
+    np.random.seed(id + 1)
+    while True:
+        task = comm.recv()
+        the_data = None
+        if type(task) == list:
+            task, the_data = task  
+        if task == 'reset':
+            if the_data == None:
+                comm.send(env.reset())
+            else:
+                comm.send(env.reset(the_data))  
+        elif task == 'step':
+            comm.send(env.step(the_data))  
+        elif task == 'reward_terminal':
+            comm.send(env.reward_terminal())   
+        elif task == 'get_stat':
+            comm.send(env.get_stat())   
+        elif task == 'quit':
+            return 
 
 class MultiEnvTrainer(object):
     def __init__(self, args, policy_net):
@@ -64,7 +53,7 @@ class MultiEnvTrainer(object):
         self.workers = []
 
         for idx, child_pipe in enumerate(self.child_pipes):
-            process = MultiEnvWorker(idx, child_pipe, args, args.seed)
+            process = ctx.Process(target=multi_env_process, args=(idx, child_pipe, self.args), daemon=True)
             self.workers.append(process)
             process.start()
     
