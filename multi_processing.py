@@ -214,15 +214,15 @@ class MultiEnvTrainer(object):
                         break
                 #begin training
                 #collect batch
-                loss = 0
+                batch = []
                 for episodes in episode_set:
-                    batch = Transition(*zip(*episodes))
-                    batch_loss = self.compute_loss(batch)
-                    loss += batch_loss
-                loss = loss/n_envs
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+                    batch += episodes
+                #comm is stored in comm_acc
+                batch = Transition(*zip(*batch))
+                if self.args.loss_alpha>0 and epoch>self.args.loss_start:
+                    train_info = self.step_train(batch, comm_acc)
+                else:
+                    train_info = self.step_train(batch)
                 #calculate entropy if needed
                 if self.args.calcu_entropy:
                     entropy = self.calcu_entropy(comm_acc.detach().cpu().numpy())
@@ -243,13 +243,13 @@ class MultiEnvTrainer(object):
             print('epoch: ', epoch, ' time: ', epoch_run_time, 's')
             print('success: ', mean_success)
             print('steps: ', mean_steps, ' std: ', std_steps)
-            #print('main loss: ', mean_main_loss, ' std: ', std_main_loss)
+            print('main loss: ', mean_main_loss, ' std: ', std_main_loss)
             
-            #if self.args.calcu_entropy:
-            #    mean_entropy, std_entropy = np.mean(np.array(entropy_record)), np.std(np.array(entropy_record))
-            #    mean_entropy_loss, std_entropy_loss = np.mean(np.array(entropy_loss_set)), np.std(np.array(entropy_loss_set))
-            #    print('entropy loss: ', mean_entropy_loss, ' std: ', std_entropy_loss)
-            #    print('entropy: ', mean_entropy, ' std: ', std_entropy)
+            if self.args.calcu_entropy:
+                mean_entropy, std_entropy = np.mean(np.array(entropy_record)), np.std(np.array(entropy_record))
+                mean_entropy_loss, std_entropy_loss = np.mean(np.array(entropy_loss_set)), np.std(np.array(entropy_loss_set))
+                print('entropy loss: ', mean_entropy_loss, ' std: ', std_entropy_loss)
+                print('entropy: ', mean_entropy, ' std: ', std_entropy)
             train_log['success'].append(mean_success)
             train_log['steps_mean'].append(mean_steps)
             train_log['steps_std'].append(std_steps)
