@@ -86,7 +86,7 @@ class CommNetMLP(nn.Module):
 
         if args.recurrent:
             self.init_hidden(args.batch_size)
-            self.f_module = nn.LSTMCell(args.hid_size, args.hid_size)
+            self.f_module = nn.GRUCell(args.hid_size, args.hid_size)
 
         else:
             if args.share_weights:
@@ -130,10 +130,7 @@ class CommNetMLP(nn.Module):
             x, extras = x
             x = self.encoder(x)
 
-            if self.args.rnn_type == 'LSTM':
-                hidden_state, cell_state = extras
-            else:
-                hidden_state = extras
+            hidden_state = extras
             # hidden_state = self.tanh( self.hidd_encoder(prev_hidden_state) + x)
         else:
             x = self.encoder(x)
@@ -147,37 +144,40 @@ class CommNetMLP(nn.Module):
             comm = raw_comm
         else :
             comm = self.msg_encoder(raw_comm) 
-        comm_info = 0     
-        #comm size should be batchsize x n x msg_size
+        comm_inuse = comm
+        comm_info = comm     
         if self.args.comm_detail == 'binary':
-            U1 = torch.rand_like(comm).cuda()
-            U2 = torch.rand_like(comm).cuda()
-            noise_0 = -torch.log(-torch.log(U1))
-            noise_1 = -torch.log(-torch.log(U2))
+            U = torch.rand(2, self.args.msg_size).cuda()
+            noise_0 = -torch.log(-torch.log(U[0,:]))
+            noise_1 = -torch.log(-torch.log(U[1,:]))
             comm_0 = torch.exp((torch.log(comm)+noise_0)/self.args.gumbel_gamma)
             comm_1 = torch.exp((torch.log(comm)+noise_1)/self.args.gumbel_gamma)
             comm = comm_1/(comm_0+comm_1)
+            comm_info = comm
+
             if self.args.quant:
                 qt_comm = torch.round(comm)
-                comm = (qt_comm-comm).detach()+comm
-            return comm, None
+                comm_inuse = (qt_comm-comm).detach() + comm
+            else:
+                comm_inuse = comm
+            return comm_inuse, comm_info
         elif self.args.comm_detail == 'mim':
             mu = self.mu_layer(comm)
             lnsigma = self.lnsigma_layer(comm)
             comm = mu + torch.exp(lnsigma)*(torch.randn_like(lnsigma).cuda())
             comm = torch.clamp(comm,min=-1,max=1)
             comm_info = torch.cat((comm,mu,lnsigma),-1)
-        else:
-            comm_info = comm
+            comm_inuse = comm
         #the message range is (-1, 1)
         if self.args.quant:
+            comm_info = comm
             qt_comm = (comm+1)*0.5
             qt_comm = qt_comm*(self.args.quant_levels-1)
             qt_comm = torch.round(qt_comm)
             qt_comm = qt_comm/(self.args.quant_levels-1)
             qt_comm = qt_comm*2-1
-            comm = (qt_comm-comm).detach()+comm
-        return comm, comm_info
+            comm_inuse = (qt_comm-comm).detach()+comm
+        return comm_inuse, comm_info
         
 
     def forward(self, x, info={}):
@@ -269,10 +269,7 @@ class CommNetMLP(nn.Module):
 
                 inp = inp.view(batch_size * n, self.hid_size)
 
-                output = self.f_module(inp, (hidden_state, cell_state))
-
-                hidden_state = output[0]
-                cell_state = output[1]
+                hidden_state = self.f_module(inp, hidden_state)
 
             else: # MLP|RNN
                 # Get next hidden state from f node
@@ -295,17 +292,13 @@ class CommNetMLP(nn.Module):
             # discrete actions
             action = [F.log_softmax(head(h), dim=-1) for head in self.heads]
 
-        if self.args.recurrent:
-            return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone())
-        else:
-            return broad_comm, action, value_head
+        if self.args.recurrent :
+            return broad_comm, action, value_head, hidden_state.clone()
 
     def init_weights(self, m):
         if type(m) == nn.Linear:
             m.weight.data.normal_(0, self.init_std)
 
     def init_hidden(self, batch_size):
-        # dim 0 = num of layers * num of direction
-        return tuple(( torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda")),
-                       torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda"))))
+        return torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True).to(torch.device("cuda"))
 

@@ -96,7 +96,7 @@ parser.add_argument('--comm_mask_zero', action='store_true', default=False,
 parser.add_argument('--mean_ratio', default=1.0, type=float,
                     help='how much coooperative to do? 1.0 means fully cooperative')
 parser.add_argument('--rnn_type', default='MLP', type=str,
-                    help='type of rnn to use. [LSTM|MLP]')
+                    help='type of rnn to use. [LSTM|MLP|GRU]')
 parser.add_argument('--detach_gap', default=10000, type=int,
                     help='detach hidden state and cell state for rnns at this interval.'
                     + ' Default 10000 (very high)')
@@ -122,7 +122,7 @@ parser.add_argument('--msg_size', default=128, type=int,
                     help='message size')
 parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
                     help='message layer size')
-parser.add_argument('--quant_levels', default=17, type=int,
+parser.add_argument('--quant_levels', default=9, type=int,
                     help='quantification levels')                 
 
 # set GPU
@@ -206,9 +206,8 @@ if __name__ == '__main__':
         args.dim_actions = env.dim_actions + 1
 
     # Recurrence
-    if args.commnet and (args.recurrent or args.rnn_type == 'LSTM'):
-        args.recurrent = True
-        args.rnn_type = 'LSTM'
+    if args.commnet and args.recurrent and args.rnn_type == 'MLP':
+        args.rnn_type = 'GRU'
     parse_action_args(args)
 
     if args.seed == -1:

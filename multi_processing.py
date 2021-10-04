@@ -115,7 +115,7 @@ class MultiEnvTrainer(object):
                 total_steps = 0
                 if self.args.hard_attn and self.args.commnet:
                     info['comm_action'] = np.zeros((n_envs,self.args.nagents), dtype=int)
-                if self.args.rnn_type == 'LSTM' and self.args.recurrent:
+                if self.args.recurrent:
                     prev_hid_set = self.policy_net.init_hidden(batch_size=n_envs)
                 else:
                     prev_hid_set = torch.zeros(n_envs, self.args.nagents, self.args.hid_size).to(torch.device("cuda"))
@@ -126,21 +126,13 @@ class MultiEnvTrainer(object):
                 while True:
                     #the envs will run asynchronously. if one done, just reset related info and continue, unless steps reach max batch size
                     if self.args.recurrent:
-                        prev_hid_set_0 = prev_hid_set[0].view(n_envs*n_agents,self.args.hid_size)
-                        prev_hid_set_1 = prev_hid_set[1].view(n_envs*n_agents,self.args.hid_size)
-                        prev_hid_set = (prev_hid_set_0, prev_hid_set_1)
+                        prev_hid_set = prev_hid_set.view(n_envs*n_agents,self.args.hid_size)
                         x = [state_set, prev_hid_set]
                         comm_set, action_out_set, value_set, prev_hid_set = self.policy_net(x, info)
-                        prev_hid_set_0 = prev_hid_set[0].view(n_envs,n_agents,self.args.hid_size)
-                        prev_hid_set_1 = prev_hid_set[1].view(n_envs,n_agents,self.args.hid_size)
-                        prev_hid_set = (prev_hid_set_0, prev_hid_set_1)
+                        prev_hid_set = prev_hid_set.view(n_envs,n_agents,self.args.hid_size)
                         for i in range(n_envs):
                             if t_set[i]+1 % self.args.detach_gap == 0:
-                                if self.args.rnn_type == 'LSTM':
-                                    prev_hid_set[0][i,:] = prev_hid_set[0][i,:].detach()
-                                    prev_hid_set[1][i,:] = prev_hid_set[1][i,:].detach()
-                                else:
-                                    prev_hid_set[i,:] = prev_hid_set[i,:].detach()
+                                prev_hid_set[i,:] = prev_hid_set[i,:].detach()
                     else:
                         x = state_set
                         comm_set, action_out_set, value_set = self.policy_net(x, info)
@@ -195,7 +187,7 @@ class MultiEnvTrainer(object):
                                 reward += add_reward
 
                             parent_pipe.send('get_stat')
-                            prev_hid_set[0][idx,:], prev_hid_set[1][idx,:] = self.policy_net.init_hidden(batch_size=1)
+                            prev_hid_set[idx,:] = self.policy_net.init_hidden(batch_size=1)
                             info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int) 
                             steps_record.append(t_set[idx])
                             success_record.append(parent_pipe.recv()['success'])
