@@ -110,8 +110,8 @@ class MultiEnvTrainer(object):
                         state_set = state
                     else:
                         state_set = torch.cat((state_set, state), 0)
-                comm_acc_set = [0 for i in range(n_envs)]
-                total_comm_set = 0
+                comm_acc_set = [None for i in range(n_envs)]
+                total_comm_set = None
                 t_set = np.zeros(n_envs) #record t of each environment. remember to make zero after reset
                 continue_training = np.ones(n_envs) #this is used to indicate whether the training should be stopped
                 total_steps = 0
@@ -141,12 +141,12 @@ class MultiEnvTrainer(object):
                 
                     if self.args.calcu_entropy:
                         total_comm = torch.flatten(comm_set,0,-2)
-                        if total_comm_set == 0:
+                        if total_comm_set == None:
                             total_comm_set = total_comm
                         else:
                             total_comm_set = torch.cat((total_comm_set, total_comm), 0)
                         for i in range(n_envs):
-                            if comm_acc_set[i] == 0:
+                            if comm_acc_set[i] == None:
                                 comm_acc_set[i] = comm_set[i,:]
                             else:
                                 comm_acc_set[i] = torch.cat((comm_acc_set[i],comm_set[i,:]),0)
