@@ -161,7 +161,6 @@ def load(path):
     d = torch.load(path)
     # log.clear()
     policy_net.load_state_dict(d['policy_net'])
-    log.update(d['log'])
     trainer.load_state_dict(d['trainer'])
 
 def signal_handler(signal, frame):
