@@ -88,7 +88,6 @@ class MultiEnvTrainer(object):
             main_loss_set = []
             entropy_loss_set = []
             epoch_begin_time = time.time()
-            whether_comm_record = None
         
             for mini_epoch in range(self.args.epoch_size):
                 misc = dict()
@@ -110,8 +109,7 @@ class MultiEnvTrainer(object):
                         state_set = state
                     else:
                         state_set = torch.cat((state_set, state), 0)
-                comm_acc_set = [None for i in range(n_envs)]
-                total_comm_set = None
+                comm_acc = None
                 t_set = np.zeros(n_envs) #record t of each environment. remember to make zero after reset
                 continue_training = np.ones(n_envs) #this is used to indicate whether the training should be stopped
                 total_steps = 0
@@ -140,16 +138,11 @@ class MultiEnvTrainer(object):
                         comm_set, action_out_set, value_set = self.policy_net(x, info)
                 
                     if self.args.calcu_entropy:
-                        total_comm = torch.flatten(comm_set,0,-2)
-                        if total_comm_set == None:
-                            total_comm_set = total_comm
+                        comm = torch.flatten(comm_set,0,-2)
+                        if comm_acc == None:
+                            comm_acc = comm
                         else:
-                            total_comm_set = torch.cat((total_comm_set, total_comm), 0)
-                        for i in range(n_envs):
-                            if comm_acc_set[i] == None:
-                                comm_acc_set[i] = comm_set[i,:]
-                            else:
-                                comm_acc_set[i] = torch.cat((comm_acc_set[i],comm_set[i,:]),0)
+                            comm_acc = torch.cat((comm_acc,comm),0)
                     action_set = select_action(self.args, action_out_set)
                     action_set, actual = translate_action(self.args, action_set)
                     #need to split it 
@@ -159,12 +152,7 @@ class MultiEnvTrainer(object):
                         parent_pipe.send(['step', actual[idx]])
                     # store comm_action in info for next step
                     if self.args.hard_attn and self.args.commnet:
-                        info['comm_action'] = action_set[1] if not self.args.comm_action_one else np.ones((n_envs,self.args.nagents), dtype=int)
-
-                    if whether_comm_record is None:
-                        whether_comm_record = action_set[1]
-                    else:
-                        whether_comm_record = np.concatenate((whether_comm_record, action_set[1]),0)
+                        info['comm_action'] = action_set[-1] if not self.args.comm_action_one else np.ones((n_envs,self.args.nagents), dtype=int)
                     action_set = list(zip(action_set[0],action_set[1]))
                     action_out_set = list(zip(action_out_set[0],action_out_set[1]))
                     #we do not need to record comm_action        
@@ -226,19 +214,18 @@ class MultiEnvTrainer(object):
                         break
                 #begin training
                 #collect batch
-                batch = []
+                loss = 0
                 for episodes in episode_set:
-                    batch += episodes
-                #comm is stored in comm_acc
-                batch = Transition(*zip(*batch))
-                if self.args.loss_alpha>0 and epoch>self.args.loss_start:
-                    train_info = self.step_train(batch, comm_acc)
-                else:
-                    train_info = self.step_train(batch)
+                    batch = Transition(*zip(*episodes))
+                    batch_loss = self.compute_loss(batch)
+                    loss += batch_loss
+                loss = loss/n_envs
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
                 #calculate entropy if needed
-
                 if self.args.calcu_entropy:
-                    entropy = self.calcu_entropy(total_comm_set.detach().cpu().numpy())
+                    entropy = self.calcu_entropy(comm_acc.detach().cpu().numpy())
                     entropy_record.append(entropy)
                 #store training info and prepare for output
                 success_set += success_record
@@ -256,13 +243,13 @@ class MultiEnvTrainer(object):
             print('epoch: ', epoch, ' time: ', epoch_run_time, 's')
             print('success: ', mean_success)
             print('steps: ', mean_steps, ' std: ', std_steps)
-            print('main loss: ', mean_main_loss, ' std: ', std_main_loss)
+            #print('main loss: ', mean_main_loss, ' std: ', std_main_loss)
             
-            if self.args.calcu_entropy:
-                mean_entropy, std_entropy = np.mean(np.array(entropy_record)), np.std(np.array(entropy_record))
-                mean_entropy_loss, std_entropy_loss = np.mean(np.array(entropy_loss_set)), np.std(np.array(entropy_loss_set))
-                print('entropy loss: ', mean_entropy_loss, ' std: ', std_entropy_loss)
-                print('entropy: ', mean_entropy, ' std: ', std_entropy)
+            #if self.args.calcu_entropy:
+            #    mean_entropy, std_entropy = np.mean(np.array(entropy_record)), np.std(np.array(entropy_record))
+            #    mean_entropy_loss, std_entropy_loss = np.mean(np.array(entropy_loss_set)), np.std(np.array(entropy_loss_set))
+            #    print('entropy loss: ', mean_entropy_loss, ' std: ', std_entropy_loss)
+            #    print('entropy: ', mean_entropy, ' std: ', std_entropy)
             train_log['success'].append(mean_success)
             train_log['steps_mean'].append(mean_steps)
             train_log['steps_std'].append(std_steps)
