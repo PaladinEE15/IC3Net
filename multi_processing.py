@@ -277,7 +277,6 @@ class MultiEnvTrainer(object):
 
             if self.args.save_every and epoch and self.args.save != '' and epoch % self.args.save_every == 0:
                 self.save(train_log, self.args.save + '_' + str(epoch))
-            gc.collect()
         self.save(train_log, self.args.save)
         return train_log
 
