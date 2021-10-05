@@ -46,6 +46,16 @@ def multi_env_process(id, comm, main_args):
         elif task == 'quit':
             return 
 
+def process_msg_list(msg):
+    trans_msg = []
+    for items in msg:
+        trans_msg.append(copy.deepcopy(items))
+    return trans_msg
+
+def process_msg(msg):
+    trans_msg = copy.deepcopy(msg)
+    return trans_msg
+
 class MultiEnvTrainer(object):
     def __init__(self, args, policy_net):
         self.policy_net = policy_net
@@ -106,7 +116,7 @@ class MultiEnvTrainer(object):
                 info = dict()
 
                 for parent_pipe in self.parent_pipes:
-                    state = parent_pipe.recv()
+                    state = process_msg(parent_pipe.recv())
                     if state_set == None:
                         state_set = state
                     else:
@@ -116,7 +126,7 @@ class MultiEnvTrainer(object):
                 continue_training = np.ones(n_envs) #this is used to indicate whether the training should be stopped
                 total_steps = 0
                 if self.args.hard_attn and self.args.commnet:
-                    info['comm_action'] = np.ones((n_envs,self.args.nagents), dtype=int)
+                    info['comm_action'] = np.zeros((n_envs,self.args.nagents), dtype=int)
                 if self.args.recurrent:
                     prev_hid_set = self.policy_net.init_hidden(batch_size=n_envs)
                 else:
@@ -167,7 +177,7 @@ class MultiEnvTrainer(object):
                     new_state_set = torch.zeros_like(state_set)
                     for idx, parent_pipe in enumerate(self.parent_pipes):
 
-                        next_state, reward, done, env_info = parent_pipe.recv()
+                        next_state, reward, done, env_info = process_msg_list(parent_pipe.recv())
                         real_done = done or t_set[idx] == self.args.max_steps - 1
 
                         if real_done:
@@ -190,14 +200,14 @@ class MultiEnvTrainer(object):
                         if real_done:
                             if self.args.reward_terminal:
                                 parent_pipe.send('reward_terminal')
-                                add_reward = parent_pipe.recv()
+                                add_reward = process_msg(parent_pipe.recv())
                                 reward += add_reward
 
                             parent_pipe.send('get_stat')
                             prev_hid_set[idx,:] = self.policy_net.init_hidden(batch_size=1)
                             info['comm_action'][idx,:] = np.zeros(self.args.nagents, dtype=int) 
                             steps_record.append(t_set[idx])
-                            success_record.append(parent_pipe.recv()['success'])
+                            success_record.append(process_msg(parent_pipe.recv()['success']))
                             t_set[idx] = 0
                             if continue_training[idx] == 1:
                                 trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
@@ -208,7 +218,7 @@ class MultiEnvTrainer(object):
                                 parent_pipe.send(['reset',epoch])
                             else:
                                 parent_pipe.send('reset')      
-                            new_state_set[idx,:] = parent_pipe.recv() #inplace action
+                            new_state_set[idx,:] = process_msg(parent_pipe.recv()) #inplace action
                         else:
                             t_set[idx] += 1   
                             new_state_set[idx,:] = next_state #inplace action       
@@ -240,7 +250,6 @@ class MultiEnvTrainer(object):
                 steps_set += steps_record
                 main_loss_set.append(train_info['main_loss'])
                 entropy_loss_set.append(train_info['comm_entro_loss'])
-                del batch, comm_acc
             #a batch is completed, print stat and record  
             epoch_end_time = time.time()
             epoch_run_time = epoch_end_time - epoch_begin_time
