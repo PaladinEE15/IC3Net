@@ -77,6 +77,16 @@ class MultiAgentEnv(gym.Env):
             self.viewers = [None] * self.n
         self._reset_render()
 
+    def observation_dim(self):
+        # tuple space
+        total_obs_dim = 0
+        for space in self.observation_space:
+            if hasattr(space, 'shape'):
+                total_obs_dim += int(np.prod(space.shape))
+            else: # Discrete
+                total_obs_dim += 1
+        return total_obs_dim
+
     def step(self, action_n):
         obs_n = []
         reward_n = []
