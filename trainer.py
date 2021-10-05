@@ -31,6 +31,7 @@ class Trainer(object):
             state = self.env.reset(epoch)
         else:
             state = self.env.reset()
+        state = torch.from_numpy(state).double().to(torch.device("cuda"))
         should_display = self.display and self.last_step
 
         if should_display:
@@ -76,6 +77,7 @@ class Trainer(object):
             action = select_action(self.args, action_out)
             action, actual = translate_action(self.args, self.env, action)
             next_state, reward, done, info = self.env.step(actual)
+            next_state = torch.from_numpy(next_state).double().to(torch.device("cuda"))
 
             # store comm_action in info for next step
             if self.args.hard_attn and self.args.commnet:
