@@ -8,6 +8,8 @@ from inspect import getargspec
 from utils import *
 from action_utils import *
 import time
+import copy
+import gc
 
 Transition = namedtuple('Transition', ('state', 'action', 'action_out', 'value', 'episode_mask', 'episode_mini_mask', 'next_state',
                                        'reward', 'misc'))
@@ -80,7 +82,7 @@ class MultiEnvTrainer(object):
         train_log['steps_std'] = []
         train_log['main_loss'] = []
         train_log['main_loss_std'] = []
-
+        whether_comm_record = None
 
         for epoch in range(total_epoch):
             success_set = []
@@ -114,7 +116,7 @@ class MultiEnvTrainer(object):
                 continue_training = np.ones(n_envs) #this is used to indicate whether the training should be stopped
                 total_steps = 0
                 if self.args.hard_attn and self.args.commnet:
-                    info['comm_action'] = np.zeros((n_envs,self.args.nagents), dtype=int)
+                    info['comm_action'] = np.ones((n_envs,self.args.nagents), dtype=int)
                 if self.args.recurrent:
                     prev_hid_set = self.policy_net.init_hidden(batch_size=n_envs)
                 else:
@@ -152,7 +154,12 @@ class MultiEnvTrainer(object):
                         parent_pipe.send(['step', actual[idx]])
                     # store comm_action in info for next step
                     if self.args.hard_attn and self.args.commnet:
-                        info['comm_action'] = action_set[-1] if not self.args.comm_action_one else np.ones((n_envs,self.args.nagents), dtype=int)
+                        #info['comm_action'] = np.ones((n_envs,self.args.nagents), dtype=int) #I'm tired. dont want to play this game, just, train it.
+                        info['comm_action'] = copy.deepcopy(action_set[-1]) if not self.args.comm_action_one else np.ones((n_envs,self.args.nagents), dtype=int)
+                    if whether_comm_record is None:
+                        whether_comm_record = action_set[1]
+                    else:
+                        whether_comm_record = np.concatenate((whether_comm_record, action_set[1]),0)
                     action_set = list(zip(action_set[0],action_set[1]))
                     action_out_set = list(zip(action_out_set[0],action_out_set[1]))
                     #we do not need to record comm_action        
@@ -210,6 +217,7 @@ class MultiEnvTrainer(object):
                                 episode_set[idx].append(trans)
                     total_steps += n_envs
                     state_set = new_state_set
+
                     if np.sum(continue_training) == 0:
                         break
                 #begin training
@@ -232,7 +240,7 @@ class MultiEnvTrainer(object):
                 steps_set += steps_record
                 main_loss_set.append(train_info['main_loss'])
                 entropy_loss_set.append(train_info['comm_entro_loss'])
-            
+                del batch, comm_acc
             #a batch is completed, print stat and record  
             epoch_end_time = time.time()
             epoch_run_time = epoch_end_time - epoch_begin_time
@@ -244,6 +252,8 @@ class MultiEnvTrainer(object):
             print('success: ', mean_success)
             print('steps: ', mean_steps, ' std: ', std_steps)
             print('main loss: ', mean_main_loss, ' std: ', std_main_loss)
+            mean_ifcomm = np.mean(whether_comm_record,0)
+            print('comm action:', mean_ifcomm)
             
             if self.args.calcu_entropy:
                 mean_entropy, std_entropy = np.mean(np.array(entropy_record)), np.std(np.array(entropy_record))
@@ -258,6 +268,7 @@ class MultiEnvTrainer(object):
 
             if self.args.save_every and epoch and self.args.save != '' and epoch % self.args.save_every == 0:
                 self.save(train_log, self.args.save + '_' + str(epoch))
+            gc.collect()
         self.save(train_log, self.args.save)
         return train_log
 
