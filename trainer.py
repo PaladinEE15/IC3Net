@@ -206,7 +206,8 @@ class Trainer(object):
                 entropy_set = -(freq+1e-20)*torch.log(freq+1e-20) -(1-freq+1e-20)*torch.log(1-freq+1e-20)
                 comm_entro_loss = torch.mean(entropy_set)
             elif self.args.comm_detail == 'mim':
-                _, mu, lnsigma = torch.split(comm_info,3,1) 
+                split_size = int(comm_info.size()[1]/3)
+                _, mu, lnsigma = torch.split(comm_info,split_size,1) 
                 loss_mat = 0.5*(mu**2 + (torch.exp(lnsigma))**2)/self.args.mim_gauss_var - lnsigma    
                 comm_entro_loss = torch.mean(loss_mat)        
         else:

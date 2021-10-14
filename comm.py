@@ -194,7 +194,6 @@ class CommNetMLP(nn.Module):
             comm_inuse = comm
         #the message range is (-1, 1)
         if self.args.quant:
-            comm_info = comm
             qt_comm = (comm+1)*0.5
             qt_comm = qt_comm*(self.args.quant_levels-1)
             qt_comm = torch.round(qt_comm)
