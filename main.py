@@ -137,6 +137,8 @@ parser.add_argument('--no_mask', default=False, action='store_true',
                     help='when calculating entropy, whether consider mask')
 parser.add_argument('--loss_start', default=0, type=int, 
                     help='which epoch starts comm_entro loss calculate')
+parser.add_argument('--quant_start', default=0, type=int, 
+                    help='which epoch starts quant')
 parser.add_argument('--loss_alpha', default=0, type=float,
                     help='the weight of entropy loss')
 parser.add_argument('--no_input_grad', default=False, action='store_true', 
