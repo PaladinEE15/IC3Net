@@ -25,8 +25,8 @@ def init(env_name, args, final_init=True):
             env.init_curses()
         env.multi_agent_init(args)
         env = GymWrapper(env)
-    elif env_name == 'coop_navigation':
-        env = gym.make('CooperativeNavigation-v0')
+    elif env_name == 'coop_search':
+        env = gym.make('CooperativeSearch-v0')
         env.multi_agent_init(args)
         env = GymWrapper(env)
     elif env_name == 'starcraft':

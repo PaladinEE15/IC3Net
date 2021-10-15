@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Simulate a cooperative navigation environment.
+Simulate a cooperative search environment.
 
 Design Decisions:
 Vision, movement speed and map size can be used to define different difficulties. Since map size is fixed: 1x1, change movement speed and vision is more useful 
@@ -19,7 +19,7 @@ import numpy as np
 from gym import spaces
 
 
-class CooperativeNavigationnEnv(gym.Env):
+class CooperativeSearchEnv(gym.Env):
     # metadata = {'render.modes': ['human']}
 
     def __init__(self,):
@@ -27,11 +27,11 @@ class CooperativeNavigationnEnv(gym.Env):
 
         # TODO: better config handling
         self.OUTSIDE_CLASS = 1
-        self.PREY_CLASS = 2
+        self.TARGET_CLASS = 2
         self.PREDATOR_CLASS = 3
         self.TIMESTEP_PENALTY = -0.05
-        self.PREY_REWARD = 0
-        self.POS_PREY_REWARD = 0.05
+        self.target_REWARD = 0
+        self.POS_target_REWARD = 0.05
         self.episode_over = False
 
     def init_curses(self):#useless function- we do not display for now
@@ -45,35 +45,22 @@ class CooperativeNavigationnEnv(gym.Env):
 
 
     def init_args(self, parser):
-        env = parser.add_argument_group('Cooperative Navigation task')
-        env.add_argument('--diffi', type=int, default=5,
-                         help="Dimension of box")
-        env.add_argument('--vision', type=int, default=2,
+        env = parser.add_argument_group('Cooperative Search task')
+
+        env.add_argument('--vision', type=int, default=1,
                          help="Vision of predator")
-        env.add_argument('--moving_prey', action="store_true", default=False,
-                         help="Whether prey is fixed or moving")
-        env.add_argument('--no_stay', action="store_true", default=False,
-                         help="Whether predators have an action to stay in place")
-        parser.add_argument('--mode', default='mixed', type=str,
-                        help='cooperative|competitive|mixed (default: mixed)')
-        env.add_argument('--enemy_comm', action="store_true", default=False,
-                         help="Whether prey can communicate.")
 
     def multi_agent_init(self, args):
 
         # General variables defining the environment : CONFIG
-        params = ['dim', 'vision', 'moving_prey', 'mode', 'enemy_comm']
+        params = ['dim', 'vision']
         for key in params:
             setattr(self, key, getattr(args, key))
 
-        self.nprey = args.nenemies
+        self.ntarget = args.nfriendly
         self.npredator = args.nfriendly
         self.dims = dims = (self.dim, self.dim)
-        self.stay = not args.no_stay
-
-        if args.moving_prey:
-            raise NotImplementedError
-            # TODO
+        self.stay = True
 
         # (0: UP, 1: RIGHT, 2: DOWN, 3: LEFT, 4: STAY)
         # Define what an agent can do -
@@ -86,12 +73,12 @@ class CooperativeNavigationnEnv(gym.Env):
 
         self.BASE = (dims[0] * dims[1])
         self.OUTSIDE_CLASS += self.BASE
-        self.PREY_CLASS += self.BASE
+        self.TARGET_CLASS += self.BASE
         self.PREDATOR_CLASS += self.BASE
 
         # Setting max vocab size for 1-hot encoding
         self.vocab_size = 1 + 1 + self.BASE + 1 + 1
-        #          predator + prey + grid + outside
+        #          predator + target + grid + outside
 
         # Observation for each agent will be vision * vision ndarray
         self.observation_space = spaces.Box(low=0, high=1, shape=(self.vocab_size, (2 * self.vision) + 1, (2 * self.vision) + 1), dtype=int)
@@ -130,7 +117,7 @@ class CooperativeNavigationnEnv(gym.Env):
         self.episode_over = False
         self.obs = self._get_obs()
 
-        debug = {'predator_locs':self.predator_loc,'prey_locs':self.prey_loc}
+        debug = {'predator_locs':self.predator_loc,'target_locs':self.target_loc}
         return self.obs, self._get_reward(), self.episode_over, debug
 
     def reset(self):
@@ -142,11 +129,12 @@ class CooperativeNavigationnEnv(gym.Env):
         observation (object): the initial observation of the space.
         """
         self.episode_over = False
-        self.reached_prey = np.zeros(self.npredator)
+        self.reached_target = np.zeros(self.npredator)
 
+        self.target_occupied = np.zeros(self.ntarget)
         # Locations
         locs = self._get_cordinates()
-        self.predator_loc, self.prey_loc = locs[:self.npredator], locs[self.npredator:]
+        self.predator_loc, self.target_loc = locs[:self.npredator], locs[self.npredator:]
 
         self._set_grid()
 
@@ -161,14 +149,14 @@ class CooperativeNavigationnEnv(gym.Env):
         return
 
     def _get_cordinates(self):
-        idx = np.random.choice(np.prod(self.dims),(self.npredator + self.nprey), replace=False)
+        idx = np.random.choice(np.prod(self.dims),(self.npredator + self.ntarget), replace=False)
         return np.vstack(np.unravel_index(idx, self.dims)).T
 
     def _set_grid(self):
         self.grid = np.arange(self.BASE).reshape(self.dims)
         # Mark agents in grid
         # self.grid[self.predator_loc[:,0], self.predator_loc[:,1]] = self.predator_ids
-        # self.grid[self.prey_loc[:,0], self.prey_loc[:,1]] = self.prey_ids
+        # self.grid[self.target_loc[:,0], self.target_loc[:,1]] = self.target_ids
 
         # Padding for vision
         self.grid = np.pad(self.grid, self.vision, 'constant', constant_values = self.OUTSIDE_CLASS)
@@ -181,8 +169,8 @@ class CooperativeNavigationnEnv(gym.Env):
         for i, p in enumerate(self.predator_loc):
             self.bool_base_grid[p[0] + self.vision, p[1] + self.vision, self.PREDATOR_CLASS] += 1
 
-        for i, p in enumerate(self.prey_loc):
-            self.bool_base_grid[p[0] + self.vision, p[1] + self.vision, self.PREY_CLASS] += 1
+        for i, p in enumerate(self.target_loc):
+            self.bool_base_grid[p[0] + self.vision, p[1] + self.vision, self.TARGET_CLASS] += 1
 
         obs = []
         for p in self.predator_loc:
@@ -190,25 +178,19 @@ class CooperativeNavigationnEnv(gym.Env):
             slice_x = slice(p[1], p[1] + (2 * self.vision) + 1)
             obs.append(self.bool_base_grid[slice_y, slice_x])
 
-        if self.enemy_comm:
-            for p in self.prey_loc:
-                slice_y = slice(p[0], p[0] + (2 * self.vision) + 1)
-                slice_x = slice(p[1], p[1] + (2 * self.vision) + 1)
-                obs.append(self.bool_base_grid[slice_y, slice_x])
-
         obs = np.stack(obs)
         return obs
 
     def _take_action(self, idx, act):
-        # prey action
+        # target action
         if idx >= self.npredator:
-            # fixed prey
-            if not self.moving_prey:
+            # fixed target
+            if not self.moving_target:
                 return
             else:
                 raise NotImplementedError
 
-        if self.reached_prey[idx] == 1:
+        if self.reached_target[idx] == 1:
             return
 
         # STAY action
@@ -242,37 +224,26 @@ class CooperativeNavigationnEnv(gym.Env):
             self.predator_loc[idx][1] = max(0, self.predator_loc[idx][1]-1)
 
     def _get_reward(self):
-        n = self.npredator if not self.enemy_comm else self.npredator + self.nprey
+        n = self.npredator 
         reward = np.full(n, self.TIMESTEP_PENALTY)
 
-        on_prey = np.where(np.all(self.predator_loc == self.prey_loc,axis=1))[0]
-        nb_predator_on_prey = on_prey.size
+        for target_idx in range(n):
+            if self.target_occupied[target_idx] == 1:
+                continue
+            else:
+                for predator_idx in range(n):
+                    if np.all(self.predator_loc[predator_idx] == self.target_loc[target_idx]):
+                        self.reached_target[predator_idx] = 1
+                        self.target_occupied[target_idx] = 1
+                        reward[predator_idx] = self.target_REWARD
+                    break
 
-        if self.mode == 'cooperative':
-            reward[on_prey] = self.POS_PREY_REWARD * nb_predator_on_prey
-        elif self.mode == 'competitive':
-            if nb_predator_on_prey:
-                reward[on_prey] = self.POS_PREY_REWARD / nb_predator_on_prey
-        elif self.mode == 'mixed':
-            reward[on_prey] = self.PREY_REWARD
-        else:
-            raise RuntimeError("Incorrect mode, Available modes: [cooperative|competitive|mixed]")
 
-        self.reached_prey[on_prey] = 1
-
-        if np.all(self.reached_prey == 1) and self.mode == 'mixed':
+        if np.all(self.reached_target == 1):
             self.episode_over = True
 
-        # Prey reward
-        if nb_predator_on_prey == 0:
-            reward[self.npredator:] = -1 * self.TIMESTEP_PENALTY
-        else:
-            # TODO: discuss & finalise
-            reward[self.npredator:] = 0
-
         # Success ratio
-        if self.mode != 'competitive':
-            if nb_predator_on_prey == self.npredator:
+            if np.all(self.reached_target == 1):
                 self.stat['success'] = 1
             else:
                 self.stat['success'] = 0
@@ -304,7 +275,7 @@ class CooperativeNavigationnEnv(gym.Env):
             else:
                 grid[p[0]][p[1]] = 'X'
 
-        for p in self.prey_loc:
+        for p in self.target_loc:
             if grid[p[0]][p[1]] != 0:
                 grid[p[0]][p[1]] = str(grid[p[0]][p[1]]) + 'P'
             else:

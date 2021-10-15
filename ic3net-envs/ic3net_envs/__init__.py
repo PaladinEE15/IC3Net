@@ -11,6 +11,6 @@ register(
 )
 
 register(
-    id='CooperativeNavigation-v0',
-    entry_point='ic3net_envs.cooperative_navigation_env:CooperativeNavigationnEnv',
+    id='CooperativeSearch-v0',
+    entry_point='ic3net_envs.cooperative_search_env:CooperativeSearchEnv',
 )
