@@ -30,8 +30,9 @@ class CooperativeSearchEnv(gym.Env):
         self.TARGET_CLASS = 2
         self.PREDATOR_CLASS = 3
         self.TIMESTEP_PENALTY = -0.05
-        self.target_REWARD = 0
-        self.POS_target_REWARD = 0.05
+        self.TARGET_REWARD = 0
+        self.POS_TARGET_REWARD = 0.05
+        self.COLLISION_PENALTY = -0.03
         self.episode_over = False
 
     def init_curses(self):#useless function- we do not display for now
@@ -228,17 +229,32 @@ class CooperativeSearchEnv(gym.Env):
         n = self.npredator 
         reward = np.full(n, self.TIMESTEP_PENALTY)
 
+        #occuping reward
+        for predator_idx in range(n):
+            if self.reached_target[predator_idx] == 1:
+                reward[predator_idx] = self.TARGET_REWARD
+
         for target_idx in range(n):
             if self.target_occupied[target_idx] == 1:
                 continue
             else:
                 for predator_idx in range(n):
                     if np.all(self.predator_loc[predator_idx] == self.target_loc[target_idx]):
-                        self.reached_target[predator_idx] = 1
-                        self.target_occupied[target_idx] = 1
-                        reward[predator_idx] = self.target_REWARD
-                    break
-
+                        reward[predator_idx] = self.TARGET_REWARD
+                        if self.target_occupied[target_idx] == 0:
+                            #the predator successfully occupy the target
+                            self.reached_target[predator_idx] = 1
+                            self.target_occupied[target_idx] = 1
+                        #we encourage agents to occupy targets at the same time. However, after that,
+                        
+        
+        #collision penalty:
+        for predator_x in range(n):
+            for predator_y in range(predator_x+1, n):
+                if np.all(self.predator_loc[predator_y] == self.predator_loc[predator_x]):
+                    #collision!
+                    reward[predator_x] -= self.COLLISION_PENALTY
+                    reward[predator_y] -= self.COLLISION_PENALTY
 
         if np.all(self.reached_target == 1):
             self.episode_over = True
