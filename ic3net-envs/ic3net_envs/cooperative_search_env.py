@@ -49,7 +49,8 @@ class CooperativeSearchEnv(gym.Env):
 
         env.add_argument('--vision', type=int, default=1,
                          help="Vision of predator")
-
+        env.add_argument('--dim', type=int, default=5,
+                         help="Dimension of box")
     def multi_agent_init(self, args):
 
         # General variables defining the environment : CONFIG
@@ -243,10 +244,10 @@ class CooperativeSearchEnv(gym.Env):
             self.episode_over = True
 
         # Success ratio
-            if np.all(self.reached_target == 1):
-                self.stat['success'] = 1
-            else:
-                self.stat['success'] = 0
+        if np.all(self.reached_target == 1):
+            self.stat['success'] = 1
+        else:
+            self.stat['success'] = 0
 
         return reward
 
