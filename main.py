@@ -146,6 +146,10 @@ parser.add_argument('--no_input_grad', default=False, action='store_true',
 # Configs for gumbel-softmax
 parser.add_argument('--gumbel_gamma', default=1, type=float,
                     help='gamma of gumbel-softmax')
+
+# Add a no-comm hyper-parameter to control
+parser.add_argument('--no_comm', default=False, action='store_true', 
+                    help='whether block comm. ')
                     
 init_args_for_env(parser)
 args = parser.parse_args()
