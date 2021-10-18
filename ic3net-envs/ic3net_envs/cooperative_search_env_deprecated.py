@@ -35,67 +35,58 @@ class CooperativeSearchEnv(gym.Env):
         self.COLLISION_PENALTY = -0.03
         self.episode_over = False
 
+    def init_curses(self):#useless function- we do not display for now
+        self.stdscr = curses.initscr()
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_RED, -1)
+        curses.init_pair(2, curses.COLOR_YELLOW, -1)
+        curses.init_pair(3, curses.COLOR_CYAN, -1)
+        curses.init_pair(4, curses.COLOR_GREEN, -1)
+
 
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative Search task')
 
-        env.add_argument("--difficulty", type=str, default="easy", choices=["easy", "medium"], 
-                    help="The difficulty of the environment")
-
+        env.add_argument('--vision', type=int, default=1,
+                         help="Vision of predator")
+        env.add_argument('--dim', type=int, default=5,
+                         help="Dimension of box")
     def multi_agent_init(self, args):
+
         # General variables defining the environment : CONFIG
-        if args.difficulty == "easy":
-            self.vision = 0.15
-            self.speed = 0.075 
-        elif args.difficulty == "medium":
-            self.vision = 0.1
-            self.speed = 0.05
+        params = ['dim', 'vision']
+        for key in params:
+            setattr(self, key, getattr(args, key))
 
         self.ntarget = args.nfriendly
-        self.nagent = args.nfriendly
-        self.naction = 9
+        self.npredator = args.nfriendly
+        self.dims = dims = (self.dim, self.dim)
+        self.stay = True
+
+        # (0: UP, 1: RIGHT, 2: DOWN, 3: LEFT, 4: STAY)
+        # Define what an agent can do -
+        if self.stay:
+            self.naction = 5
+        else:
+            self.naction = 4
 
         self.action_space = spaces.MultiDiscrete([self.naction])
-        #observation space design
-        '''
-        assume there are n agents
-        0~n-1: identification
-        n~n+1: self-location
-        n+2~3n-1: other agents' location
-        3n~5n-1: other targets' locations
-        5n~6n-1: other targets' visibilities
-        6n-7n-2: other agents' visibilities
-        '''
 
-        self.obs_dim = 7*self.ntarget-1
-        # Observation for each agent will be 7n-1 ndarray
-        self.observation_space = spaces.Box(low=0, high=1, shape=(1,self.obs_dim), dtype=int)
+        self.BASE = (dims[0] * dims[1])
+        self.OUTSIDE_CLASS += self.BASE
+        self.TARGET_CLASS += self.BASE
+        self.PREDATOR_CLASS += self.BASE
+
+        # Setting max vocab size for 1-hot encoding
+        self.vocab_size = 1 + 1 + self.BASE + 1 + 1
+        #          predator + target + grid + outside
+
+        # Observation for each agent will be vision * vision ndarray
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.vocab_size, (2 * self.vision) + 1, (2 * self.vision) + 1), dtype=int)
+        # Actual observation will be of the shape 1 * npredator * (2v+1) * (2v+1) * vocab_size
+
         return
-
-    def reset(self):
-        """
-        Reset the state of the environment and returns an initial observation.
-
-        Returns
-        -------
-        observation (object): the initial observation of the space.
-        """
-        self.episode_over = False
-        self.reached_target = np.zeros(self.npredator)
-
-        self.target_occupied = np.zeros(self.ntarget)
-        # Locations
-        locs = self._get_cordinates()
-        self.predator_loc, self.target_loc = locs[:self.npredator], locs[self.npredator:]
-
-        self._set_grid()
-
-        # stat - like success ratio
-        self.stat = dict()
-
-        # Observation will be npredator * vision * vision ndarray
-        self.obs = self._get_obs()
-        return self.obs
 
     def step(self, action):
         """
@@ -131,7 +122,30 @@ class CooperativeSearchEnv(gym.Env):
         debug = {'predator_locs':self.predator_loc,'target_locs':self.target_loc}
         return self.obs, self._get_reward(), self.episode_over, debug
 
+    def reset(self):
+        """
+        Reset the state of the environment and returns an initial observation.
 
+        Returns
+        -------
+        observation (object): the initial observation of the space.
+        """
+        self.episode_over = False
+        self.reached_target = np.zeros(self.npredator)
+
+        self.target_occupied = np.zeros(self.ntarget)
+        # Locations
+        locs = self._get_cordinates()
+        self.predator_loc, self.target_loc = locs[:self.npredator], locs[self.npredator:]
+
+        self._set_grid()
+
+        # stat - like success ratio
+        self.stat = dict()
+
+        # Observation will be npredator * vision * vision ndarray
+        self.obs = self._get_obs()
+        return self.obs
 
     def seed(self):
         return
