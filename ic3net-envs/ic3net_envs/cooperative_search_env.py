@@ -26,14 +26,13 @@ class CooperativeSearchEnv(gym.Env):
         self.__version__ = "0.0.1"
 
         # TODO: better config handling
-        self.OUTSIDE_CLASS = 1
-        self.TARGET_CLASS = 2
-        self.PREDATOR_CLASS = 3
         self.TIMESTEP_PENALTY = -0.05
         self.TARGET_REWARD = 0
         self.POS_TARGET_REWARD = 0.05
         self.COLLISION_PENALTY = -0.03
+        self.REACH_DISTANCE = 0.05
         self.episode_over = False
+        
 
 
     def init_args(self, parser):
@@ -46,7 +45,7 @@ class CooperativeSearchEnv(gym.Env):
         # General variables defining the environment : CONFIG
         if args.difficulty == "easy":
             self.vision = 0.15
-            self.speed = 0.075 
+            self.speed = 0.075 #max speed
         elif args.difficulty == "medium":
             self.vision = 0.1
             self.speed = 0.05
@@ -81,21 +80,28 @@ class CooperativeSearchEnv(gym.Env):
         observation (object): the initial observation of the space.
         """
         self.episode_over = False
-        self.reached_target = np.zeros(self.npredator)
-
-        self.target_occupied = np.zeros(self.ntarget)
-        # Locations
-        locs = self._get_cordinates()
-        self.predator_loc, self.target_loc = locs[:self.npredator], locs[self.npredator:]
-
-        self._set_grid()
-
+        self.reached_target = np.zeros(self.nagent)
+        
+        #Spawn agents and targets
+        self.target_loc = np.random.rand(2,self.ntarget)
+        self.agent_loc = np.random.rand(2,self.nagent)
+        #Check if agents are spawned near its target
+        reachs, idxs = self.check_arrival()
+        if reachs>0:
+            self.agent_loc[:, idxs] = np.random.rand(2,reachs)
         # stat - like success ratio
         self.stat = dict()
 
-        # Observation will be npredator * vision * vision ndarray
+        # Observation will be nagent * vision * vision ndarray
         self.obs = self._get_obs()
         return self.obs
+
+    def check_arrival():
+        at_distances = self.target_loc - self.agent_loc
+        self.distances = np.linalg.norm(at_distances,axis=0)
+        target_mat = self.distances<self.REACH_DISTANCE
+        reach_sum = np.sum(target_mat)
+        return reach_sum, target_mat
 
     def step(self, action):
         """
@@ -128,7 +134,7 @@ class CooperativeSearchEnv(gym.Env):
         self.episode_over = False
         self.obs = self._get_obs()
 
-        debug = {'predator_locs':self.predator_loc,'target_locs':self.target_loc}
+        debug = {'agent_locs':self.agent_loc,'target_locs':self.target_loc}
         return self.obs, self._get_reward(), self.episode_over, debug
 
 
@@ -136,14 +142,10 @@ class CooperativeSearchEnv(gym.Env):
     def seed(self):
         return
 
-    def _get_cordinates(self):
-        idx = np.random.choice(np.prod(self.dims),(self.npredator + self.ntarget), replace=False)
-        return np.vstack(np.unravel_index(idx, self.dims)).T
-
     def _set_grid(self):
         self.grid = np.arange(self.BASE).reshape(self.dims)
         # Mark agents in grid
-        # self.grid[self.predator_loc[:,0], self.predator_loc[:,1]] = self.predator_ids
+        # self.grid[self.agent_loc[:,0], self.agent_loc[:,1]] = self.agent_ids
         # self.grid[self.target_loc[:,0], self.target_loc[:,1]] = self.target_ids
 
         # Padding for vision
@@ -152,26 +154,12 @@ class CooperativeSearchEnv(gym.Env):
         self.empty_bool_base_grid = self._onehot_initialization(self.grid)
 
     def _get_obs(self):
-        self.bool_base_grid = self.empty_bool_base_grid.copy()
 
-        for i, p in enumerate(self.predator_loc):
-            self.bool_base_grid[p[0] + self.vision, p[1] + self.vision, self.PREDATOR_CLASS] += 1
-
-        for i, p in enumerate(self.target_loc):
-            self.bool_base_grid[p[0] + self.vision, p[1] + self.vision, self.TARGET_CLASS] += 1
-
-        obs = []
-        for p in self.predator_loc:
-            slice_y = slice(p[0], p[0] + (2 * self.vision) + 1)
-            slice_x = slice(p[1], p[1] + (2 * self.vision) + 1)
-            obs.append(self.bool_base_grid[slice_y, slice_x])
-
-        obs = np.stack(obs)
-        return obs
+        return
 
     def _take_action(self, idx, act):
         # target action
-        if idx >= self.npredator:
+        if idx >= self.nagent:
             # fixed target
             if not self.moving_target:
                 return
@@ -187,60 +175,60 @@ class CooperativeSearchEnv(gym.Env):
 
         # UP
         if act==0 and self.grid[max(0,
-                                self.predator_loc[idx][0] + self.vision - 1),
-                                self.predator_loc[idx][1] + self.vision] != self.OUTSIDE_CLASS:
-            self.predator_loc[idx][0] = max(0, self.predator_loc[idx][0]-1)
+                                self.agent_loc[idx][0] + self.vision - 1),
+                                self.agent_loc[idx][1] + self.vision] != self.OUTSIDE_CLASS:
+            self.agent_loc[idx][0] = max(0, self.agent_loc[idx][0]-1)
 
         # RIGHT
-        elif act==1 and self.grid[self.predator_loc[idx][0] + self.vision,
+        elif act==1 and self.grid[self.agent_loc[idx][0] + self.vision,
                                 min(self.dims[1] -1,
-                                    self.predator_loc[idx][1] + self.vision + 1)] != self.OUTSIDE_CLASS:
-            self.predator_loc[idx][1] = min(self.dims[1]-1,
-                                            self.predator_loc[idx][1]+1)
+                                    self.agent_loc[idx][1] + self.vision + 1)] != self.OUTSIDE_CLASS:
+            self.agent_loc[idx][1] = min(self.dims[1]-1,
+                                            self.agent_loc[idx][1]+1)
 
         # DOWN
         elif act==2 and self.grid[min(self.dims[0]-1,
-                                    self.predator_loc[idx][0] + self.vision + 1),
-                                    self.predator_loc[idx][1] + self.vision] != self.OUTSIDE_CLASS:
-            self.predator_loc[idx][0] = min(self.dims[0]-1,
-                                            self.predator_loc[idx][0]+1)
+                                    self.agent_loc[idx][0] + self.vision + 1),
+                                    self.agent_loc[idx][1] + self.vision] != self.OUTSIDE_CLASS:
+            self.agent_loc[idx][0] = min(self.dims[0]-1,
+                                            self.agent_loc[idx][0]+1)
 
         # LEFT
-        elif act==3 and self.grid[self.predator_loc[idx][0] + self.vision,
+        elif act==3 and self.grid[self.agent_loc[idx][0] + self.vision,
                                     max(0,
-                                    self.predator_loc[idx][1] + self.vision - 1)] != self.OUTSIDE_CLASS:
-            self.predator_loc[idx][1] = max(0, self.predator_loc[idx][1]-1)
+                                    self.agent_loc[idx][1] + self.vision - 1)] != self.OUTSIDE_CLASS:
+            self.agent_loc[idx][1] = max(0, self.agent_loc[idx][1]-1)
 
     def _get_reward(self):
-        n = self.npredator 
+        n = self.nagent 
         reward = np.full(n, self.TIMESTEP_PENALTY)
 
         #occuping reward
-        for predator_idx in range(n):
-            if self.reached_target[predator_idx] == 1:
-                reward[predator_idx] = self.TARGET_REWARD
+        for agent_idx in range(n):
+            if self.reached_target[agent_idx] == 1:
+                reward[agent_idx] = self.TARGET_REWARD
 
         for target_idx in range(n):
             if self.target_occupied[target_idx] == 1:
                 continue
             else:
-                for predator_idx in range(n):
-                    if np.all(self.predator_loc[predator_idx] == self.target_loc[target_idx]):
-                        reward[predator_idx] = self.TARGET_REWARD
+                for agent_idx in range(n):
+                    if np.all(self.agent_loc[agent_idx] == self.target_loc[target_idx]):
+                        reward[agent_idx] = self.TARGET_REWARD
                         if self.target_occupied[target_idx] == 0:
-                            #the predator successfully occupy the target
-                            self.reached_target[predator_idx] = 1
+                            #the agent successfully occupy the target
+                            self.reached_target[agent_idx] = 1
                             self.target_occupied[target_idx] = 1
                         #we encourage agents to occupy targets at the same time. However, after that,
                         
         
         #collision penalty:
-        for predator_x in range(n):
-            for predator_y in range(predator_x+1, n):
-                if np.all(self.predator_loc[predator_y] == self.predator_loc[predator_x]):
+        for agent_x in range(n):
+            for agent_y in range(agent_x+1, n):
+                if np.all(self.agent_loc[agent_y] == self.agent_loc[agent_x]):
                     #collision!
-                    reward[predator_x] -= self.COLLISION_PENALTY
-                    reward[predator_y] -= self.COLLISION_PENALTY
+                    reward[agent_x] -= self.COLLISION_PENALTY
+                    reward[agent_y] -= self.COLLISION_PENALTY
 
         if np.all(self.reached_target == 1):
             self.episode_over = True
@@ -272,7 +260,7 @@ class CooperativeSearchEnv(gym.Env):
         grid = np.zeros(self.BASE, dtype=object).reshape(self.dims)
         self.stdscr.clear()
 
-        for p in self.predator_loc:
+        for p in self.agent_loc:
             if grid[p[0]][p[1]] != 0:
                 grid[p[0]][p[1]] = str(grid[p[0]][p[1]]) + 'X'
             else:
