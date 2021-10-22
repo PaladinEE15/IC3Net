@@ -25,6 +25,9 @@ parser = argparse.ArgumentParser(description='PyTorch RL trainer')
 
 # training
 # note: number of steps per epoch = epoch_size X batch_size x nprocesses
+parser.add_argument('--optim_type', type=str, default='adam',
+                    help="Type of mode for communication tensor calculation [adam|rmsprop]")
+
 parser.add_argument('--num_epochs', default=100, type=int,
                     help='number of training epochs')
 parser.add_argument('--epoch_size', type=int, default=10,
