@@ -27,14 +27,12 @@ class CooperativeSearchEnv(gym.Env):
 
         # TODO: better config handling
         self.TIMESTEP_PENALTY = -0.05
-        self.TARGET_REWARD = 0
-        self.POS_TARGET_REWARD = 0.05
-        self.COLLISION_PENALTY = -0.03
+        self.TARGET_REWARD = 0.05
+        #self.POS_TARGET_REWARD = 0.05
+        #self.COLLISION_PENALTY = -0.03
         self.REACH_DISTANCE = 0.05
         self.episode_over = False
-
         self.ref_act = np.array([[-0.71,0.71],[0,1],[0.71,0.71],[-1,0],[0,0],[1,0],[-0.71,-0.71],[0,-1],[0.71,-0.71]])
-
 
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative Search task')
@@ -154,7 +152,6 @@ class CooperativeSearchEnv(gym.Env):
         if self.episode_over:
             raise RuntimeError("Episode is done")
 
-        
         action = np.array(action).squeeze()
         #action = np.atleast_1d(action)
         assert np.all(action <= self.naction), "Actions should be in the range [0,naction)."
@@ -166,110 +163,28 @@ class CooperativeSearchEnv(gym.Env):
 
         self.agent_loc = self.agent_loc + trans_action
         self.agent_loc = np.clip(self.agent_loc, 0, 1)
-
-
-
-
-
-        self.episode_over = False
+        #renew observations
         self.obs = self._get_obs()
+        #check dones
+        reach_sum, target_mat = self.check_arrival()
+        self.reached_target = target_mat
+
+        if reach_sum == self.nagent:
+            self.episode_over = True
+            self.stat['success'] = 1
+        else:
+            self.episode_over = False 
+            self.stat['success'] = 0
+        
+        #get reward
+        reward = np.full(self.nagent, self.TIMESTEP_PENALTY)
+        reward[target_mat] = self.TARGET_REWARD
 
         debug = {'agent_locs':self.agent_loc,'target_locs':self.target_loc}
-        return self.obs, self._get_reward(), self.episode_over, debug
-
-
+        return self.obs, reward, self.episode_over, debug
 
     def seed(self):
         return
 
-
-    def _get_reward(self):
-        n = self.nagent 
-        reward = np.full(n, self.TIMESTEP_PENALTY)
-
-        #occuping reward
-        for agent_idx in range(n):
-            if self.reached_target[agent_idx] == 1:
-                reward[agent_idx] = self.TARGET_REWARD
-
-        for target_idx in range(n):
-            if self.target_occupied[target_idx] == 1:
-                continue
-            else:
-                for agent_idx in range(n):
-                    if np.all(self.agent_loc[agent_idx] == self.target_loc[target_idx]):
-                        reward[agent_idx] = self.TARGET_REWARD
-                        if self.target_occupied[target_idx] == 0:
-                            #the agent successfully occupy the target
-                            self.reached_target[agent_idx] = 1
-                            self.target_occupied[target_idx] = 1
-                        #we encourage agents to occupy targets at the same time. However, after that,
-                        
-        
-        #collision penalty:
-        for agent_x in range(n):
-            for agent_y in range(agent_x+1, n):
-                if np.all(self.agent_loc[agent_y] == self.agent_loc[agent_x]):
-                    #collision!
-                    reward[agent_x] -= self.COLLISION_PENALTY
-                    reward[agent_y] -= self.COLLISION_PENALTY
-
-        if np.all(self.reached_target == 1):
-            self.episode_over = True
-
-        # Success ratio
-        if np.all(self.reached_target == 1):
-            self.stat['success'] = 1
-        else:
-            self.stat['success'] = 0
-
-        return reward
-
     def reward_terminal(self):
-        return np.zeros_like(self._get_reward())
-
-
-    def _onehot_initialization(self, a):
-        ncols = self.vocab_size
-        out = np.zeros(a.shape + (ncols,), dtype=int)
-        out[self._all_idx(a, axis=2)] = 1
-        return out
-
-    def _all_idx(self, idx, axis):
-        grid = np.ogrid[tuple(map(slice, idx.shape))]
-        grid.insert(axis, idx)
-        return tuple(grid)
-
-    def render(self, mode='human', close=False):
-        grid = np.zeros(self.BASE, dtype=object).reshape(self.dims)
-        self.stdscr.clear()
-
-        for p in self.agent_loc:
-            if grid[p[0]][p[1]] != 0:
-                grid[p[0]][p[1]] = str(grid[p[0]][p[1]]) + 'X'
-            else:
-                grid[p[0]][p[1]] = 'X'
-
-        for p in self.target_loc:
-            if grid[p[0]][p[1]] != 0:
-                grid[p[0]][p[1]] = str(grid[p[0]][p[1]]) + 'P'
-            else:
-                grid[p[0]][p[1]] = 'P'
-
-        for row_num, row in enumerate(grid):
-            for idx, item in enumerate(row):
-                if item != 0:
-                    if 'X' in item and 'P' in item:
-                        self.stdscr.addstr(row_num, idx * 4, item.center(3), curses.color_pair(3))
-                    elif 'X' in item:
-                        self.stdscr.addstr(row_num, idx * 4, item.center(3), curses.color_pair(1))
-                    else:
-                        self.stdscr.addstr(row_num, idx * 4, item.center(3),  curses.color_pair(2))
-                else:
-                    self.stdscr.addstr(row_num, idx * 4, '0'.center(3), curses.color_pair(4))
-
-        self.stdscr.addstr(len(grid), 0, '\n')
-        self.stdscr.refresh()
-
-    def exit_render(self):
-        curses.endwin()
+        return np.zeros_like(self.reached_target)
