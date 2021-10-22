@@ -50,7 +50,7 @@ parser.add_argument('--seed', type=int, default=-1,
                     help='random seed. Pass -1 for random seed') # TODO: works in thread?
 parser.add_argument('--normalize_rewards', action='store_true', default=False,
                     help='normalize rewards in each batch')
-parser.add_argument('--lrate', type=float, default=0.0003,
+parser.add_argument('--lrate', type=float, default=0.001,
                     help='learning rate')
 parser.add_argument('--entr', type=float, default=0,
                     help='entropy regularization coeff')
