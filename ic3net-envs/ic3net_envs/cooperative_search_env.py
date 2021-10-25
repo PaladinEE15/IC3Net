@@ -28,7 +28,7 @@ class CooperativeSearchEnv(gym.Env):
         # TODO: better config handling
         self.TIMESTEP_PENALTY = -0.05
         self.TARGET_REWARD = 0.05
-        self.VISION_REWARD = 0.025 #reward agents for keeping targets in view
+        self.VISION_REWARD = 0 #reward agents for keeping targets in view
         #self.POS_TARGET_REWARD = 0.05
         #self.COLLISION_PENALTY = -0.03
         
@@ -101,7 +101,7 @@ class CooperativeSearchEnv(gym.Env):
     def check_arrival(self):
         at_distances = self.target_loc - self.agent_loc
         self.distances = np.linalg.norm(at_distances,axis=1)
-        target_mat = self.distances<self.REACH_DISTANCE
+        target_mat = self.distances<=self.REACH_DISTANCE
         reach_sum = np.sum(target_mat)
         return reach_sum, target_mat
 
@@ -182,9 +182,9 @@ class CooperativeSearchEnv(gym.Env):
         #get reward
         reward = np.full(self.nagent, self.TIMESTEP_PENALTY)
         reward[target_mat] = self.TARGET_REWARD
-        for idx in range(n):
-            if self.obs[idx,5*n+2+idx] == 1: 
-                reward[idx] += self.VISION_REWARD
+        invision_idxes = (self.distances < self.vision) & (self.distances > self.REACH_DISTANCE)
+        invision_reward = self.VISION_REWARD*(self.vision - self.distances[invision_idxes])/(self.vision - self.REACH_DISTANCE)
+        reward[invision_idxes] += invision_reward
 
         debug = {'agent_locs':self.agent_loc,'target_locs':self.target_loc}
         return self.obs, reward, self.episode_over, debug

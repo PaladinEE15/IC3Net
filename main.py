@@ -278,7 +278,7 @@ if __name__ == '__main__':
 
         # For TJ set comm action to 1 as specified in paper to showcase
         # importance of individual rewards even in cooperative games
-        if args.env_name == "traffic_junction":
+        if args.env_name == "traffic_junction" or "coop_search":
             args.comm_action_one = True
     # Enemy comm
     args.nfriendly = args.nagents
