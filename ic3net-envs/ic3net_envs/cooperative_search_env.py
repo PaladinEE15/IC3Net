@@ -28,9 +28,10 @@ class CooperativeSearchEnv(gym.Env):
         # TODO: better config handling
         self.TIMESTEP_PENALTY = -0.05
         self.TARGET_REWARD = 0.05
+        self.VISION_REWARD = 0.025 #reward agents for keeping targets in view
         #self.POS_TARGET_REWARD = 0.05
         #self.COLLISION_PENALTY = -0.03
-        self.REACH_DISTANCE = 0.05
+        
         self.episode_over = False
         self.ref_act = np.array([[-0.71,0.71],[0,1],[0.71,0.71],[-1,0],[0,0],[1,0],[-0.71,-0.71],[0,-1],[0.71,-0.71]])
 
@@ -43,12 +44,14 @@ class CooperativeSearchEnv(gym.Env):
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
         if args.difficulty == "easy":
-            self.vision = 0.15
-            self.speed = 0.075 #max speed
+            self.vision = 0.3
+            self.speed = 0.15 #max speed
         elif args.difficulty == "medium":
-            self.vision = 0.1
-            self.speed = 0.05
+            self.vision = 0.2
+            self.speed = 0.1
+        self.REACH_DISTANCE = self.speed
 
+        self.ref_act = self.speed*self.ref_act
         self.ntarget = args.nfriendly
         self.nagent = args.nfriendly
         self.naction = 9
@@ -97,7 +100,7 @@ class CooperativeSearchEnv(gym.Env):
 
     def check_arrival(self):
         at_distances = self.target_loc - self.agent_loc
-        self.distances = np.linalg.norm(at_distances,axis=0)
+        self.distances = np.linalg.norm(at_distances,axis=1)
         target_mat = self.distances<self.REACH_DISTANCE
         reach_sum = np.sum(target_mat)
         return reach_sum, target_mat
@@ -175,10 +178,13 @@ class CooperativeSearchEnv(gym.Env):
         else:
             self.episode_over = False 
             self.stat['success'] = 0
-        
+        n = self.nagent
         #get reward
         reward = np.full(self.nagent, self.TIMESTEP_PENALTY)
         reward[target_mat] = self.TARGET_REWARD
+        for idx in range(n):
+            if self.obs[idx,5*n+2+idx] == 1: 
+                reward[idx] += self.VISION_REWARD
 
         debug = {'agent_locs':self.agent_loc,'target_locs':self.target_loc}
         return self.obs, reward, self.episode_over, debug
