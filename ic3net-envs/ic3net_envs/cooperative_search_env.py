@@ -88,10 +88,13 @@ class CooperativeSearchEnv(gym.Env):
         self.other_target_loc[0,:] = self.target_loc[1,:]
         self.other_target_loc[1,:] = self.target_loc[0,:]
         #Check if agents are spawned near its target
-        reachs, idxs = self.check_arrival()
-        if reachs>0:
-            self.agent_loc[idxs,:] = np.random.rand(reachs,2)
-        # stat - like success ratio
+        while True:
+            reachs, idxs = self.check_arrival()
+            if reachs>0:
+                self.agent_loc[idxs,:] = np.random.rand(reachs,2)
+            else:
+                break
+            # stat - like success ratio
         self.stat = dict()
 
         # Observation will be nagent * vision * vision ndarray
