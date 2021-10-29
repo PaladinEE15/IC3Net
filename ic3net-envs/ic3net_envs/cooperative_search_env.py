@@ -45,30 +45,27 @@ class CooperativeSearchEnv(gym.Env):
         # General variables defining the environment : CONFIG
         if args.difficulty == "easy":
             self.vision = 0.3
-            self.speed = 0.15 #max speed
+            self.speed = 0.2 #max speed
+            self.REACH_DISTANCE = 0.15
         elif args.difficulty == "medium":
             self.vision = 0.2
-            self.speed = 0.1
-        self.REACH_DISTANCE = self.speed
+            self.speed = 0.15
+            self.REACH_DISTANCE = 0.1
 
         self.ref_act = self.speed*self.ref_act
-        self.ntarget = args.nfriendly
-        self.nagent = args.nfriendly
         self.naction = 9
 
         self.action_space = spaces.MultiDiscrete([self.naction])
         #observation space design
         '''
-        assume there are n agents
-        0~n-1: identification
-        n~n+1: self-location
-        n+2~3n+1: other agents' location
-        3n+2~5n+1: other targets' locations
-        5n+2~6n+1: other agents' visibilities
-        6n+2-7n+1: other targets' visibilities
+        there are 2 agents
+        0-1: self-location
+        2-3: two targets visibility
+        4-5: self target ref location
+        6-7: friend's target ref location
         '''
 
-        self.obs_dim = 7*self.ntarget+2
+        self.obs_dim = 8
         # Observation for each agent will be 7n-1 ndarray
         self.observation_space = spaces.Box(low=0, high=1, shape=(1,self.obs_dim), dtype=int)
         return
@@ -82,11 +79,14 @@ class CooperativeSearchEnv(gym.Env):
         observation (object): the initial observation of the space.
         """
         self.episode_over = False
-        self.reached_target = np.zeros(self.nagent)
+        self.reached_target = np.zeros(2)
         
         #Spawn agents and targets
-        self.target_loc = np.random.rand(self.ntarget,2)
-        self.agent_loc = np.random.rand(self.nagent,2)
+        self.target_loc = np.random.rand(2,2)
+        self.agent_loc = np.random.rand(2,2)
+        self.other_target_loc = np.zeros_like(self.target_loc)
+        self.other_target_loc[0,:] = self.target_loc[1,:]
+        self.other_target_loc[1,:] = self.target_loc[0,:]
         #Check if agents are spawned near its target
         reachs, idxs = self.check_arrival()
         if reachs>0:
@@ -106,32 +106,33 @@ class CooperativeSearchEnv(gym.Env):
         return reach_sum, target_mat
 
     def _get_obs(self):
-        n = self.nagent
-        new_obs = np.zeros((n,self.obs_dim))
-        #get identification first
-        for i in range(n):
-            new_obs[i,i] = 1
-        #get self location
-        new_obs[:,n:n+2] = self.agent_loc
-        #calculate relative location and record
-        self_loc_mat = np.repeat(self.agent_loc,n,0)
-        agent_loc_mat = np.tile(self.agent_loc,(n,1))
-        target_loc_mat = np.tile(self.target_loc,(n,1))
-        agent_dis_mat = agent_loc_mat - self_loc_mat
-        target_dis_mat = target_loc_mat - agent_loc_mat
-        agent_dist = np.linalg.norm(agent_dis_mat, axis=1)
-        target_dist = np.linalg.norm(target_dis_mat, axis=1)
-        agent_dis_mat[agent_dist>self.vision,:] = 0
-        target_dis_mat[target_dist>self.vision,:] = 0
-        agent_visibility = np.ones_like(agent_dist)
-        target_visibility = np.ones_like(target_dist)
-        agent_visibility[agent_dist>self.vision] = 0
-        target_visibility[target_dist>self.vision] = 0
-        #put values in obs mat
-        new_obs[:,n+2:3*n+2] = agent_dis_mat.reshape(n,-1)
-        new_obs[:,3*n+2:5*n+2] = target_dis_mat.reshape(n,-1)
-        new_obs[:,5*n+2:6*n+2] = target_visibility.reshape(n,-1)
-        new_obs[:,6*n+2:7*n+2] = agent_visibility.reshape(n,-1)
+        #observation space design
+        '''
+        there are 2 agents
+        0-1: self-location
+        2-3: two targets visibility
+        4-5: self target ref location
+        6-7: friend's target ref location
+        '''
+        new_obs = np.zeros((2,self.obs_dim))
+
+        #get self.location
+        new_obs[:,0:2] = self.agent_loc
+        #get self target location
+        agent_target_mat_1 = self.target_loc - self.agent_loc
+        agent_target_mat_2 = self.other_target_loc - self.agent_loc
+        dist_1 = np.linalg.norm(agent_target_mat_1, axis = 1)
+        dist_2 = np.linalg.norm(agent_target_mat_2, axis = 1)
+        visibility_1 = np.ones_like(dist_1)
+        visibility_2 = np.ones_like(dist_2)
+        visibility_1[dist_1>self.vision] = 0
+        visibility_2[dist_2>self.vision] = 0
+        agent_target_mat_1[dist_1>self.vision,:] = 0
+        agent_target_mat_2[dist_2>self.vision,:] = 0
+        new_obs[:,2] = visibility_1
+        new_obs[:,3] = visibility_2
+        new_obs[:,4:6] = agent_target_mat_1
+        new_obs[:,6:8] = agent_target_mat_2
         return new_obs.copy()
 
 
@@ -161,7 +162,7 @@ class CooperativeSearchEnv(gym.Env):
 
         #trans_action = [self.ref_act[idx] for idx in action]
         trans_action = np.zeros_like(self.agent_loc)
-        for idx in range(self.nagent):
+        for idx in range(2):
             if self.reached_target[idx]:
                 continue
             else:
@@ -176,15 +177,15 @@ class CooperativeSearchEnv(gym.Env):
         reach_sum, target_mat = self.check_arrival()
         self.reached_target = target_mat
 
-        if reach_sum == self.nagent:
+        if reach_sum == 2:
             self.episode_over = True
             self.stat['success'] = 1
         else:
             self.episode_over = False 
             self.stat['success'] = 0
-        n = self.nagent
+        n = 2
         #get reward
-        reward = np.full(self.nagent, self.TIMESTEP_PENALTY)
+        reward = np.full(2, self.TIMESTEP_PENALTY)
         reward[target_mat] = self.TARGET_REWARD
         invision_idxes = (self.distances < self.vision) & (self.distances > self.REACH_DISTANCE)
         invision_reward = self.VISION_REWARD*(self.vision - self.distances[invision_idxes])/(self.vision - self.REACH_DISTANCE)
