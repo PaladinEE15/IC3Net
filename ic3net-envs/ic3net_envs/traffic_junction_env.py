@@ -618,7 +618,7 @@ class TrafficJunctionEnv(gym.Env):
         return np.random.choice(car_idx[self.alive_mask == 0])
 
     def curriculum(self, epoch):
-        step_size = 0.01
+        step_size = 0.001
         step = (self.add_rate_max - self.add_rate_min) / (self.curr_end - self.curr_start)
         if epoch >= self.curr_start:
             if epoch < self.curr_end:

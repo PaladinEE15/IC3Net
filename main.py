@@ -243,9 +243,9 @@ def run(num_epochs):
         if 'enemy_reward' in stat.keys():
             print('Enemy-Reward: {}'.format(stat['enemy_reward']))
         if 'add_rate' in stat.keys():
-            print('Add-Rate: {:.2f}'.format(stat['add_rate']))
+            print('Add-Rate: {:.3f}'.format(stat['add_rate']))
         if 'success' in stat.keys():
-            print('Success: {:.2f}'.format(stat['success']))
+            print('Success: {:.3f}'.format(stat['success']))
         if 'steps_taken' in stat.keys():
             print('Steps-taken: {:.2f}'.format(stat['steps_taken']))
         if 'comm_action' in stat.keys():

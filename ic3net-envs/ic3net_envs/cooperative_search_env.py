@@ -159,11 +159,15 @@ class CooperativeSearchEnv(gym.Env):
         #action = np.atleast_1d(action)
         assert np.all(action <= self.naction), "Actions should be in the range [0,naction)."
 
-        trans_action = [self.ref_act[idx] for idx in action]
+        #trans_action = [self.ref_act[idx] for idx in action]
+        trans_action = np.zeros_like(self.agent_loc)
+        for idx in range(self.nagent):
+            if self.reached_target[idx]:
+                continue
+            else:
+                trans_action[idx,:] = self.ref_act[action[idx],:]
 
         #lock successful agents. Is it necessary?
-        #trans_action[self.reached_target] = 0
-
         self.agent_loc = self.agent_loc + trans_action
         self.agent_loc = np.clip(self.agent_loc, 0, 1)
         #renew observations
