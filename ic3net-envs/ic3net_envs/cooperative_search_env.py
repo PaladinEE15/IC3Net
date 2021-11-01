@@ -89,7 +89,7 @@ class CooperativeSearchEnv(gym.Env):
         self.stat = dict()
 
         # Observation will be nagent * vision * vision ndarray
-        self.obs, _ = self._get_obs()
+        self.obs = self._get_obs()
         return self.obs
 
     def check_arrival(self):
@@ -192,4 +192,4 @@ class CooperativeSearchEnv(gym.Env):
         return
 
     def reward_terminal(self):
-        return np.zeros_like(self.reached_target)
+        return np.zeros(2)
