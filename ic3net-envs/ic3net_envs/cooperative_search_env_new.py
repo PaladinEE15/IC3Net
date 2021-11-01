@@ -18,6 +18,12 @@ import gym
 import numpy as np
 from gym import spaces
 
+def one_hot_encoding(dim, coord):
+    #coord should be a 2x1 vector
+    mat = np.zeros((2,dim),dtype=int)
+    mat[0,coord[0]] = 1
+    mat[1,coord[1]] = 1
+    return mat
 
 class CooperativeSearchEnv(gym.Env):
     # metadata = {'render.modes': ['human']}
@@ -27,41 +33,35 @@ class CooperativeSearchEnv(gym.Env):
 
         # TODO: better config handling
         self.TIMESTEP_PENALTY = -0.05
-        self.TARGET_REWARD = 0.1
-        self.VISION_REWARD = 0 #reward agents for keeping targets in view
-        #self.POS_TARGET_REWARD = 0.05
-        #self.COLLISION_PENALTY = -0.03
-        
+        self.TARGET_REWARD = 0.5
+        self.ASSIST_REWARD = 0.2 #reward agents for guiding teammate
         self.episode_over = False
-        self.ref_act = np.array([[-0.71,0.71],[0,1],[0.71,0.71],[-1,0],[0,0],[1,0],[-0.71,-0.71],[0,-1],[0.71,-0.71]])
 
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative Search task')
 
         env.add_argument("--targets", type=int, default=1, 
                     help="How many targets one agent must reach")
+        env.add_argument("--dim", type=int, default=5, 
+                    help="How big the playground is")
+                    
 
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
-        self.vision = 0.25
-        self.speed = 0.15 #max speed
-        self.REACH_DISTANCE = 0.1
-        self.spawndim = math.floor(0.5/self.REACH_DISTANCE)
-        coord = (np.arange(self.spawndim)+0.5)/self.spawndim
-        xv, yv = np.meshgrid(coord,coord)
-        self.init_loc = np.array(list(zip(xv.flat, yv.flat)))
 
+        self.ref_act = np.array([[-1,0],[0,1],[1,0],[0,-1],[0,0]])
         self.ntargets = args.targets
-        
-        self.ref_act = self.speed*self.ref_act
-        self.naction = 9
+        self.dim = args.dim
+        self.naction = 5
 
         self.action_space = spaces.MultiDiscrete([self.naction])
         #observation space design
-
-        self.obs_dim = 6*self.ntargets + 2
-        # Observation for each agent will be 7n-1 ndarray
-        self.observation_space = spaces.Box(low=0, high=1, shape=(1,self.obs_dim), dtype=int)
+        coord = np.arange(self.dim)
+        xv, yv = np.meshgrid(coord,coord)
+        self.ref_loc = np.array(list(zip(xv.flat, yv.flat)))
+        self.half_obs_dim = (2+self.ntargets)*self.dim
+        # Observation for each agent will be (4n+2)d ndarray
+        self.observation_space = spaces.Box(low=0, high=1, shape=(2,self.half_obs_dim), dtype=int)
         return
 
     def reset(self):
@@ -74,54 +74,70 @@ class CooperativeSearchEnv(gym.Env):
         """
         self.episode_over = False
         #self.reached_target = np.zeros(2,self.ntargets) #mark which targets are reached
-        self.reach_targets = np.zeros(2) #mark how many targets are reached for each agent
+        self.alpha_reach = 0
+        self.beta_reach = 0 #mark how many targets are reached for each agent
         #Spawn agents and targets
         #use a grid-like generation
-        n = self.spawndim
+        n = self.dim
         locations = np.random.choice(n*n,size=2+2*self.ntargets,replace=False)
-        self.agent_loc = self.init_loc[locations[0:2]]
-        self.target_loc = self.init_loc[locations[2:]].reshape(2,-1)
-        self.other_target_loc = np.zeros_like(self.target_loc)
-        self.other_target_loc[0,:] = self.target_loc[1,:]
-        self.other_target_loc[1,:] = self.target_loc[0,:]
-        self.total_target_loc = np.concatenate((self.target_loc, self.other_target_loc),axis=1)
-        #Check if agents are spawned near its target
+        self.init_loc_raw = self.ref_loc[locations] 
+        self.init_loc = [one_hot_encoding(self.dim,coord) for coord in self.init_loc_raw]
+        self.alpha_agent = self.init_loc_raw[0]
+        self.beta_agent = self.init_loc_raw[1]
+        self.alpha_targets_onehot = self.init_loc[2:2+self.ntargets]
+        self.beta_targets_onehot = self.init_loc[2+self.ntargets+2+self.ntargets*2]
+
         self.stat = dict()
 
         # Observation will be nagent * vision * vision ndarray
         self.obs, _ = self._get_obs()
         return self.obs
 
+    def check_arrival(self):
+        arrivals = np.zeros(2)
+        if self.alpha_reach < self.ntargets:
+            for target_locs in self.alpha_targets_onehot:
+                if np.all(self.alpha_agent_onehot == target_locs):
+                    self.alpha_reach += 1
+                    arrivals[0] = 1
+                    target_locs[:,:] = 0
+                    break
+        if self.beta_reach < self.ntargets:
+            for target_locs in self.beta_targets_onehot:
+                if np.all(self.beta_agent_onehot == target_locs):
+                    self.beta_reach += 1
+                    arrivals[1] = 1
+                    target_locs[:,:] = 0
+                    break
+
+        #check dones
+        if self.alpha_reach + self.beta_reach == 2*self.ntargets:
+            dones = True
+        else:
+            dones = False
+
+        return arrivals, dones
+
     def _get_obs(self):
         #observation space design
         '''
-        there are 2 agents and n targets
-        0-1: self-location
-        2-1+n: self targets visibility
-        n+2-2n+1: other targets visibility
-        2n+2-4n+1: self targets ref location
-        4n+2-6n+1: other targets ref location  
+        there are d dims and n targets
+        0-d :self location
+        d-2d: teammate location
+        2d-(2+n)d: teammate targets coord
         '''
-        
-        n = self.ntargets
-        self_loc_mat = np.repeat(self.agent_loc,2*n,axis=0)
-        tar_loc_mat = self.total_target_loc.reshape(-1,2)
-        relative_loc = tar_loc_mat - self_loc_mat
-        dist = np.linalg.norm(relative_loc, axis = 1)
-        in_vision = np.ones_like(dist)
-        in_vision[dist>self.vision] = 0
-        relative_loc[dist>self.vision,:] = 0
+        d = self.dim
+        self.alpha_agent_onehot = one_hot_encoding(self.dim,self.alpha_agent)
+        self.beta_agent_onehot = one_hot_encoding(self.dim,self.beta_agent)
+        new_obs = np.zeros((4,self.half_obs_dim))
+        new_obs[0:2,0:2*d] = self.alpha_agent_onehot
+        new_obs[2:4,0:2*d] = self.beta_agent_onehot
+        new_obs[0:2,2*d:4*d] = self.beta_agent_onehot
+        new_obs[0:2,2*d:4*d] = self.alpha_agent_onehot
 
-        new_obs = np.zeros((2,self.obs_dim))
-        new_obs[:,0:2] = self.agent_loc
-        new_obs[:,2:2*n+2] = in_vision.reshape(2,-1)
-        new_obs[:,2*n+2:6*n+2] = relative_loc.reshape(2,-1)
-
-        target_dist = dist.reshape(2,-1)
-        target_dist = target_dist[:,0:n]
-
-        return new_obs.copy(), target_dist
-
+        new_obs[0:2,4*d:] = np.vstack(self.beta_targets_onehot)
+        new_obs[2:4,4*d:] = np.vstack(self.alpha_targets_onehot)
+        return new_obs.copy()
 
     def step(self, action):
         """
@@ -147,40 +163,30 @@ class CooperativeSearchEnv(gym.Env):
         #action = np.atleast_1d(action)
         assert np.all(action <= self.naction), "Actions should be in the range [0,naction)."
 
-        trans_action = [self.ref_act[idx] for idx in action]
+        alpha_action = self.ref_act[action[0]]
+        beta_action = self.ref_act[action[1]]
 
-        self.agent_loc = self.agent_loc + trans_action
-        self.agent_loc = np.clip(self.agent_loc, 0, 1)
+        self.alpha_agent = np.clip(self.alpha_agent + alpha_action, 0, self.dim-1)
+        self.beta_agent = np.clip(self.beta_agent + beta_action, 0, self.dim-1)
         #renew observations
-        self.obs, target_dist = self._get_obs()
+        self.obs = self._get_obs()
         #check dones
-        if np.any(target_dist):
-            dist_idx = target_dist.flatten()
-            temp_target_loc = self.target_loc.reshape(-1,2)
-            temp_target_loc[dist_idx] = -1
-            self.target_loc = temp_target_loc.reshape(2,-1)
-            self.other_target_loc[0,:] = self.target_loc[1,:]
-            self.other_target_loc[1,:] = self.target_loc[0,:]
-            self.total_target_loc = np.concatenate((self.target_loc, self.other_target_loc),axis=1) 
-            #give rewards
-            if            
 
+        arrivals, dones = self.check_arrival()
 
-        if reach_sum == 2:
+        if dones:
             self.episode_over = True
             self.stat['success'] = 1
         else:
             self.episode_over = False 
             self.stat['success'] = 0
-        n = 2
+
         #get reward
         reward = np.full(2, self.TIMESTEP_PENALTY)
-        reward[target_mat] = self.TARGET_REWARD
-        invision_idxes = (self.distances < self.vision) & (self.distances > self.REACH_DISTANCE)
-        invision_reward = self.VISION_REWARD*(self.vision - self.distances[invision_idxes])/(self.vision - self.REACH_DISTANCE)
-        reward[invision_idxes] += invision_reward
+        reward += self.TARGET_REWARD*arrivals
+        reward += self.ASSIST_REWARD*arrivals[::-1]
 
-        debug = {'agent_locs':self.agent_loc,'target_locs':self.target_loc}
+        debug = {'alpha_agent':self.alpha_agent,'beta_agent':self.beta_agent}
         return self.obs, reward, self.episode_over, debug
 
     def seed(self):
