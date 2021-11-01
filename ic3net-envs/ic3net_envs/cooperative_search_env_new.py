@@ -85,8 +85,7 @@ class CooperativeSearchEnv(gym.Env):
         self.alpha_agent = self.init_loc_raw[0]
         self.beta_agent = self.init_loc_raw[1]
         self.alpha_targets_onehot = self.init_loc[2:2+self.ntargets]
-        self.beta_targets_onehot = self.init_loc[2+self.ntargets+2+self.ntargets*2]
-
+        self.beta_targets_onehot = self.init_loc[2+self.ntargets:2+self.ntargets*2]
         self.stat = dict()
 
         # Observation will be nagent * vision * vision ndarray
@@ -130,13 +129,13 @@ class CooperativeSearchEnv(gym.Env):
         self.alpha_agent_onehot = one_hot_encoding(self.dim,self.alpha_agent)
         self.beta_agent_onehot = one_hot_encoding(self.dim,self.beta_agent)
         new_obs = np.zeros((4,self.half_obs_dim))
-        new_obs[0:2,0:2*d] = self.alpha_agent_onehot
-        new_obs[2:4,0:2*d] = self.beta_agent_onehot
-        new_obs[0:2,2*d:4*d] = self.beta_agent_onehot
-        new_obs[0:2,2*d:4*d] = self.alpha_agent_onehot
+        new_obs[0:2,0:d] = self.alpha_agent_onehot
+        new_obs[2:4,0:d] = self.beta_agent_onehot
+        new_obs[0:2,d:2*d] = self.beta_agent_onehot
+        new_obs[0:2,d:2*d] = self.alpha_agent_onehot
 
-        new_obs[0:2,4*d:] = np.vstack(self.beta_targets_onehot)
-        new_obs[2:4,4*d:] = np.vstack(self.alpha_targets_onehot)
+        new_obs[0:2,2*d:] = np.hstack(self.beta_targets_onehot)
+        new_obs[2:4,2*d:] = np.hstack(self.alpha_targets_onehot)
         return new_obs.copy()
 
     def step(self, action):
