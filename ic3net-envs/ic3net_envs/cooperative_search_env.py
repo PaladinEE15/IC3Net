@@ -76,7 +76,6 @@ class CooperativeSearchEnv(gym.Env):
         #self.reached_target = np.zeros(2,self.ntargets) #mark which targets are reached
         self.alpha_reach = 0
         self.beta_reach = 0 #mark how many targets are reached for each agent
-        self.targets_arrival = np.zeros((2,self.ntargets))
         #Spawn agents and targets
         #use a grid-like generation
         n = self.dim
@@ -96,21 +95,19 @@ class CooperativeSearchEnv(gym.Env):
     def check_arrival(self):
         arrivals = np.zeros(2)
         if self.alpha_reach < self.ntargets:
-            for idx, target_locs in enumerate(self.alpha_targets_onehot):
-                if self.targets_arrival[0,idx] == 0:
-                    if np.all(self.alpha_agent_onehot == target_locs):
-                        self.alpha_reach += 1
-                        arrivals[0] = 1
-                        self.targets_arrival[0,idx] = 1
-                        break
+            for target_locs in self.alpha_targets_onehot:
+                if np.all(self.alpha_agent_onehot == target_locs):
+                    self.alpha_reach += 1
+                    arrivals[0] = 1
+                    target_locs[:,:] = 0
+                    break
         if self.beta_reach < self.ntargets:
-            for idx, target_locs in enumerate(self.beta_targets_onehot):
-                if self.targets_arrival[1,idx] == 0:
-                    if np.all(self.beta_agent_onehot == target_locs):
-                        self.beta_reach += 1
-                        arrivals[1] = 1
-                        self.targets_arrival[1,idx] = 1
-                        break
+            for target_locs in self.beta_targets_onehot:
+                if np.all(self.beta_agent_onehot == target_locs):
+                    self.beta_reach += 1
+                    arrivals[1] = 1
+                    target_locs[:,:] = 0
+                    break
 
         #check dones
         if self.alpha_reach + self.beta_reach == 2*self.ntargets:
