@@ -181,7 +181,7 @@ class CommNetMLP(nn.Module):
             comm = comm_1/(comm_0+comm_1)
             comm_info = comm
 
-            if self.args.quant:
+            if self.quant:
                 qt_comm = torch.round(comm)
                 comm_inuse = (qt_comm-comm).detach() + comm
             else:
@@ -195,7 +195,7 @@ class CommNetMLP(nn.Module):
             comm_info = torch.cat((comm,mu,lnsigma),-1)
             comm_inuse = comm
         #the message range is (-1, 1)
-        if self.args.quant:
+        if self.quant:
             qt_comm = (comm+1)*0.5
             qt_comm = qt_comm*(self.args.quant_levels-1)
             qt_comm = torch.round(qt_comm)
@@ -205,7 +205,7 @@ class CommNetMLP(nn.Module):
         return comm_inuse, comm_info
         
 
-    def forward(self, x, info={}):
+    def forward(self, x, info={}, quant=False):
         # TODO: Update dimensions
         """Forward function for CommNet class, expects state, previous hidden
         and communication tensor.
@@ -235,7 +235,7 @@ class CommNetMLP(nn.Module):
         #     x = self.tanh(x)
 
         x, hidden_state, cell_state = self.forward_state_encoder(x)
-
+        self.quant = quant
         batch_size = x.size()[0]
         n = self.nagents
 

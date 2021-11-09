@@ -42,6 +42,10 @@ class Trainer(object):
         stat = dict()
         info = dict()
         switch_t = -1
+        if self.args.quant and epoch >= self.args.quant_start:
+            quant = True
+        else:
+            quant = False
 
         prev_hid = torch.zeros(1, self.args.nagents, self.args.hid_size).to(torch.device("cuda"))
 
@@ -56,7 +60,7 @@ class Trainer(object):
                     prev_hid = self.policy_net.init_hidden(batch_size=state.shape[0])
 
                 x = [state, prev_hid]
-                comm, action_out, value, prev_hid = self.policy_net(x, info)
+                comm, action_out, value, prev_hid = self.policy_net(x, info, quant)
 
                 if (t + 1) % self.args.detach_gap == 0:
                     if self.args.rnn_type == 'LSTM':
@@ -65,7 +69,7 @@ class Trainer(object):
                         prev_hid = prev_hid.detach()
             else:
                 x = state
-                comm, action_out, value = self.policy_net(x, info)
+                comm, action_out, value = self.policy_net(x, info, quant)
             
             if self.args.calcu_entropy:
                 if t == 0:
@@ -287,7 +291,7 @@ class Trainer(object):
         steps_taken = []
         success_times = []
         for idx in range(run_times):
-            episode, episode_stat, comm_stat = self.get_episode(1000)
+            episode, episode_stat, comm_stat = self.get_episode(2000)
             if idx == 0:
                 comm_stat_acc = comm_stat.detach().cpu().numpy()
             else:
