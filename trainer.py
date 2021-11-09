@@ -208,17 +208,6 @@ class Trainer(object):
                     freq = torch.mean(final_mat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)
-            elif self.args.comm_detail == 'narrowcos':
-                ref_info = (comm_info+1)*0.5
-                ref_info = ref_info*(self.args.quant_levels-1) 
-                comm_entro_loss = 0
-                for target in range(self.args.quant_levels):
-                    mid_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.cos(math.pi*(ref_info-target))
-                    square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
-                    final_mat = (square_mat-mid_mat).detach()+mid_mat
-                    freq = torch.mean(final_mat,dim=0)+1e-20
-                    freq = -freq*torch.log(freq)
-                    comm_entro_loss += torch.mean(freq)
             elif self.args.comm_detail == 'widecos':
                 ref_info = (comm_info+1)*0.5
                 ref_info = ref_info*(self.args.quant_levels-1) 

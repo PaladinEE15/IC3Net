@@ -115,7 +115,7 @@ parser.add_argument('--share_weights', default=False, action='store_true',
                     help='Share weights for hops')
 
 # Comm message design details
-parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "cos", "widecos", "narrowcos", "bell", "binary", "mim"], 
+parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "cos", "widecos", "bell", "binary", "mim"], 
                     help="How to process broadcasting messages")
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')
