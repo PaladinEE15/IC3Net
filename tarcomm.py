@@ -27,13 +27,8 @@ class TARMACMLP(nn.Module):
         self.comm_passes = args.comm_passes
         self.recurrent = args.recurrent
 
-        self.continuous = args.continuous
-        if self.continuous:
-            self.action_mean = nn.Linear(args.hid_size, args.dim_actions)
-            self.action_log_std = nn.Parameter(torch.zeros(1, args.dim_actions)).to(torch.device("cuda"))
-        else:
-            self.heads = nn.ModuleList([nn.Linear(args.hid_size, o)
-                                        for o in args.naction_heads])
+        self.continuous = False
+        self.action_generator = nn.Linear(args.hid_size, args.naction_heads[0])
         self.init_std = args.init_std if hasattr(args, 'comm_init_std') else 0.2
 
         # Mask for communication
@@ -43,34 +38,39 @@ class TARMACMLP(nn.Module):
             self.comm_mask = torch.ones(self.nagents, self.nagents).to(torch.device("cuda")) - torch.eye(self.nagents, self.nagents).to(torch.device("cuda"))
 
         if self.args.comm_detail == 'mim':
-            self.msg_encoder = nn.Sequential()
+            self.msg_initializer = nn.Sequential()
             msg_layer_num = len(self.args.msg_hid_layer)
             for i in range(msg_layer_num):
                 if i == 0:
-                    self.msg_encoder.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
-                    self.msg_encoder.add_module('activate1',nn.ReLU())
+                    self.msg_initializer.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
+                    self.msg_initializer.add_module('activate1',nn.ReLU())
                 else:
-                    self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
-                    self.msg_encoder.add_module('activate2',nn.ReLU())
+                    self.msg_initializer.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
+                    self.msg_initializer.add_module('activate2',nn.ReLU())
             self.mu_layer = nn.Sequential()    
             self.mu_layer.add_module('mu_out',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
             self.mu_layer.add_module('activate3',nn.Tanh())    
             self.lnsigma_layer = nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size)
+            self.k_generator = nn.Sequential()   
+            self.k_generator.add_module('k_out',nn.Linear(self.args.msg_hid_layer[i], self.args.qk_size))
+            self.k_generator.add_module('activate4',nn.Tanh())
         elif self.args.comm_detail != 'raw':
-            self.msg_encoder = nn.Sequential()
+            self.msg_initializer = nn.Sequential()
             msg_layer_num = len(self.args.msg_hid_layer)
             for i in range(msg_layer_num):
                 if i == 0:
-                    self.msg_encoder.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
-                    self.msg_encoder.add_module('activate1',nn.ReLU())
+                    self.msg_initializer.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
+                    self.msg_initializer.add_module('activate1',nn.ReLU())
                 else:
-                    self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
-                    self.msg_encoder.add_module('activate2',nn.ReLU())
-            self.msg_encoder.add_module('fc3',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
-            if self.args.comm_detail =='binary':
-                self.msg_encoder.add_module('activate3',nn.Sigmoid())
-            else:
-                self.msg_encoder.add_module('activate3',nn.Tanh())
+                    self.msg_initializer.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
+                    self.msg_initializer.add_module('activate2',nn.ReLU())
+
+            self.m_generator = nn.Sequential()   
+            self.m_generator.add_module('msg_out',nn.Linear(self.args.msg_hid_layer[i], self.args.qk_size))
+            self.m_generator.add_module('activate3',nn.Tanh())
+            self.k_generator = nn.Sequential()   
+            self.k_generator.add_module('k_out',nn.Linear(self.args.msg_hid_layer[i], self.args.qk_size))
+            self.k_generator.add_module('activate4',nn.Tanh())
 
         # Since linear layers in PyTorch now accept * as any number of dimensions
         # between last and first dim, num_agents dimension will be covered.
@@ -172,22 +172,7 @@ class TARMACMLP(nn.Module):
             comm = self.msg_encoder(raw_comm) 
         comm_inuse = comm
         comm_info = comm     
-        if self.args.comm_detail == 'binary':
-            U = torch.rand(2, self.args.msg_size).cuda()
-            noise_0 = -torch.log(-torch.log(U[0,:]))
-            noise_1 = -torch.log(-torch.log(U[1,:]))
-            comm_0 = torch.exp((torch.log(comm)+noise_0)/self.args.gumbel_gamma)
-            comm_1 = torch.exp((torch.log(comm)+noise_1)/self.args.gumbel_gamma)
-            comm = comm_1/(comm_0+comm_1)
-            comm_info = comm
-
-            if self.quant:
-                qt_comm = torch.round(comm)
-                comm_inuse = (qt_comm-comm).detach() + comm
-            else:
-                comm_inuse = comm
-            return comm_inuse, comm_info
-        elif self.args.comm_detail == 'mim':
+        if self.args.comm_detail == 'mim':
             mu = self.mu_layer(comm)
             lnsigma = self.lnsigma_layer(comm)
             comm = mu + torch.exp(lnsigma)*(torch.randn_like(lnsigma).cuda())

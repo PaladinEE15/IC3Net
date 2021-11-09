@@ -88,6 +88,8 @@ parser.add_argument('--commnet', action='store_true', default=False,
                     help="enable commnet model")
 parser.add_argument('--ic3net', action='store_true', default=False,
                     help="enable commnet model")
+parser.add_argument('--tarmac', action='store_true', default=False,
+                    help="enable tarmac model")
 parser.add_argument('--nagents', type=int, default=1,
                     help="Number of agents (used in multiagent)")
 parser.add_argument('--comm_mode', type=str, default='avg',
@@ -123,9 +125,7 @@ parser.add_argument('--quant', default=False, action='store_true',
                     help='Whether test and do quantification')
 parser.add_argument('--v_size', default=32, type=int,
                     help='message size')
-parser.add_argument('--q_size', default=16, type=int,
-                    help='message size')
-parser.add_argument('--k_size', default=16, type=int,
+parser.add_argument('--qk_size', default=16, type=int,
                     help='message size')
 parser.add_argument('--msg_size', default=128, type=int,
                     help='message size')
@@ -286,6 +286,8 @@ if __name__ == '__main__':
         # importance of individual rewards even in cooperative games
         if args.env_name == "traffic_junction": # or "coop_search"
             args.comm_action_one = True
+    if args.tarmac:
+        args.msg_size = args.v_size + args.qk_size
     # Enemy comm
     args.nfriendly = args.nagents
     if hasattr(args, 'enemy_comm') and args.enemy_comm:
@@ -321,7 +323,7 @@ if __name__ == '__main__':
     if args.seed == -1:
         args.seed = np.random.randint(0,10000)
     torch.manual_seed(args.seed)
-
+    
     print(args)
 
 
