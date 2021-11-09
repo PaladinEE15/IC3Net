@@ -66,7 +66,7 @@ class TARMACMLP(nn.Module):
                     self.msg_initializer.add_module('activate2',nn.ReLU())
 
             self.m_generator = nn.Sequential()   
-            self.m_generator.add_module('msg_out',nn.Linear(self.args.msg_hid_layer[i], self.args.qk_size))
+            self.m_generator.add_module('msg_out',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
             self.m_generator.add_module('activate3',nn.Tanh())
             self.k_generator = nn.Sequential()   
             self.k_generator.add_module('k_out',nn.Linear(self.args.msg_hid_layer[i], self.args.qk_size))
@@ -166,19 +166,22 @@ class TARMACMLP(nn.Module):
     def generate_comm(self,raw_comm):
         if self.args.no_comm:
             return torch.zeros_like(raw_comm), torch.zeros_like(raw_comm)
-        if self.args.comm_detail == 'raw':
-            comm = raw_comm
-        else :
-            comm = self.msg_encoder(raw_comm) 
-        comm_inuse = comm
-        comm_info = comm     
+        
+        mid_comm = self.msg_initializer(raw_comm) 
+        self_key = self.k_generator(mid_comm)
+
         if self.args.comm_detail == 'mim':
-            mu = self.mu_layer(comm)
-            lnsigma = self.lnsigma_layer(comm)
+            mu = self.mu_layer(mid_comm)
+            lnsigma = self.lnsigma_layer(mid_comm)
             comm = mu + torch.exp(lnsigma)*(torch.randn_like(lnsigma).cuda())
             comm = torch.clamp(comm,min=-1,max=1)
             comm_info = torch.cat((comm,mu,lnsigma),-1)
             comm_inuse = comm
+        else: #assume mlp
+            comm = self.m_generator(mid_comm)
+            comm_info = comm
+            comm_inuse = comm
+
         #the message range is (-1, 1)
         if self.quant:
             qt_comm = (comm+1)*0.5
@@ -187,7 +190,7 @@ class TARMACMLP(nn.Module):
             qt_comm = qt_comm/(self.args.quant_levels-1)
             qt_comm = qt_comm*2-1
             comm_inuse = (qt_comm-comm).detach()+comm
-        return comm_inuse, comm_info
+        return comm_inuse, comm_info, self_key
         
 
     def forward(self, x, info={}, quant=False):
@@ -287,8 +290,6 @@ class TARMACMLP(nn.Module):
                 hidden_state = sum([x, self.f_modules[i](hidden_state), c])
                 hidden_state = self.tanh(hidden_state)
 
-        # v = torch.stack([self.value_head(hidden_state[:, i, :]) for i in range(n)])
-        # v = v.view(hidden_state.size(0), n, -1)
         value_head = self.value_head(hidden_state)
         h = hidden_state.view(batch_size, n, self.hid_size)
 
