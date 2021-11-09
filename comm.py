@@ -67,10 +67,7 @@ class CommNetMLP(nn.Module):
                     self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
                     self.msg_encoder.add_module('activate2',nn.ReLU())
             self.msg_encoder.add_module('fc3',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
-            if self.args.comm_detail =='binary':
-                self.msg_encoder.add_module('activate3',nn.Sigmoid())
-            else:
-                self.msg_encoder.add_module('activate3',nn.Tanh())
+            self.msg_encoder.add_module('activate3',nn.Tanh())
 
         # Since linear layers in PyTorch now accept * as any number of dimensions
         # between last and first dim, num_agents dimension will be covered.
@@ -172,22 +169,7 @@ class CommNetMLP(nn.Module):
             comm = self.msg_encoder(raw_comm) 
         comm_inuse = comm
         comm_info = comm     
-        if self.args.comm_detail == 'binary':
-            U = torch.rand(2, self.args.msg_size).cuda()
-            noise_0 = -torch.log(-torch.log(U[0,:]))
-            noise_1 = -torch.log(-torch.log(U[1,:]))
-            comm_0 = torch.exp((torch.log(comm)+noise_0)/self.args.gumbel_gamma)
-            comm_1 = torch.exp((torch.log(comm)+noise_1)/self.args.gumbel_gamma)
-            comm = comm_1/(comm_0+comm_1)
-            comm_info = comm
-
-            if self.quant:
-                qt_comm = torch.round(comm)
-                comm_inuse = (qt_comm-comm).detach() + comm
-            else:
-                comm_inuse = comm
-            return comm_inuse, comm_info
-        elif self.args.comm_detail == 'mim':
+        if self.args.comm_detail == 'mim':
             mu = self.mu_layer(comm)
             lnsigma = self.lnsigma_layer(comm)
             comm = mu + torch.exp(lnsigma)*(torch.randn_like(lnsigma).cuda())

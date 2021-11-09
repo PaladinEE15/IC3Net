@@ -230,10 +230,6 @@ class Trainer(object):
                     freq = torch.mean(final_mat,dim=0)+1e-20
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += torch.mean(freq)
-            elif self.args.comm_detail == 'binary':
-                freq = torch.mean(comm_info, dim=0)
-                entropy_set = -(freq+1e-20)*torch.log(freq+1e-20) -(1-freq+1e-20)*torch.log(1-freq+1e-20)
-                comm_entro_loss = torch.mean(entropy_set)
             elif self.args.comm_detail == 'mim':
                 split_size = int(comm_info.size()[1]/3)
                 _, mu, lnsigma = torch.split(comm_info,split_size,1) 

@@ -12,14 +12,6 @@ def calcu_entropy_onehot(comm):
     entropy = -np.sum(freq*np.log(freq))
     return entropy
 
-def calcu_entropy_binary(comm):
-    comm = np.rint(comm)
-    freq = np.mean(comm, axis=0)
-    entropy_set = -(freq+1e-20)*np.log(freq+1e-20) -(1-freq+1e-20)*np.log(1-freq+1e-20)
-    entropy = np.sum(entropy_set)
-    return entropy
-
-
 class MultiProcessWorker(ctx.Process):
     # TODO: Make environment init threadsafe
     def __init__(self, id, trainer_maker, comm, main_args, seed, *args, **kwargs):
@@ -58,10 +50,7 @@ class MultiProcessWorker(ctx.Process):
                 if self.args.calcu_entropy:
                     #calculate entropy here
                     comm_np = comm_info.detach().cpu().numpy()    
-                    if self.args.comm_detail == 'binary':
-                        final_entropy = calcu_entropy_binary(comm_np)
-                    else:
-                        final_entropy = self.calcu_entropy(comm_np)
+                    final_entropy = self.calcu_entropy(comm_np)
                     entro_stat = {'comm_entropy':final_entropy}
                     merge_stat(entro_stat, stat)
                 self.trainer.optimizer.zero_grad()
@@ -75,12 +64,7 @@ class MultiProcessWorker(ctx.Process):
                 comm_stat, steps_taken, success_times = self.trainer.test(epoch)
                 if self.args.calcu_entropy:
                     #calculate entropy here  
-                    if self.args.comm_detail == 'discrete':
-                        final_entropy = calcu_entropy_onehot(comm_stat)
-                    elif self.args.comm_detail == 'binary':
-                        final_entropy = calcu_entropy_binary(comm_stat)
-                    else:
-                        final_entropy = self.calcu_entropy(comm_stat)  
+                    final_entropy = self.calcu_entropy(comm_stat)  
                 else: 
                     final_entropy = 0    
                 self.comm.send((final_entropy, steps_taken, success_times))
@@ -156,11 +140,8 @@ class MultiProcessTrainer(object):
         # run its own trainer
         comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
         if self.args.calcu_entropy:
-            if self.args.comm_detail == 'binary':
-                final_entropy = calcu_entropy_binary(comm_stat_acc)
-            else:
-                final_entropy = self.calcu_entropy(comm_stat_acc) 
-                self.show_distribution(comm_stat_acc)
+            final_entropy = self.calcu_entropy(comm_stat_acc) 
+            self.show_distribution(comm_stat_acc)
         for comm in self.comms:
             entropy, steps_taken, success_times = comm.recv()
             steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), axis=0)
@@ -190,12 +171,7 @@ class MultiProcessTrainer(object):
         if self.args.calcu_entropy:
             #calculate entropy here
             comm_np = comm_info_acc.detach().cpu().numpy()    
-            if self.args.comm_detail == 'discrete':
-                final_entropy = calcu_entropy_onehot(comm_np)
-            elif self.args.comm_detail == 'binary':
-                final_entropy = calcu_entropy_binary(comm_np)
-            else:
-                final_entropy = self.calcu_entropy(comm_np) 
+            final_entropy = self.calcu_entropy(comm_np) 
             entro_stat = {'comm_entropy':final_entropy}
             merge_stat(entro_stat, stat)
         

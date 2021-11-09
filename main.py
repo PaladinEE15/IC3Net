@@ -115,12 +115,18 @@ parser.add_argument('--share_weights', default=False, action='store_true',
                     help='Share weights for hops')
 
 # Comm message design details
-parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "cos", "widecos", "bell", "binary", "mim"], 
+parser.add_argument("--comm_detail", type=str, default="raw", choices=["raw", "mlp", "triangle", "cos", "widecos", "bell", "mim"], 
                     help="How to process broadcasting messages")
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')
 parser.add_argument('--quant', default=False, action='store_true', 
                     help='Whether test and do quantification')
+parser.add_argument('--v_size', default=32, type=int,
+                    help='message size')
+parser.add_argument('--q_size', default=16, type=int,
+                    help='message size')
+parser.add_argument('--k_size', default=16, type=int,
+                    help='message size')
 parser.add_argument('--msg_size', default=128, type=int,
                     help='message size')
 parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
