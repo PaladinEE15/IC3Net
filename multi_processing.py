@@ -6,12 +6,13 @@ from collections import Counter
 
 ctx = mp.get_context("spawn")
 
-def calcu_entropy_onehot(comm):
-    freq = np.sum(comm, axis=0)/comm.shape[0]
-    freq[freq==0] = 1 #avoid ln0
-    entropy = -np.sum(freq*np.log(freq))
-    return entropy
-
+def get_distribution(comm, args):
+    comm = (comm+1)*0.5
+    comm = comm*(args.quant_levels-1)  
+    calcu_comm = np.rint(comm)      
+    counts = np.array(list(map(lambda x: np.sum(calcu_comm==x),range(args.quant_levels))))
+    probs = counts/(comm.shape[0]*comm.shape[1])
+    return probs
 class MultiProcessWorker(ctx.Process):
     # TODO: Make environment init threadsafe
     def __init__(self, id, trainer_maker, comm, main_args, seed, *args, **kwargs):
@@ -65,9 +66,11 @@ class MultiProcessWorker(ctx.Process):
                 if self.args.calcu_entropy:
                     #calculate entropy here  
                     final_entropy = self.calcu_entropy(comm_stat)  
+                    distribution = get_distribution(comm_stat,self.args)
                 else: 
-                    final_entropy = 0    
-                self.comm.send((final_entropy, steps_taken, success_times))
+                    final_entropy = 0  
+                    distribution = 0  
+                self.comm.send((final_entropy, steps_taken, success_times, distribution))
             elif task == 'send_grads':
                 grads = []
                 for p in self.trainer.params:
@@ -123,14 +126,7 @@ class MultiProcessTrainer(object):
         entropy = -np.sum(probs*np.log(probs))
         return entropy
 
-    def show_distribution(self, comm):
-        comm = (comm+1)*0.5
-        comm = comm*(self.args.quant_levels-1)  
-        calcu_comm = np.rint(comm)      
-        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
-        probs = counts/comm.shape[0]
-        print('output distribution: ', probs)
-        return
+
 
 
     def test_batch(self,times):
@@ -141,15 +137,17 @@ class MultiProcessTrainer(object):
         comm_stat_acc, steps_taken_acc, success_times_acc = self.trainer.test(times)
         if self.args.calcu_entropy:
             final_entropy = self.calcu_entropy(comm_stat_acc) 
-            self.show_distribution(comm_stat_acc)
+            distribution_acc = get_distribution(comm_stat_acc, self.args)
         for comm in self.comms:
-            entropy, steps_taken, success_times = comm.recv()
+            entropy, steps_taken, success_times, distributions = comm.recv()
             steps_taken_acc =  np.concatenate((steps_taken_acc,steps_taken), axis=0)
             final_entropy =  np.append(final_entropy,entropy)
             success_times_acc =  np.concatenate((success_times_acc,success_times), axis=0)
-        
+            distribution_acc += distributions
+        distribution_acc = distribution_acc/self.args.nprocesses
         print('entropy: ', np.mean(final_entropy),' std: ', np.std(final_entropy) )
         print('success: ', np.mean(success_times_acc),' std: ', np.std(success_times_acc) )
+        print('msg distributions: ',distribution_acc)
         print('steps: ', np.mean(steps_taken_acc),' std: ', np.std(steps_taken_acc))
            
         return
