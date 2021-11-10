@@ -145,7 +145,7 @@ class MultiProcessTrainer(object):
             success_times_acc =  np.concatenate((success_times_acc,success_times), axis=0)
             distribution_acc += distributions
         distribution_acc = distribution_acc/self.args.nprocesses
-        print('entropy: ', np.mean(final_entropy),' std: ', np.std(final_entropy) )
+        print('entropy: ', np.mean(final_entropy),' std: ', np.std(final_entropy))
         print('success: ', np.mean(success_times_acc),' std: ', np.std(success_times_acc) )
         print('msg distributions: ',distribution_acc)
         print('steps: ', np.mean(steps_taken_acc),' std: ', np.std(steps_taken_acc))
