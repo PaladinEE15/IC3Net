@@ -191,7 +191,8 @@ class Trainer(object):
                 ref_info = ref_info*(self.args.quant_levels-1) 
                 comm_entro_loss = 0
                 for target in range(self.args.quant_levels):
-                    mid_mat = torch.min(nn.functional.relu(ref_info-target+1), nn.functional.relu(-ref_info+target+1),dim=0)
+                    mid_mat = torch.min(ref_info-target+1, -ref_info+target+1)
+                    mid_mat = torch.clamp(mid_mat, min=0)
                     square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
                     final_mat = (square_mat-mid_mat).detach()+mid_mat
                     freq = torch.mean(final_mat,dim=0)+1e-20
