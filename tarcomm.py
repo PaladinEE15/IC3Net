@@ -76,7 +76,8 @@ class TARMACMLP(nn.Module):
         # between last and first dim, num_agents dimension will be covered.
         # The network below is function r in the paper for encoding
         # initial environment stage
-        self.encoder = nn.Linear(num_inputs, args.hid_size)
+        self.encoding_size = args.hid_size - args.v_size
+        self.encoder = nn.Linear(num_inputs, self.encoding_size)
 
         # if self.args.env_name == 'starcraft':
         #     self.state_encoder = nn.Linear(num_inputs, num_inputs)
@@ -108,7 +109,7 @@ class TARMACMLP(nn.Module):
             self.C_modules = nn.ModuleList([self.C_module
                                             for _ in range(self.comm_passes)])
         else:
-            self.C_modules = nn.ModuleList([nn.Linear(args.msg_size, args.hid_size)
+            self.C_modules = nn.ModuleList([nn.Linear(args.v_size, args.hid_size)
                                             for _ in range(self.comm_passes)])
         # self.C = nn.Linear(args.msg_size, args.hid_size)
 
@@ -191,36 +192,9 @@ class TARMACMLP(nn.Module):
             qt_comm = qt_comm*2-1
             comm_inuse = (qt_comm-comm).detach()+comm
         return comm_inuse, comm_info, self_key
-        
 
     def forward(self, x, info={}, quant=False):
         # TODO: Update dimensions
-        """Forward function for CommNet class, expects state, previous hidden
-        and communication tensor.
-        B: Batch Size: Normally 1 in case of episode
-        N: number of agents
-
-        Arguments:
-            x {tensor} -- State of the agents (N x num_inputs)
-            prev_hidden_state {tensor} -- Previous hidden state for the networks in
-            case of multiple passes (1 x N x hid_size)
-            comm_in {tensor} -- Communication tensor for the network. (1 x N x N x hid_size)
-
-        Returns:
-            tuple -- Contains
-                next_hidden {tensor}: Next hidden state for network
-                comm_out {tensor}: Next communication tensor
-                action_data: Data needed for taking next action (Discrete values in
-                case of discrete, mean and std in case of continuous)
-                v: value head
-        """
-
-        # if self.args.env_name == 'starcraft':
-        #     maxi = x.max(dim=-2)[0]
-        #     x = self.state_encoder(x)
-        #     x = x.sum(dim=-2)
-        #     x = torch.cat([x, maxi], dim=-1)
-        #     x = self.tanh(x)
 
         x, hidden_state, cell_state = self.forward_state_encoder(x)
         self.quant = quant
@@ -230,24 +204,21 @@ class TARMACMLP(nn.Module):
         num_agents_alive, agent_mask, record_mask = self.get_agent_mask(batch_size, info)
 
         #get mask for record
-
-
-        # Hard Attention - action whether an agent communicates or not
-        if self.args.hard_attn:
-            comm_action = torch.tensor(info['comm_action']).to(torch.device("cuda"))
-            comm_action_mask = comm_action.expand(batch_size, n, n).unsqueeze(-1)
-            # action 1 is talk, 0 is silent i.e. act as dead for comm purposes.
-            agent_mask = agent_mask*comm_action_mask.double()
-
         agent_mask_transpose = agent_mask.transpose(1, 2)
 
         for i in range(self.comm_passes): #decide how many times to communicate, default 1
             # Choose current or prev depending on recurrent
-            raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
-            comm, broad_comm = self.generate_comm(raw_comm)
+            raw_comm = hidden_state.view(n, self.hid_size) if self.args.recurrent else hidden_state
+            comm, broad_comm, key = self.generate_comm(raw_comm)
+            #comm shape: n x msg_size
+            #key shape: n x qk_size
             # Get the next communication vector based on next hidden state
-            comm = comm.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
-
+            value, query = torch.split(comm, [self.args.v_size,self.args.qk_size], dim=1)
+            attention = torch.mm(key, query.t())/4
+            msg_weight = F.softmax(attention,dim=1)
+            msg_weight_mat = msg_weight.view(1,n,n,1).expand(1,n,n,self.args.v_size)
+            value_mat = value.view(1,n,1,self.args.v_size).expand(1,n,n,self.args.v_size)
+            comm = msg_weight_mat*value_mat
             # Create mask for masking self communication
             mask = self.comm_mask.view(1, n, n)
             mask = mask.expand(comm.shape[0], n, n)
@@ -255,10 +226,6 @@ class TARMACMLP(nn.Module):
 
             mask = mask.expand_as(comm)
             comm = comm * mask
-
-            if hasattr(self.args, 'comm_mode') and self.args.comm_mode == 'avg' \
-                and num_agents_alive > 1:
-                comm = comm / (num_agents_alive - 1)
 
             # Mask comm_in
             # Mask communcation from dead agents
@@ -270,46 +237,27 @@ class TARMACMLP(nn.Module):
             comm_sum = comm.sum(dim=1)
             c = self.C_modules[i](comm_sum)
 
+            x = x.view(batch_size * n, self.encoding_size)
+            c = c.view(batch_size * n, self.args.v_size)
 
-            if self.args.recurrent:
-                # skip connection - combine comm. matrix and encoded input for all agents
-                inp = x + c
-
-                inp = inp.view(batch_size * n, self.hid_size)
-
-                if self.args.rnn_type == 'LSTM':
-                    output = self.f_module(inp, (hidden_state, cell_state))
-                    hidden_state = output[0]
-                    cell_state = output[1]
-                else: #GRU
-                    hidden_state = self.f_module(inp, hidden_state)
-
-            else: # MLP|RNN
-                # Get next hidden state from f node
-                # and Add skip connection from start and sum them
-                hidden_state = sum([x, self.f_modules[i](hidden_state), c])
-                hidden_state = self.tanh(hidden_state)
+            inp = torch.cat([x,c], dim=1)
+            if self.args.rnn_type == 'LSTM':
+                output = self.f_module(inp, (hidden_state, cell_state))
+                hidden_state = output[0]
+                cell_state = output[1]
+            else: #GRU
+                hidden_state = self.f_module(inp, hidden_state)
 
         value_head = self.value_head(hidden_state)
         h = hidden_state.view(batch_size, n, self.hid_size)
 
-        if self.continuous:
-            action_mean = self.action_mean(h)
-            action_log_std = self.action_log_std.expand_as(action_mean)
-            action_std = torch.exp(action_log_std)
-            # will be used later to sample
-            action = (action_mean, action_log_std, action_std)
-        else:
-            # discrete actions
-            action = [F.log_softmax(head(h), dim=-1) for head in self.heads]
+        action = [F.log_softmax(self.action_generator(h), dim=-1)]
 
-        if self.args.recurrent :
-            if self.args.rnn_type == 'LSTM':
-                return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone())
-            else:
-                return broad_comm, action, value_head, hidden_state.clone()
+        if self.args.rnn_type == 'LSTM':
+            return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone())
         else:
-            return broad_comm, action, value_head
+            return broad_comm, action, value_head, hidden_state.clone()
+
 
     def init_weights(self, m):
         if type(m) == nn.Linear:

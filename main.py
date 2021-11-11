@@ -8,6 +8,7 @@ import torch
 import visdom
 import data
 from models import *
+from tarcomm import TARMACMLP
 from comm import CommNetMLP
 from utils import *
 from action_utils import parse_action_args
@@ -329,6 +330,8 @@ if __name__ == '__main__':
 
     if args.commnet:
         policy_net = CommNetMLP(args, num_inputs).to(torch.device("cuda"))
+    elif args.tarmac:
+        policy_net = TARMACMLP(args, num_inputs).to(torch.device("cuda"))
     elif args.random:
         policy_net = Random(args, num_inputs).to(torch.device("cuda"))
     elif args.recurrent:
