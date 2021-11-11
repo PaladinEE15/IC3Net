@@ -76,7 +76,7 @@ class TARMACMLP(nn.Module):
         # between last and first dim, num_agents dimension will be covered.
         # The network below is function r in the paper for encoding
         # initial environment stage
-        self.encoding_size = args.hid_size - args.v_size
+        self.encoding_size = int(args.hid_size/2)
         self.encoder = nn.Linear(num_inputs, self.encoding_size)
 
         # if self.args.env_name == 'starcraft':
@@ -105,11 +105,11 @@ class TARMACMLP(nn.Module):
         # Our main function for converting current hidden state to next state
         # self.f = nn.Linear(args.hid_size, args.hid_size)
         if args.share_weights:
-            self.C_module = nn.Linear(args.msg_size, args.hid_size)
+            self.C_module = nn.Linear(args.msg_size, int(args.hid_size/2))
             self.C_modules = nn.ModuleList([self.C_module
                                             for _ in range(self.comm_passes)])
         else:
-            self.C_modules = nn.ModuleList([nn.Linear(args.v_size, args.hid_size)
+            self.C_modules = nn.ModuleList([nn.Linear(args.v_size, int(args.hid_size/2))
                                             for _ in range(self.comm_passes)])
         # self.C = nn.Linear(args.msg_size, args.hid_size)
 
@@ -238,7 +238,7 @@ class TARMACMLP(nn.Module):
             c = self.C_modules[i](comm_sum)
 
             x = x.view(batch_size * n, self.encoding_size)
-            c = c.view(batch_size * n, self.args.v_size)
+            c = c.view(batch_size * n, self.encoding_size)
 
             inp = torch.cat([x,c], dim=1)
             if self.args.rnn_type == 'LSTM':

@@ -288,6 +288,7 @@ if __name__ == '__main__':
         if args.env_name == "traffic_junction": # or "coop_search"
             args.comm_action_one = True
     if args.tarmac:
+        args.mean_ratio = 0
         args.msg_size = args.v_size + args.qk_size
     # Enemy comm
     args.nfriendly = args.nagents
