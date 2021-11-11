@@ -117,7 +117,6 @@ class TARMACMLP(nn.Module):
         if args.comm_init == 'zeros':
             for i in range(self.comm_passes):
                 self.C_modules[i].weight.data.zero_()
-        self.tanh = nn.Tanh()
 
         # print(self.C)
         # self.C.weight.data.zero_()
@@ -148,19 +147,14 @@ class TARMACMLP(nn.Module):
     def forward_state_encoder(self, x):
         hidden_state, cell_state = None, None
 
-        if self.args.recurrent:
-            x, extras = x
-            x = self.encoder(x)
+        x, extras = x
+        x = self.encoder(x)
 
-            if self.args.rnn_type == 'LSTM':
-                hidden_state, cell_state = extras
-            else:
-                hidden_state = extras
-            # hidden_state = self.tanh( self.hidd_encoder(prev_hidden_state) + x)
+        if self.args.rnn_type == 'LSTM':
+            hidden_state, cell_state = extras
         else:
-            x = self.encoder(x)
-            x = self.tanh(x)
-            hidden_state = x
+            hidden_state = extras
+        # hidden_state = self.tanh( self.hidd_encoder(prev_hidden_state) + x)
 
         return x, hidden_state, cell_state
 
@@ -214,7 +208,7 @@ class TARMACMLP(nn.Module):
             #key shape: n x qk_size
             # Get the next communication vector based on next hidden state
             value, query = torch.split(comm, [self.args.v_size,self.args.qk_size], dim=1)
-            attention = torch.mm(key, query.t())/4
+            attention = torch.mm(key, query.t())/4 - 100*torch.eye(n).to(torch.device("cuda"))
             msg_weight = F.softmax(attention,dim=1)
             msg_weight_mat = msg_weight.view(1,n,n,1).expand(1,n,n,self.args.v_size)
             value_mat = value.view(1,n,1,self.args.v_size).expand(1,n,n,self.args.v_size)
