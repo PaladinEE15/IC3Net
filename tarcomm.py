@@ -160,7 +160,8 @@ class TARMACMLP(nn.Module):
 
     def generate_comm(self,raw_comm):
         if self.args.no_comm:
-            return torch.zeros_like(raw_comm), torch.zeros_like(raw_comm)
+            xsize = raw_comm.size()[0]
+            return torch.zeros([xsize,self.args.msg_size]).cuda(), torch.zeros([xsize,self.args.msg_size]).cuda(), torch.zeros([xsize,self.args.qk_size]).cuda()
         
         mid_comm = self.msg_initializer(raw_comm) 
         self_key = self.k_generator(mid_comm)

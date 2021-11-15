@@ -130,7 +130,7 @@ parser.add_argument('--qk_size', default=16, type=int,
                     help='message size')
 parser.add_argument('--msg_size', default=128, type=int,
                     help='message size')
-parser.add_argument('--msg_hid_layer', default=[128,128], type=list,
+parser.add_argument('--msg_hid_layer_size', default=128, type=int,
                     help='message layer size')
 parser.add_argument('--quant_levels', default=17, type=int,
                     help='quantification levels')                 
@@ -291,6 +291,8 @@ if __name__ == '__main__':
         args.mean_ratio = 0
         args.msg_size = args.v_size + args.qk_size
     # Enemy comm
+
+    args.msg_hid_layer = [args.msg_hid_layer_size, args.msg_hid_layer_size]
     args.nfriendly = args.nagents
     if hasattr(args, 'enemy_comm') and args.enemy_comm:
         if hasattr(args, 'nenemies'):
