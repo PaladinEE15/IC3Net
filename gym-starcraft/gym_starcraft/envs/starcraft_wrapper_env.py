@@ -21,7 +21,7 @@ class StarCraftWrapperEnv(gym.Env):
                          default='../bwapi/bin/BWAPILauncher',
                          help='Path to BWAPILauncher')
         env.add_argument('--config_path', type=str,
-                         default='../gym-starcraft/gym_starcraft/envs/config.yml',
+                         default='gym-starcraft/gym_starcraft/envs/config.yml',
                          help='Path to TorchCraft/OpenBW yml config')
         env.add_argument('--server_ip', type=str, default='127.0.0.1',
                          help='IP of the server')
