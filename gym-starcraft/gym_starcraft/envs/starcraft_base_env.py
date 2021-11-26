@@ -119,7 +119,7 @@ class StarCraftBaseEnv(gym.Env):
         config = None
         with open(self.config_path, 'r') as f:
             try:
-                config = yaml.load(f)
+                config = yaml.load(f, Loader=yaml.FullLoader)
             except yaml.YAMLError as err:
                 print('Config yaml error', err)
                 sys.exit(0)

@@ -161,6 +161,9 @@ parser.add_argument('--gumbel_gamma', default=1, type=float,
 parser.add_argument('--no_comm', default=False, action='store_true', 
                     help='whether block comm. ')
                     
+parser.add_argument("--map_name", type=str, default="3s_vs_4z", choices=["3s_vs_4z", "5m_vs_6m"], help='map name for starcraft')
+parser.add_argument("--redirect_path", type=str, default= None, help='log of sc env')
+
 init_args_for_env(parser)
 args = parser.parse_args()
 
@@ -242,27 +245,36 @@ def run(num_epochs):
 
         np.set_printoptions(precision=2)
 
-        print('Epoch {}\tReward {}\tTime {:.2f}s'.format(
-                epoch, stat['reward'], epoch_time
-        ))
-        if 'comm_entropy' in stat.keys():
-            print('comm_entropy: {}'.format(stat['comm_entropy']))
-        if 'enemy_reward' in stat.keys():
-            print('Enemy-Reward: {}'.format(stat['enemy_reward']))
-        if 'add_rate' in stat.keys():
-            print('Add-Rate: {:.3f}'.format(stat['add_rate']))
-        if 'success' in stat.keys():
-            print('Success: {:.3f}'.format(stat['success']))
-        if 'steps_taken' in stat.keys():
-            print('Steps-taken: {:.2f}'.format(stat['steps_taken']))
-        if 'comm_action' in stat.keys():
-            print('Comm-Action: {}'.format(stat['comm_action']))
-        if 'enemy_comm' in stat.keys():
-            print('Enemy-Comm: {}'.format(stat['enemy_comm']))
-        if 'comm_entro_loss' in stat.keys():
-            print('comm_entro_loss: {}'.format(stat['comm_entro_loss']))
-        if 'other_loss' in stat.keys():
-            print('other_loss: {}'.format(stat['other_loss']))
+        if args.redirect_path is None:
+            print('Epoch {}\tReward {}\tTime {:.2f}s'.format(
+                    epoch, stat['reward'], epoch_time
+            ))
+            if 'comm_entropy' in stat.keys():
+                print('comm_entropy: {}'.format(stat['comm_entropy']))
+            if 'enemy_reward' in stat.keys():
+                print('Enemy-Reward: {}'.format(stat['enemy_reward']))
+            if 'add_rate' in stat.keys():
+                print('Add-Rate: {:.3f}'.format(stat['add_rate']))
+            if 'success' in stat.keys():
+                print('Success: {:.3f}'.format(stat['success']))
+            if 'steps_taken' in stat.keys():
+                print('Steps-taken: {:.2f}'.format(stat['steps_taken']))
+            if 'comm_action' in stat.keys():
+                print('Comm-Action: {}'.format(stat['comm_action']))
+            if 'enemy_comm' in stat.keys():
+                print('Enemy-Comm: {}'.format(stat['enemy_comm']))
+            if 'comm_entro_loss' in stat.keys():
+                print('comm_entro_loss: {}'.format(stat['comm_entro_loss']))
+            if 'other_loss' in stat.keys():
+                print('other_loss: {}'.format(stat['other_loss']))
+        else:
+            with open(args.redirect_path, mode='a', encoding="utf-8") as sc_log:
+                sc_log.write('Epoch:'+str(epoch)+' Time:'+str(epoch_time)+"\n")
+                sc_log.write('Success:'+str(stat['success'])+"\n")
+                if 'comm_action' in stat.keys():
+                    sc_log.write('Comm-Action:'+str(stat['comm_action'])+"\n")
+                if 'comm_entropy' in stat.keys():
+                    sc_log.write('Comm-Entropy:'+str(stat['comm_entropy'])+"\n")           
 
         if args.plot:
             for k, v in log.items():
