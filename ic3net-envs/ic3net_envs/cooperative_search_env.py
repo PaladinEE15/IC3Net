@@ -20,9 +20,9 @@ from gym import spaces
 
 def one_hot_encoding(dim, coord):
     #coord should be a 2x1 vector
-    mat = np.zeros((2,dim),dtype=int)
-    mat[0,coord[0]] = 1
-    mat[1,coord[1]] = 1
+    mat = np.zeros(dim*2,dtype=int)
+    mat[coord[0]] = 1
+    mat[coord[1]+dim] = 1
     return mat
 
 class CooperativeSearchEnv(gym.Env):
@@ -34,34 +34,62 @@ class CooperativeSearchEnv(gym.Env):
         # TODO: better config handling
         self.TIMESTEP_PENALTY = -0.05
         self.TARGET_REWARD = 0.5
-        self.ASSIST_REWARD = 0.2 #reward agents for guiding teammate
         self.episode_over = False
 
     def init_args(self, parser):
+        return
+        '''
         env = parser.add_argument_group('Cooperative Search task')
 
-        env.add_argument("--targets", type=int, default=1, 
+        env.add_argument("--agents", type=int, default=1, 
                     help="How many targets one agent must reach")
         env.add_argument("--dim", type=int, default=5, 
-                    help="How big the playground is")
+                    help="How big the playground is")        
+        '''
+
                     
 
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
-
+        
+        
+        #init mask_mat: used to mask unseen objects
+        self.mask_mat = np.ones((7,7,3,3,3))
+        for x in range(7):
+            for y in range(7):
+                mini_mat = np.ones((3,3,3))
+                for minix in range(3):
+                    for miniy in range(3):
+                        if (x+minix-1>6)|(x+minix-1<0)|(y+miniy-1>6)|(x+miniy-1<0):
+                            mini_mat[minix,miniy,:] = 0
+                if (x==1)|(x==4):
+                    if y == 2:
+                        mini_mat[2,1:,:] = 0
+                    elif y == 3:
+                        mini_mat[2,:,:] = 0
+                    elif y == 4:
+                        mini_mat[2,0:2,:] = 0
+                elif (x==2)|(x==5):
+                    if y == 2:
+                        mini_mat[0,1:,:] = 0
+                    elif y == 3:
+                        mini_mat[0,:,:] = 0
+                    elif y == 4:
+                        mini_mat[0,0:2,:] = 0   
+                self.mask_mat[x,y,:,:,:] = mini_mat
+            
         self.ref_act = np.array([[-1,0],[0,1],[1,0],[0,-1],[0,0]])
-        self.ntargets = args.targets
-        self.dim = args.dim
+        self.nagents = args.nagents 
+        self.ntargets = args.ntargets
         self.naction = 5
-
-        self.action_space = spaces.MultiDiscrete([self.naction])
-        #observation space design
-        coord = np.arange(self.dim)
+        self.agent_spawn_area = np.array([16,17,18,23,24,25,30,31,32])
+        self.target_spawn_area = np.setdiff1d(np.arange(49),self.agent_spawn_area,assume_unique = True)
+        coord = np.arange(7)
         xv, yv = np.meshgrid(coord,coord)
         self.ref_loc = np.array(list(zip(xv.flat, yv.flat)))
-        self.half_obs_dim = (2+self.ntargets)*self.dim
-        # Observation for each agent will be (4n+2)d ndarray
-        self.observation_space = spaces.Box(low=0, high=1, shape=(2,self.half_obs_dim), dtype=int)
+        self.action_space = spaces.MultiDiscrete([self.naction])
+        #observation space: 41=3*3*3+7+7
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.nagents,41), dtype=int)
         return
 
     def reset(self):
@@ -72,26 +100,59 @@ class CooperativeSearchEnv(gym.Env):
         -------
         observation (object): the initial observation of the space.
         """
+        #init episode record msgs
+        self.agent_finish = np.zeros(self.nagents)
         self.episode_over = False
-        #self.reached_target = np.zeros(2,self.ntargets) #mark which targets are reached
-        self.alpha_reach = 0
-        self.beta_reach = 0 #mark how many targets are reached for each agent
+        
         #Spawn agents and targets
         #use a grid-like generation
-        n = self.dim
-        locations = np.random.choice(n*n,size=2+2*self.ntargets,replace=False)
-        self.init_loc_raw = self.ref_loc[locations] 
-        self.init_loc = [one_hot_encoding(self.dim,coord) for coord in self.init_loc_raw]
-        self.alpha_agent = self.init_loc_raw[0]
-        self.beta_agent = self.init_loc_raw[1]
-        self.alpha_targets_onehot = self.init_loc[2:2+self.ntargets]
-        self.beta_targets_onehot = self.init_loc[2+self.ntargets:2+self.ntargets*2]
+        
+        self.agent_loc_raw = np.random.choice(self.agent_spawn_area,size=self.nagents,replace=False)
+        self.target_loc_raw = np.random.choice(self.target_spawn_area,size=self.ntargets,replace=False)
+        self.agent_loc = self.ref_loc[self.agent_loc_raw] #a list of length2 array
+        self.target_loc = self.ref_loc[self.target_loc_raw] 
+        self.raw_env_info_mat = np.zeros((9,9,2))#0: targets; 1: agents. use padding
+        #init infomat with target_loc
+        for idx in range(self.ntargets):
+            self.raw_env_info_mat[self.target_loc[idx][0],self.target_loc[idx][1],0] = 1
         self.stat = dict()
-
         # Observation will be nagent * vision * vision ndarray
         self.obs = self._get_obs()
         return self.obs
 
+    def _get_obs(self):
+        #generate selfloc observation
+        self.agent_loc_onehot = [one_hot_encoding(7,agent_locs) for agent_locs in self.agent_loc]
+        self.agent_obs_selfloc = np.vstack(self.agent_loc_onehot)
+
+        #update infomap
+        env_info_mat = np.copy(self.raw_env_info_mat)
+        collision_loc = []
+        for idx in range(self.nagents):
+            #check collision
+            if env_info_mat[self.agent_loc[idx][0],self.agent_loc[idx][1],1] == 0:
+                env_info_mat[self.agent_loc[idx][0],self.agent_loc[idx][1],1] = 1
+            else:
+                collision_loc.append([self.agent_loc[idx][0],self.agent_loc[idx][1]])
+        
+        #generate env observation
+        #3*3*3, 0-can observe; 1-targets; 2-agents
+        for idx in range(self.nagents):
+            x, y = self.agent_loc[idx]
+            mask = self.mask_mat[x,y,:,:,:]
+            base_mat = env_info_mat
+            
+
+
+
+
+
+        self.alpha_agent_onehot = one_hot_encoding(self.dim,self.alpha_agent)
+        self.beta_agent_onehot = one_hot_encoding(self.dim,self.beta_agent)
+
+        new_obs[0:2,2*d:] = np.hstack(self.beta_targets_onehot)
+        new_obs[2:4,2*d:] = np.hstack(self.alpha_targets_onehot)
+        return new_obs.copy()
     def check_arrival(self):
         arrivals = np.zeros(2)
         if self.alpha_reach < self.ntargets:
@@ -117,26 +178,7 @@ class CooperativeSearchEnv(gym.Env):
 
         return arrivals, dones
 
-    def _get_obs(self):
-        #observation space design
-        '''
-        there are d dims and n targets
-        0-d :self location
-        d-2d: teammate location
-        2d-(2+n)d: teammate targets coord
-        '''
-        d = self.dim
-        self.alpha_agent_onehot = one_hot_encoding(self.dim,self.alpha_agent)
-        self.beta_agent_onehot = one_hot_encoding(self.dim,self.beta_agent)
-        new_obs = np.zeros((4,self.half_obs_dim))
-        new_obs[0:2,0:d] = self.alpha_agent_onehot
-        new_obs[2:4,0:d] = self.beta_agent_onehot
-        new_obs[0:2,d:2*d] = self.beta_agent_onehot
-        new_obs[0:2,d:2*d] = self.alpha_agent_onehot
 
-        new_obs[0:2,2*d:] = np.hstack(self.beta_targets_onehot)
-        new_obs[2:4,2*d:] = np.hstack(self.alpha_targets_onehot)
-        return new_obs.copy()
 
     def step(self, action):
         """
