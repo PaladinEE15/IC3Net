@@ -103,10 +103,8 @@ class CooperativeSearchEnv(gym.Env):
         #init episode record msgs
         self.agent_finish = np.zeros(self.nagents)
         self.episode_over = False
-        
         #Spawn agents and targets
         #use a grid-like generation
-        
         self.agent_loc_raw = np.random.choice(self.agent_spawn_area,size=self.nagents,replace=False)
         self.target_loc_raw = np.random.choice(self.target_spawn_area,size=self.ntargets,replace=False)
         self.agent_loc = self.ref_loc[self.agent_loc_raw] #a list of length2 array
@@ -120,39 +118,51 @@ class CooperativeSearchEnv(gym.Env):
         self.obs = self._get_obs()
         return self.obs
 
-    def _get_obs(self):
-        #generate selfloc observation
-        self.agent_loc_onehot = [one_hot_encoding(7,agent_locs) for agent_locs in self.agent_loc]
-        self.agent_obs_selfloc = np.vstack(self.agent_loc_onehot)
-
-        #update infomap
+    def update_env_info(self):
         env_info_mat = np.copy(self.raw_env_info_mat)
         collision_loc = []
         for idx in range(self.nagents):
+            x, y = self.agent_loc[idx]
             #check collision
-            if env_info_mat[self.agent_loc[idx][0],self.agent_loc[idx][1],1] == 0:
-                env_info_mat[self.agent_loc[idx][0],self.agent_loc[idx][1],1] = 1
+            if env_info_mat[x+1,y+1,1] == 0:
+                env_info_mat[x+1,y+1,1] = 1
             else:
-                collision_loc.append([self.agent_loc[idx][0],self.agent_loc[idx][1]])
-        
+                collision_loc.append([x,y])
+        return env_info_mat, collision_loc
+
+    def check_collection(self, env_info_mat, collision_loc):
+        #check whether collection
+        #if so, set rewards and remove targets
+        collect_rewards = 0
+        return collect_rewards, env_info_mat, collision_loc
+    def _get_obs(self, env_info_mat, collision_loc):
+        #generate selfloc observation
+        agent_loc_onehot = [one_hot_encoding(7,agent_locs) for agent_locs in self.agent_loc]
+        agent_obs_selfloc = np.vstack(agent_loc_onehot)
         #generate env observation
+        agents_obs_set = []
         #3*3*3, 0-can observe; 1-targets; 2-agents
         for idx in range(self.nagents):
             x, y = self.agent_loc[idx]
-            mask = self.mask_mat[x,y,:,:,:]
-            base_mat = env_info_mat
-            
+            mask = self.mask_mat[x,y,:,:,:].squeeze()
+            agent_invision_mat = np.ones((3,3,1))
+            agent_obs_mat_raw = env_info_mat[x:x+2,y:y+2,:]
+            agent_obs_mat_mid = np.concatenate((agent_invision_mat,agent_obs_mat_raw),axis=2)
+            agent_obs_mat_final = agent_obs_mat_mid*mask
+            assert agent_obs_mat_final[1,1,2] == 1, "Error in obs generation"
+            #check self observation
+            sign = 0
+            for locs in collision_loc:
+                if (x == locs[0]) & (y == locs[1]):
+                    sign = 1
+                    break
+            if sign == 0: # no other agents
+                agent_obs_mat_final[1,1,2] = 0
+            agents_obs_set.append(agent_obs_mat_final.flatten())
+        agent_obs_others = np.vstack(agents_obs_set)
+        agent_obs_final = np.concatenate((agent_obs_selfloc,agent_obs_others),dim=1)
+        return agent_obs_final.copy()
 
-
-
-
-
-        self.alpha_agent_onehot = one_hot_encoding(self.dim,self.alpha_agent)
-        self.beta_agent_onehot = one_hot_encoding(self.dim,self.beta_agent)
-
-        new_obs[0:2,2*d:] = np.hstack(self.beta_targets_onehot)
-        new_obs[2:4,2*d:] = np.hstack(self.alpha_targets_onehot)
-        return new_obs.copy()
     def check_arrival(self):
         arrivals = np.zeros(2)
         if self.alpha_reach < self.ntargets:
@@ -169,15 +179,12 @@ class CooperativeSearchEnv(gym.Env):
                     arrivals[1] = 1
                     target_locs[:,:] = 0
                     break
-
         #check dones
         if self.alpha_reach + self.beta_reach == 2*self.ntargets:
             dones = True
         else:
             dones = False
-
         return arrivals, dones
-
 
 
     def step(self, action):
