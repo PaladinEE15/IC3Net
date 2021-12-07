@@ -39,6 +39,9 @@ class CooperativeSearchEnv(gym.Env):
         self.episode_over = False
 
     def init_args(self, parser):
+        env = parser.add_argument_group('Cooperative search task')
+        env.add_argument('--ntargets', type=int, default=5,
+                         help="targets need to be collect ")
         return
                     
     def multi_agent_init(self, args):
@@ -71,16 +74,16 @@ class CooperativeSearchEnv(gym.Env):
         self.ref_act = np.array([[-1,0],[0,1],[1,0],[0,-1],[0,0]])
         #0:left. 1:down. 2: right. 3:up. 4:stop
         self.nagents = args.nagents 
-        self.ntargets = args.nagents
+        self.ntargets = args.ntargets
         self.naction = 5
-        self.agent_spawn_area = np.array([16,17,18,23,24,25,30,31,32])
-        self.target_spawn_area = np.setdiff1d(np.arange(49),self.agent_spawn_area,assume_unique = True)
+        #self.agent_spawn_area = np.array([16,17,18,23,24,25,30,31,32])
+        #self.target_spawn_area = np.setdiff1d(np.arange(49),self.agent_spawn_area,assume_unique = True)
         coord = np.arange(7)
         xv, yv = np.meshgrid(coord,coord)
         self.ref_loc = np.array(list(zip(xv.flat, yv.flat)))
         self.action_space = spaces.MultiDiscrete([self.naction])
         #observation space: 41=3*3*3+7+7
-        self.observation_space = spaces.Box(low=0, high=1, shape=(self.nagents,41), dtype=int)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(1,41), dtype=int)
         return
 
     def reset(self):
@@ -88,8 +91,12 @@ class CooperativeSearchEnv(gym.Env):
         self.episode_over = False
         #Spawn agents and targets
         #use a grid-like generation
-        self.agent_loc_raw = np.random.choice(self.agent_spawn_area,size=self.nagents,replace=False)
-        self.target_loc_raw = np.random.choice(self.target_spawn_area,size=self.ntargets,replace=False)
+        #self.agent_loc_raw = np.random.choice(self.agent_spawn_area,size=self.nagents,replace=False)
+        #self.target_loc_raw = np.random.choice(self.target_spawn_area,size=self.ntargets,replace=False)
+
+        spawn_locs = np.random.choice(np.arange(49),size=self.nagents+self.ntargets,replace=False)
+        self.agent_loc_raw = spawn_locs[0:self.nagents]
+        self.target_loc_raw = spawn_locs[self.nagents:]
         self.target_remain = self.ntargets
         self.agent_loc = self.ref_loc[self.agent_loc_raw] #a list of length2 array
         self.target_loc = self.ref_loc[self.target_loc_raw] 
