@@ -99,8 +99,8 @@ class CooperativeSearchEnv(gym.Env):
         spawn_locs = np.random.choice(np.arange(49),size=self.nagents+self.ntargets,replace=False)
         self.agent_loc_raw_a = spawn_locs[0:self.halfagents]
         self.agent_loc_raw_b = spawn_locs[self.halfagents:self.nagents]
-        self.target_loc_raw_a = spawn_locs[self.nagents:self.nagents+self.halftargets]
-        self.target_loc_raw_b = spawn_locs[self.nagents+self.halftargets:]
+        self.target_loc_raw_a = spawn_locs[self.ntargets:self.nagents+self.halftargets]
+        self.target_loc_raw_b = spawn_locs[self.ntargets+self.halftargets:]
         self.target_remain = self.ntargets
         self.agent_loc_a = self.ref_loc[self.agent_loc_raw_a] #a list of length2 array
         self.agent_loc_b = self.ref_loc[self.agent_loc_raw_b]
