@@ -40,17 +40,17 @@ class CooperativeSearchEnv(gym.Env):
 
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative search task')
-        env.add_argument('--ntargets', type=int, default=4,
+        env.add_argument('--ntargets', type=int, default=5,
                          help="targets need to be collect ")
         return
                     
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
         #init mask_mat: used to mask unseen objects
-        self.mask_mat = np.ones((7,7,3,3,5))
+        self.mask_mat = np.ones((7,7,3,3,3))
         for x in range(7):
             for y in range(7):
-                mini_mat = np.ones((3,3,5))
+                mini_mat = np.ones((3,3,3))
                 for minix in range(3):
                     for miniy in range(3):
                         if (x+minix-1>6)|(x+minix-1<0)|(y+miniy-1>6)|(x+miniy-1<0):
@@ -74,9 +74,7 @@ class CooperativeSearchEnv(gym.Env):
         self.ref_act = np.array([[-1,0],[0,1],[1,0],[0,-1],[0,0]])
         #0:left. 1:down. 2: right. 3:up. 4:stop
         self.nagents = args.nagents 
-        self.halfagents = int(self.nagents/2)
         self.ntargets = args.ntargets
-        self.halftargets = int(self.ntargets/2)
         self.naction = 5
         #self.agent_spawn_area = np.array([16,17,18,23,24,25,30,31,32])
         #self.target_spawn_area = np.setdiff1d(np.arange(49),self.agent_spawn_area,assume_unique = True)
@@ -84,8 +82,8 @@ class CooperativeSearchEnv(gym.Env):
         xv, yv = np.meshgrid(coord,coord)
         self.ref_loc = np.array(list(zip(xv.flat, yv.flat)))
         self.action_space = spaces.MultiDiscrete([self.naction])
-        #observation space: 43=2+3*3*5+7+7
-        self.observation_space = spaces.Box(low=0, high=1, shape=(1,61), dtype=int)
+        #observation space: 41=3*3*3+7+7
+        self.observation_space = spaces.Box(low=0, high=1, shape=(1,41), dtype=int)
         return
 
     def reset(self):
@@ -97,114 +95,72 @@ class CooperativeSearchEnv(gym.Env):
         #self.target_loc_raw = np.random.choice(self.target_spawn_area,size=self.ntargets,replace=False)
 
         spawn_locs = np.random.choice(np.arange(49),size=self.nagents+self.ntargets,replace=False)
-        self.agent_loc_raw_a = spawn_locs[0:self.halfagents]
-        self.agent_loc_raw_b = spawn_locs[self.halfagents:self.nagents]
-        self.target_loc_raw_a = spawn_locs[self.ntargets:self.nagents+self.halftargets]
-        self.target_loc_raw_b = spawn_locs[self.ntargets+self.halftargets:]
+        self.agent_loc_raw = spawn_locs[0:self.nagents]
+        self.target_loc_raw = spawn_locs[self.nagents:]
         self.target_remain = self.ntargets
-        self.agent_loc_a = self.ref_loc[self.agent_loc_raw_a] #a list of length2 array
-        self.agent_loc_b = self.ref_loc[self.agent_loc_raw_b]
-        self.target_loc_a = self.ref_loc[self.target_loc_raw_a] 
-        self.target_loc_b = self.ref_loc[self.target_loc_raw_b]
-        self.raw_env_info_mat = np.zeros((9,9,4))#0: targets_a; 1: targets_b; 2: agents_a; 3: agents_b. use padding
+        self.agent_loc = self.ref_loc[self.agent_loc_raw] #a list of length2 array
+        self.target_loc = self.ref_loc[self.target_loc_raw] 
+        self.raw_env_info_mat = np.zeros((9,9,2))#0: targets; 1: agents. use padding
         #init infomat with target_loc
-        for idx in range(self.halftargets):
-            self.raw_env_info_mat[self.target_loc_a[idx][0]+1,self.target_loc_a[idx][1]+1,0] = 1
-            self.raw_env_info_mat[self.target_loc_b[idx][0]+1,self.target_loc_b[idx][1]+1,1] = 1
+        for idx in range(self.ntargets):
+            self.raw_env_info_mat[self.target_loc[idx][0]+1,self.target_loc[idx][1]+1,0] = 1
         self.stat = dict()
         # Observation will be nagent * vision * vision ndarray
-        self.update_env_info()
-        self.obs = self._get_obs()
+        env_info_mat, collision_loc = self.update_env_info()
+        self.obs = self._get_obs(env_info_mat, collision_loc)
         return self.obs
 
     def update_env_info(self):
-        self.env_info_mat = np.copy(self.raw_env_info_mat)
-        self.collision_loc_a = []
-        self.collision_loc_b = []
-        for idx in range(self.halfagents):
-            x_a, y_a = self.agent_loc_a[idx]
+        env_info_mat = np.copy(self.raw_env_info_mat)
+        collision_loc = []
+        for idx in range(self.nagents):
+            x, y = self.agent_loc[idx]
             #check collision
-            if self.env_info_mat[x_a+1,y_a+1,2] == 0:
-                self.env_info_mat[x_a+1,y_a+1,2] = 1
+            if env_info_mat[x+1,y+1,1] == 0:
+                env_info_mat[x+1,y+1,1] = 1
             else:
-                self.collision_loc_a.append([x_a,y_a])
-            x_b, y_b = self.agent_loc_b[idx]
-            #check collision
-            if self.env_info_mat[x_b+1,y_b+1,3] == 0:
-                self.env_info_mat[x_b+1,y_b+1,3] = 1
-            else:
-                self.collision_loc_b.append([x_b,y_b])
-        return 
+                collision_loc.append([x,y])
+        return env_info_mat, collision_loc
 
-    def check_collection(self):
+    def check_collection(self, env_info_mat, collision_loc):
         #check whether collection
         #if so, set rewards and remove targets
         collect_rewards = np.zeros(self.nagents)
-        for idx in range(self.halfagents):
-            x_a, y_a = self.agent_loc_a[idx]
-            if self.env_info_mat[x_a+1,y_a+1,0] == 1: #agent collects targets
-                if [x_a,y_a] in self.collision_loc_a: #multiple agents collecting
+        for idx in range(self.nagents):
+            x, y = self.agent_loc[idx]
+            if env_info_mat[x+1,y+1,0] == 1: #agent collects targets
+                if [x,y] in collision_loc: #multiple agents collecting
                     collect_rewards[idx] = self.COOP_COLLECT_REWARD
                 else:
                     collect_rewards[idx] = self.COLLECT_REWARD
-                self.env_info_mat[x_a+1,x_a+1,0] = 0 #remove targets
-                self.raw_env_info_mat[x_a+1,x_a+1,0] = 0 #remove targets
+                env_info_mat[x+1,y+1,0] = 0 #remove targets
+                self.raw_env_info_mat[x+1,y+1,0] = 0 #remove targets
                 self.target_remain -= 1
-            x_b, y_b = self.agent_loc_b[idx]
-            if self.env_info_mat[x_b+1,y_b+1,1] == 1: #agent collects targets
-                if [x_b,y_b] in self.collision_loc_b: #multiple agents collecting
-                    collect_rewards[idx+self.halfagents] = self.COOP_COLLECT_REWARD
-                else:
-                    collect_rewards[idx+self.halfagents] = self.COLLECT_REWARD
-                self.env_info_mat[x_b+1,x_b+1,1] = 0 #remove targets
-                self.raw_env_info_mat[x_b+1,x_b+1,1] = 0 #remove targets
-                self.target_remain -= 1            
-        return collect_rewards
+        return collect_rewards, env_info_mat, collision_loc
 
-    def _get_obs(self):
-        #self identification
-        agent_self_id = np.zeros((self.nagents,2))
-        agent_self_id[0:self.halfagents,0] = 1
-        agent_self_id[self.halfagents:,1] = 1
+    def _get_obs(self, env_info_mat, collision_loc):
         #generate selfloc observation
-        self.agent_loc = np.concatenate((self.agent_loc_a,self.agent_loc_b),axis=0)
         agent_loc_onehot = [one_hot_encoding(7,agent_locs) for agent_locs in self.agent_loc]
         agent_obs_selfloc = np.vstack(agent_loc_onehot)
         #generate env observation
-        agents_obs_set_a = []
-        agents_obs_set_b = []
-        #3*3*5, 0-can observe; 1-targets_a; 2-targets_b; 3-agents_a; 4-agents_b
-        for idx in range(self.halfagents):
-            x_a, y_a = self.agent_loc_a[idx]
-            mask_a = self.mask_mat[x_a,y_a,:,:,:].squeeze()
-            agent_invision_mat_a = np.ones((3,3,1))
-            agent_obs_mat_raw_a = np.copy(self.env_info_mat[x_a:x_a+3,y_a:y_a+3,:])
-            agent_obs_mat_mid_a = np.concatenate((agent_invision_mat_a,agent_obs_mat_raw_a),axis=2)
-            agent_obs_mat_final_a = agent_obs_mat_mid_a*mask_a
-            assert agent_obs_mat_final_a[1,1,3] == 1, "Error in obs generation"
+        agents_obs_set = []
+        #3*3*3, 0-can observe; 1-targets; 2-agents
+        for idx in range(self.nagents):
+            x, y = self.agent_loc[idx]
+            mask = self.mask_mat[x,y,:,:,:].squeeze()
+            agent_invision_mat = np.ones((3,3,1))
+            agent_obs_mat_raw = np.copy(env_info_mat[x:x+3,y:y+3,:])
+            agent_obs_mat_mid = np.concatenate((agent_invision_mat,agent_obs_mat_raw),axis=2)
+            agent_obs_mat_final = agent_obs_mat_mid*mask
+            assert agent_obs_mat_final[1,1,2] == 1, "Error in obs generation"
             #check self observation
-            if [x_a,y_a] in self.collision_loc_a:
-                agent_obs_mat_final_a[1,1,3] = 1
+            if [x,y] in collision_loc:
+                agent_obs_mat_final[1,1,2] = 1
             else:
-                agent_obs_mat_final_a[1,1,3] = 0
-            agents_obs_set_a.append(agent_obs_mat_final_a.flatten())
-
-            x_b, y_b = self.agent_loc_b[idx]
-            mask_b = self.mask_mat[x_b,y_b,:,:,:].squeeze()
-            agent_invision_mat_b = np.ones((3,3,1))
-            agent_obs_mat_raw_b = np.copy(self.env_info_mat[x_b:x_b+3,y_b:y_b+3,:])
-            agent_obs_mat_mid_b = np.concatenate((agent_invision_mat_b,agent_obs_mat_raw_b),axis=2)
-            agent_obs_mat_final_b = agent_obs_mat_mid_b*mask_b
-            assert agent_obs_mat_final_b[1,1,4] == 1, "Error in obs generation"
-            #check self observation
-            if [x_b,y_b] in self.collision_loc_b:
-                agent_obs_mat_final_b[1,1,4] = 1
-            else:
-                agent_obs_mat_final_b[1,1,4] = 0
-            agents_obs_set_b.append(agent_obs_mat_final_b.flatten())
-        agents_obs_set = agents_obs_set_a + agents_obs_set_b
+                agent_obs_mat_final[1,1,2] = 0
+            agents_obs_set.append(agent_obs_mat_final.flatten())
         agent_obs_others = np.vstack(agents_obs_set)
-        agent_obs_final = np.concatenate((agent_self_id,agent_obs_selfloc,agent_obs_others),axis=1)
+        agent_obs_final = np.concatenate((agent_obs_selfloc,agent_obs_others),axis=1)
         return agent_obs_final.copy()
 
     def step(self, action):
@@ -212,7 +168,6 @@ class CooperativeSearchEnv(gym.Env):
             raise RuntimeError("Episode is done")
         action = np.array(action).squeeze()
         assert np.all(action <= self.naction), "Actions should be in the range [0,naction)."
-        self.agent_loc = np.concatenate((self.agent_loc_a,self.agent_loc_b),axis=0)
         for idx in range(self.nagents):
             act = action[idx]
             x,y = self.agent_loc[idx]
@@ -227,11 +182,10 @@ class CooperativeSearchEnv(gym.Env):
             
             self.agent_loc[idx] = self.agent_loc[idx] + agent_act
         self.agent_loc = np.clip(self.agent_loc, 0, 6)
-        self.agent_loc_a = self.agent_loc[0:self.halfagents,:]
-        self.agent_loc_b = self.agent_loc[self.halfagents:,:]                   
-        self.update_env_info()
-        collect_rewards = self.check_collection()
-        self.obs = self._get_obs()
+                           
+        env_info_mat, collision_loc = self.update_env_info()
+        collect_rewards, env_info_mat, collision_loc = self.check_collection(env_info_mat, collision_loc)
+        self.obs = self._get_obs(env_info_mat, collision_loc)
         #check dones
         if self.target_remain == 0:
             self.episode_over = True
