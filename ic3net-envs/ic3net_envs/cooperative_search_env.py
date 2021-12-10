@@ -33,74 +33,100 @@ class CooperativeSearchEnv(gym.Env):
 
         # TODO: better config handling
         self.TIMESTEP_PENALTY = -0.05
-        self.COLLECT_REWARD = 0.5
-        self.COOP_COLLECT_REWARD = 0.2
+        self.NOCOOP_COLLECT_REWARD = 0.3
+        self.COOP_COLLECT_REWARD = 1
+        self.COOP_STAY_REWARD = 0.05
+        self.NOCOOP_MULTICOLLECT_REWARD = 0.1
         self.SUCCESS_REWARD = 0.5
         self.episode_over = False
 
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative search task')
-        env.add_argument('--ntargets', type=int, default=5,
-                         help="targets need to be collect ")
+        env.add_argument('--coop_targets', type=int, default=2,
+                         help="targets need to be collect cooperatively")
+        env.add_argument('--nocoop_targets', type=int, default=4,
+                         help="targets need to be collect separately")
+        env.add_argument('--lock_agent', default=False, action='store_true', 
+                    help='lock agent after reaching a coop_target') 
+        env.add_argument('--spawn_type',type=str, default="A", choices=["A", "B","C"], help="how to spawn agents and targets; A: both random; B: agents spawn together; C:agents spawn in corners")
+        #env.add_argument('--areas',type=int, default=4, choices=[4, 8, 16], help='how many areas in this env') #use 16 areas
+        #env.add_argument("--map_type", type=str, default="empty", choices=["cross", "parallel"], help="map type") #abandoned for now
         return
                     
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
         #init mask_mat: used to mask unseen objects
-        self.mask_mat = np.ones((7,7,3,3,3))
-        for x in range(7):
-            for y in range(7):
-                mini_mat = np.ones((3,3,3))
-                for minix in range(3):
-                    for miniy in range(3):
-                        if (x+minix-1>6)|(x+minix-1<0)|(y+miniy-1>6)|(x+miniy-1<0):
-                            mini_mat[minix,miniy,:] = 0
-                if (x==1)|(x==4):
-                    if y == 2:
-                        mini_mat[2,1:,:] = 0
-                    elif y == 3:
-                        mini_mat[2,:,:] = 0
-                    elif y == 4:
-                        mini_mat[2,0:2,:] = 0
-                elif (x==2)|(x==5):
-                    if y == 2:
-                        mini_mat[0,1:,:] = 0
-                    elif y == 3:
-                        mini_mat[0,:,:] = 0
-                    elif y == 4:
-                        mini_mat[0,0:2,:] = 0   
-                self.mask_mat[x,y,:,:,:] = np.copy(mini_mat)
-            
+        #self.mask_mat = np.ones((8,8,3,3,4))
         self.ref_act = np.array([[-1,0],[0,1],[1,0],[0,-1],[0,0]])
         #0:left. 1:down. 2: right. 3:up. 4:stop
         self.nagents = args.nagents 
-        self.ntargets = args.ntargets
+        self.coop_targets = args.coop_targets
+        self.noncoop_targets = args.nocoop_targets
+        self.spawn_type = args.spawn_type
         self.naction = 5
-        #self.agent_spawn_area = np.array([16,17,18,23,24,25,30,31,32])
+        #self.agent_spawn_area = np.array([16,18,18,23,24,25,30,31,32])
         #self.target_spawn_area = np.setdiff1d(np.arange(49),self.agent_spawn_area,assume_unique = True)
-        coord = np.arange(7)
+        coord = np.arange(8)
         xv, yv = np.meshgrid(coord,coord)
         self.ref_loc = np.array(list(zip(xv.flat, yv.flat)))
         self.action_space = spaces.MultiDiscrete([self.naction])
-        #observation space: 41=3*3*3+7+7
-        self.observation_space = spaces.Box(low=0, high=1, shape=(1,41), dtype=int)
+        #observation space: 41=3*3*4+8+8
+        self.observation_space = spaces.Box(low=0, high=1, shape=(1,52), dtype=int)
         return
 
     def reset(self):
         #init episode record msgs
         self.episode_over = False
         #Spawn agents and targets
-        #use a grid-like generation
-        #self.agent_loc_raw = np.random.choice(self.agent_spawn_area,size=self.nagents,replace=False)
-        #self.target_loc_raw = np.random.choice(self.target_spawn_area,size=self.ntargets,replace=False)
+        coord = np.arange(4)
+        xv, yv = np.meshgrid(coord,coord)
+        areas_ref = list(zip(xv.flat, yv.flat))
+        if self.spawn_type == "A":
+            spawn_locs = np.random.choice(np.arange(64),size=self.nagents+self.coop_targets+self.noncoop_targets,replace=False)
+            self.agent_loc_raw = spawn_locs[0:self.nagents]
+            self.coop_target_loc_raw = spawn_locs[self.nagents:self.nagents+self.coop_targets]
+            self.noncoop_target_loc_raw = spawn_locs[self.nagents+self.coop_targets:self.nagents+self.coop_targets+self.noncoop_targets]
+        elif self.spawn_type == "B":
+            area_idx = np.random.choice(16, size=1, replace=True)
+            area_x, area_y = areas_ref[area_idx]
+            agent_spawn_area = np.array([area_x*2+area_y*8,area_x*2+1+area_y*8,area_x*2+(area_y+1)*8,area_x*2+1+(area_y+1)*8])
+            target_spawn_hyper_area = np.setdiff1d(np.arange(16), area_idx,assume_unique = True)
+            self.agent_loc_raw = np.random.choice(agent_spawn_area,size=self.nagents, replace = True)
+            target_spawn_area = np.random.choice(target_spawn_hyper_area, size=self.coop_targets+self.noncoop_targets, replace=False)
+            target_loc_set = []
+            for locs in target_spawn_area:
+                area_x, area_y = areas_ref[locs]
+                spawn_area = np.array([area_x*2+area_y*8,area_x*2+1+area_y*8,area_x*2+(area_y+1)*8,area_x*2+1+(area_y+1)*8])
+                loc_idx = np.random.choice(spawn_area, size=1)
+                target_loc_set.append(loc_idx)
+            target_loc_array = np.array(target_loc_set)
+            self.coop_target_loc_raw = target_loc_array[0:self.coop_targets]
+            self.noncoop_target_loc_raw = target_loc_array[self.coop_targets:self.coop_targets+self.noncoop_targets]
+        elif self.spawn_type == "C":
+            agent_spawn_area = []
+            for area_idx in [0,3,12,15]:
+                area_x, area_y = areas_ref[area_idx]
+                mini_agent_spawn_area = [area_x*2+area_y*8,area_x*2+1+area_y*8,area_x*2+(area_y+1)*8,area_x*2+1+(area_y+1)*8]
+                agent_spawn_area += mini_agent_spawn_area
+            
+            self.agent_loc_raw = np.random.choice(np.array(agent_spawn_area),size=self.nagents, replace = True)
+            target_spawn_area = np.random.choice(np.arange(16), size=self.coop_targets+self.noncoop_targets, replace=False)
+            target_loc_set = []
+            for locs in target_spawn_area:
+                area_x, area_y = areas_ref[locs]
+                spawn_area = np.array([area_x*2+area_y*8,area_x*2+1+area_y*8,area_x*2+(area_y+1)*8,area_x*2+1+(area_y+1)*8])
+                loc_idx = np.random.choice(spawn_area, size=1)
+                target_loc_set.append(loc_idx)
+            target_loc_array = np.array(target_loc_set)
+            self.coop_target_loc_raw = target_loc_array[0:self.coop_targets]
+            self.noncoop_target_loc_raw = target_loc_array[self.coop_targets:self.coop_targets+self.noncoop_targets]
 
-        spawn_locs = np.random.choice(np.arange(49),size=self.nagents+self.ntargets,replace=False)
-        self.agent_loc_raw = spawn_locs[0:self.nagents]
-        self.target_loc_raw = spawn_locs[self.nagents:]
-        self.target_remain = self.ntargets
+        self.target_remain = self.coop_targets + self.noncoop_targets
         self.agent_loc = self.ref_loc[self.agent_loc_raw] #a list of length2 array
-        self.target_loc = self.ref_loc[self.target_loc_raw] 
-        self.raw_env_info_mat = np.zeros((9,9,2))#0: targets; 1: agents. use padding
+        self.coop_target_loc = self.ref_loc[self.coop_target_loc_raw] 
+        self.noncoop_target_loc = self.ref_loc[self.noncoop_target_loc_raw] 
+
+        self.raw_env_info_mat = np.zeros((10,10,2))#0: targets; 1: agents. use padding
         #init infomat with target_loc
         for idx in range(self.ntargets):
             self.raw_env_info_mat[self.target_loc[idx][0]+1,self.target_loc[idx][1]+1,0] = 1
@@ -140,7 +166,7 @@ class CooperativeSearchEnv(gym.Env):
 
     def _get_obs(self, env_info_mat, collision_loc):
         #generate selfloc observation
-        agent_loc_onehot = [one_hot_encoding(7,agent_locs) for agent_locs in self.agent_loc]
+        agent_loc_onehot = [one_hot_encoding(8,agent_locs) for agent_locs in self.agent_loc]
         agent_obs_selfloc = np.vstack(agent_loc_onehot)
         #generate env observation
         agents_obs_set = []
