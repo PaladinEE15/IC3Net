@@ -34,7 +34,7 @@ class CooperativeSearchEnv(gym.Env):
         # TODO: better config handling
         self.TIMESTEP_PENALTY = -0.05
         self.NOCOOP_COLLECT_REWARD = 0.3
-        self.COOP_COLLECT_REWARD = 1
+        self.COOP_COLLECT_REWARD = 0.5
         self.COOP_STAY_REWARD = 0.05
         self.NOCOOP_MULTICOLLECT_REWARD = 0.1
         self.SUCCESS_REWARD = 0.5
@@ -58,7 +58,7 @@ class CooperativeSearchEnv(gym.Env):
         #init mask_mat: used to mask unseen objects
         #self.mask_mat = np.ones((8,8,3,3,4))
         self.ref_act = np.array([[-1,0],[0,1],[1,0],[0,-1],[0,0]])
-        #0:left. 1:down. 2: right. 3:up. 4:stop
+        #0:left. 1:up. 2: right. 3:down. 4:stop
         self.nagents = args.nagents 
         self.coop_targets = args.coop_targets
         self.noncoop_targets = args.nocoop_targets
@@ -70,8 +70,8 @@ class CooperativeSearchEnv(gym.Env):
         xv, yv = np.meshgrid(coord,coord)
         self.ref_loc = np.array(list(zip(xv.flat, yv.flat)))
         self.action_space = spaces.MultiDiscrete([self.naction])
-        #observation space: 41=3*3*4+8+8
-        self.observation_space = spaces.Box(low=0, high=1, shape=(1,52), dtype=int)
+        #observation space: 43=3*3*3+8+8
+        self.observation_space = spaces.Box(low=0, high=1, shape=(1,43), dtype=int)
         return
 
     def reset(self):
@@ -110,7 +110,8 @@ class CooperativeSearchEnv(gym.Env):
                 agent_spawn_area += mini_agent_spawn_area
             
             self.agent_loc_raw = np.random.choice(np.array(agent_spawn_area),size=self.nagents, replace = True)
-            target_spawn_area = np.random.choice(np.arange(16), size=self.coop_targets+self.noncoop_targets, replace=False)
+            target_spawn_hyper_area = np.setdiff1d(np.arange(16), np.array([0,3,12,15]), assume_unique = True)
+            target_spawn_area = np.random.choice(target_spawn_hyper_area, size=self.coop_targets+self.noncoop_targets, replace=False)
             target_loc_set = []
             for locs in target_spawn_area:
                 area_x, area_y = areas_ref[locs]
@@ -126,10 +127,12 @@ class CooperativeSearchEnv(gym.Env):
         self.coop_target_loc = self.ref_loc[self.coop_target_loc_raw] 
         self.noncoop_target_loc = self.ref_loc[self.noncoop_target_loc_raw] 
 
-        self.raw_env_info_mat = np.zeros((10,10,2))#0: targets; 1: agents. use padding
+        self.raw_env_info_mat = np.zeros((10,10,3))#0: coop_targets; 1: noncoop_targets; 2: agents. use padding
         #init infomat with target_loc
-        for idx in range(self.ntargets):
-            self.raw_env_info_mat[self.target_loc[idx][0]+1,self.target_loc[idx][1]+1,0] = 1
+        for idx in range(self.coop_targets):
+            self.raw_env_info_mat[self.coop_target_loc[idx][0]+1,self.coop_target_loc[idx][1]+1,0] = 1
+        for idx in range(self.noncoop_targets):
+            self.raw_env_info_mat[self.noncoop_target_loc[idx][0]+1,self.noncoop_target_loc[idx][1]+1,1] = 1
         self.stat = dict()
         # Observation will be nagent * vision * vision ndarray
         env_info_mat, collision_loc = self.update_env_info()
@@ -142,8 +145,8 @@ class CooperativeSearchEnv(gym.Env):
         for idx in range(self.nagents):
             x, y = self.agent_loc[idx]
             #check collision
-            if env_info_mat[x+1,y+1,1] == 0:
-                env_info_mat[x+1,y+1,1] = 1
+            if env_info_mat[x+1,y+1,2] == 0:
+                env_info_mat[x+1,y+1,2] = 1
             else:
                 collision_loc.append([x,y])
         return env_info_mat, collision_loc
@@ -154,14 +157,23 @@ class CooperativeSearchEnv(gym.Env):
         collect_rewards = np.zeros(self.nagents)
         for idx in range(self.nagents):
             x, y = self.agent_loc[idx]
-            if env_info_mat[x+1,y+1,0] == 1: #agent collects targets
+            if env_info_mat[x+1,y+1,1] == 1: #agent collects noncoop targets
                 if [x,y] in collision_loc: #multiple agents collecting
-                    collect_rewards[idx] = self.COOP_COLLECT_REWARD
+                    collect_rewards[idx] = self.NOCOOP_MULTICOLLECT_REWARD
                 else:
-                    collect_rewards[idx] = self.COLLECT_REWARD
-                env_info_mat[x+1,y+1,0] = 0 #remove targets
-                self.raw_env_info_mat[x+1,y+1,0] = 0 #remove targets
+                    collect_rewards[idx] = self.NOCOOP_COLLECT_REWARD
+                env_info_mat[x+1,y+1,1] = 0 #remove targets
+                self.raw_env_info_mat[x+1,y+1,1] = 0 #remove targets
                 self.target_remain -= 1
+            if env_info_mat[x+1,y+1,0] == 1: #agent collects coop targets
+                if [x,y] in collision_loc: #multiple agents collect successfully
+                    collect_rewards[idx] = self.COOP_COLLECT_REWARD
+                    env_info_mat[x+1,y+1,0] = 0 #remove targets
+                    self.raw_env_info_mat[x+1,y+1,0] = 0 #remove targets
+                    self.target_remain -= 1   
+                else:
+                    collect_rewards[idx] = self.COOP_STAY_REWARD
+         
         return collect_rewards, env_info_mat, collision_loc
 
     def _get_obs(self, env_info_mat, collision_loc):
@@ -170,21 +182,17 @@ class CooperativeSearchEnv(gym.Env):
         agent_obs_selfloc = np.vstack(agent_loc_onehot)
         #generate env observation
         agents_obs_set = []
-        #3*3*3, 0-can observe; 1-targets; 2-agents
+        #3*3*3, 0-coop-targets; 1-noncoop-targets; 2-agents
         for idx in range(self.nagents):
             x, y = self.agent_loc[idx]
-            mask = self.mask_mat[x,y,:,:,:].squeeze()
-            agent_invision_mat = np.ones((3,3,1))
-            agent_obs_mat_raw = np.copy(env_info_mat[x:x+3,y:y+3,:])
-            agent_obs_mat_mid = np.concatenate((agent_invision_mat,agent_obs_mat_raw),axis=2)
-            agent_obs_mat_final = agent_obs_mat_mid*mask
-            assert agent_obs_mat_final[1,1,2] == 1, "Error in obs generation"
+            agent_obs_mat = np.copy(env_info_mat[x:x+3,y:y+3,:])
+            assert agent_obs_mat[1,1,2] == 1, "Error in obs generation"
             #check self observation
             if [x,y] in collision_loc:
-                agent_obs_mat_final[1,1,2] = 1
+                agent_obs_mat[1,1,2] = 1
             else:
-                agent_obs_mat_final[1,1,2] = 0
-            agents_obs_set.append(agent_obs_mat_final.flatten())
+                agent_obs_mat[1,1,2] = 0
+            agents_obs_set.append(agent_obs_mat.flatten())
         agent_obs_others = np.vstack(agents_obs_set)
         agent_obs_final = np.concatenate((agent_obs_selfloc,agent_obs_others),axis=1)
         return agent_obs_final.copy()
@@ -196,19 +204,9 @@ class CooperativeSearchEnv(gym.Env):
         assert np.all(action <= self.naction), "Actions should be in the range [0,naction)."
         for idx in range(self.nagents):
             act = action[idx]
-            x,y = self.agent_loc[idx]
             agent_act = np.copy(self.ref_act[act])
-            if y <= 4 & y >= 2:
-                if x == 1 | x == 4:
-                    if act == 2: #cannot go right
-                        agent_act = np.copy(self.ref_act[4])
-                elif x == 2 | x == 5:
-                    if act == 0: #cannot go left
-                        agent_act = np.copy(self.ref_act[4]) 
-            
             self.agent_loc[idx] = self.agent_loc[idx] + agent_act
-        self.agent_loc = np.clip(self.agent_loc, 0, 6)
-                           
+        self.agent_loc = np.clip(self.agent_loc, 0, 7)
         env_info_mat, collision_loc = self.update_env_info()
         collect_rewards, env_info_mat, collision_loc = self.check_collection(env_info_mat, collision_loc)
         self.obs = self._get_obs(env_info_mat, collision_loc)
