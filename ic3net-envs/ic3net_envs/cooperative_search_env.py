@@ -174,14 +174,14 @@ class CooperativeSearchEnv(gym.Env):
                         collected_coop_target.append([x,y]) 
                 else:
                     collect_rewards[idx] = self.COOP_STAY_REWARD
-            for [x,y] in collected_noncoop_target:
-                env_info_mat[x+1,y+1,1] = 0 #remove targets
-                self.raw_env_info_mat[x+1,y+1,1] = 0 #remove targets
-                self.target_remain -= 1     
-            for [x,y] in collected_coop_target:            
-                env_info_mat[x+1,y+1,0] = 0 #remove targets
-                self.raw_env_info_mat[x+1,y+1,0] = 0 #remove targets
-                self.target_remain -= 1                 
+        for [x,y] in collected_noncoop_target:
+            env_info_mat[x+1,y+1,1] = 0 #remove targets
+            self.raw_env_info_mat[x+1,y+1,1] = 0 #remove targets
+            self.target_remain -= 1     
+        for [x,y] in collected_coop_target:            
+            env_info_mat[x+1,y+1,0] = 0 #remove targets
+            self.raw_env_info_mat[x+1,y+1,0] = 0 #remove targets
+            self.target_remain -= 1                 
          
         return collect_rewards, env_info_mat, collision_loc
 
