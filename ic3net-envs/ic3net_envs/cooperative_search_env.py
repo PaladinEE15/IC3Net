@@ -123,9 +123,9 @@ class CooperativeSearchEnv(gym.Env):
             self.noncoop_target_loc_raw = target_loc_array[self.coop_targets:self.coop_targets+self.noncoop_targets]
 
         self.target_remain = self.coop_targets + self.noncoop_targets
-        self.agent_loc = self.ref_loc[self.agent_loc_raw] #a list of length2 array
-        self.coop_target_loc = self.ref_loc[self.coop_target_loc_raw] 
-        self.noncoop_target_loc = self.ref_loc[self.noncoop_target_loc_raw] 
+        self.agent_loc = self.ref_loc[self.agent_loc_raw].squeeze() #a list of length2 array
+        self.coop_target_loc = self.ref_loc[self.coop_target_loc_raw].squeeze() 
+        self.noncoop_target_loc = self.ref_loc[self.noncoop_target_loc_raw].squeeze() 
 
         self.raw_env_info_mat = np.zeros((10,10,3))#0: coop_targets; 1: noncoop_targets; 2: agents. use padding
         #init infomat with target_loc
@@ -155,6 +155,8 @@ class CooperativeSearchEnv(gym.Env):
         #check whether collection
         #if so, set rewards and remove targets
         collect_rewards = np.zeros(self.nagents)
+        collected_noncoop_target = []
+        collected_coop_target = []
         for idx in range(self.nagents):
             x, y = self.agent_loc[idx]
             if env_info_mat[x+1,y+1,1] == 1: #agent collects noncoop targets
@@ -162,17 +164,24 @@ class CooperativeSearchEnv(gym.Env):
                     collect_rewards[idx] = self.NOCOOP_MULTICOLLECT_REWARD
                 else:
                     collect_rewards[idx] = self.NOCOOP_COLLECT_REWARD
-                env_info_mat[x+1,y+1,1] = 0 #remove targets
-                self.raw_env_info_mat[x+1,y+1,1] = 0 #remove targets
-                self.target_remain -= 1
+                if [x,y] not in collected_noncoop_target:
+                    collected_noncoop_target.append([x,y])
+
             if env_info_mat[x+1,y+1,0] == 1: #agent collects coop targets
                 if [x,y] in collision_loc: #multiple agents collect successfully
                     collect_rewards[idx] = self.COOP_COLLECT_REWARD
-                    env_info_mat[x+1,y+1,0] = 0 #remove targets
-                    self.raw_env_info_mat[x+1,y+1,0] = 0 #remove targets
-                    self.target_remain -= 1   
+                    if [x,y] not in collected_coop_target:
+                        collected_coop_target.append([x,y]) 
                 else:
                     collect_rewards[idx] = self.COOP_STAY_REWARD
+            for [x,y] in collected_noncoop_target:
+                env_info_mat[x+1,y+1,1] = 0 #remove targets
+                self.raw_env_info_mat[x+1,y+1,1] = 0 #remove targets
+                self.target_remain -= 1     
+            for [x,y] in collected_coop_target:            
+                env_info_mat[x+1,y+1,0] = 0 #remove targets
+                self.raw_env_info_mat[x+1,y+1,0] = 0 #remove targets
+                self.target_remain -= 1                 
          
         return collect_rewards, env_info_mat, collision_loc
 
