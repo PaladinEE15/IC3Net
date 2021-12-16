@@ -48,7 +48,7 @@ class CooperativeSearchEnv(gym.Env):
                          help="targets need to be collect separately")
         env.add_argument('--lock_agent', default=False, action='store_true', 
                     help='lock agent after reaching a coop_target') 
-        env.add_argument('--spawn_type',type=str, default="A", choices=["A", "B","C"], help="how to spawn agents and targets; A: both random; B: agents spawn together; C:agents spawn in corners")
+        env.add_argument('--spawn_type',type=str, default="A", choices=["A","B","C"], help="how to spawn agents and targets; A: both random; B: agents spawn together; C:agents spawn in corners")
         #env.add_argument('--areas',type=int, default=4, choices=[4, 8, 16], help='how many areas in this env') #use 16 areas
         #env.add_argument("--map_type", type=str, default="empty", choices=["cross", "parallel"], help="map type") #abandoned for now
         return
@@ -87,7 +87,7 @@ class CooperativeSearchEnv(gym.Env):
             self.coop_target_loc_raw = spawn_locs[self.nagents:self.nagents+self.coop_targets]
             self.noncoop_target_loc_raw = spawn_locs[self.nagents+self.coop_targets:self.nagents+self.coop_targets+self.noncoop_targets]
         elif self.spawn_type == "B":
-            area_idx = np.random.choice(16, size=1, replace=True)
+            area_idx = int(np.random.choice(16, size=1, replace=True).squeeze()) 
             area_x, area_y = areas_ref[area_idx]
             agent_spawn_area = np.array([area_x*2+area_y*8,area_x*2+1+area_y*8,area_x*2+(area_y+1)*8,area_x*2+1+(area_y+1)*8])
             target_spawn_hyper_area = np.setdiff1d(np.arange(16), area_idx,assume_unique = True)
