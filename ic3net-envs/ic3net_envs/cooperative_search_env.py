@@ -44,6 +44,8 @@ class CooperativeSearchEnv(gym.Env):
         env = parser.add_argument_group('Cooperative search task')
         env.add_argument('--coop_targets', type=int, default=2,
                          help="targets need to be collect cooperatively")
+        env.add_argument('--vision', type=int, default=1,
+                         help="agents' vision")
         env.add_argument('--nocoop_targets', type=int, default=4,
                          help="targets need to be collect separately")
         env.add_argument('--lock_agent', default=False, action='store_true', 
@@ -59,6 +61,7 @@ class CooperativeSearchEnv(gym.Env):
         #self.mask_mat = np.ones((8,8,3,3,4))
         self.ref_act = np.array([[-1,0],[0,1],[1,0],[0,-1],[0,0]])
         #0:left. 1:up. 2: right. 3:down. 4:stop
+        self.vision = args.vision
         self.nagents = args.nagents 
         self.coop_targets = args.coop_targets
         self.noncoop_targets = args.nocoop_targets
@@ -71,7 +74,10 @@ class CooperativeSearchEnv(gym.Env):
         self.ref_loc = np.array(list(zip(xv.flat, yv.flat)))
         self.action_space = spaces.MultiDiscrete([self.naction])
         #observation space: 43=3*3*3+8+8
-        self.observation_space = spaces.Box(low=0, high=1, shape=(1,43), dtype=int)
+        if self.vision == 1:
+            self.observation_space = spaces.Box(low=0, high=1, shape=(1,43), dtype=int)
+        else:
+            self.observation_space = spaces.Box(low=0, high=1, shape=(1,19), dtype=int)
         return
 
     def reset(self):
@@ -201,7 +207,10 @@ class CooperativeSearchEnv(gym.Env):
                 agent_obs_mat[1,1,2] = 1
             else:
                 agent_obs_mat[1,1,2] = 0
-            agents_obs_set.append(agent_obs_mat.flatten())
+            if self.vision == 1:
+                agents_obs_set.append(agent_obs_mat.flatten())
+            else:
+                agents_obs_set.append(agent_obs_mat[1,1,:].flatten())
         agent_obs_others = np.vstack(agents_obs_set)
         agent_obs_final = np.concatenate((agent_obs_selfloc,agent_obs_others),axis=1)
         return agent_obs_final.copy()
