@@ -120,8 +120,7 @@ parser.add_argument('--share_weights', default=False, action='store_true',
 # Comm message design details
 parser.add_argument("--comm_detail", type=str, default="mlp", choices=["raw", "mlp", "triangle", "cos", "widecos", "bell", "mim"], 
                     help="How to process broadcasting messages")
-parser.add_argument('--test_times', default=0, type=int, 
-                    help='test times')
+
 parser.add_argument('--quant', default=False, action='store_true', 
                     help='Whether test and do quantification')
 parser.add_argument('--v_size', default=32, type=int,
@@ -164,8 +163,17 @@ parser.add_argument('--no_comm', default=False, action='store_true',
 parser.add_argument("--map_name", type=str, default="3s_vs_4z", choices=["3s_vs_4z", "5m_vs_6m"], help='map name for starcraft')
 parser.add_argument("--redirect_path", type=str, default= None, help='log of sc env')
 
+#test_parameters
+parser.add_argument('--test_times', default=0, type=int, 
+                    help='test times')
+parser.add_argument('--test_models', default='', nargs='+', type=str,
+                    help='name of tested models')
+
+
+
 init_args_for_env(parser)
 args = parser.parse_args()
+
 
 
 
@@ -386,8 +394,24 @@ if __name__ == '__main__':
     log['entropy'] = LogField(list(), True, 'epoch', 'num_steps')
     log['comm_entropy'] = LogField(list(), True, 'epoch', None)
     if args.test_times>0:
-        load(args.load)
-        trainer.test_batch(args.test_times)
+        entropy_set = []
+        success_set = []
+        steps_set = []
+        for model_path in args.test_models:
+            load(model_path)
+            entropy, success, steps = trainer.test_batch(args.test_times)
+            entropy_set.append(entropy)
+            success_set.append(success)
+            steps_set.append(steps)
+        
+        entropy_set = np.vstack(entropy_set)
+        success_set = np.vstack(success_set)
+        steps_set = np.vstack(steps_set)
+        print('entropy: ', np.mean(entropy_set),' std: ', np.std(entropy_set))
+        print('success: ', np.mean(success_set),' std: ', np.std(success_set) )
+        print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set))        
+
+
     else:
         if args.plot:
             vis = visdom.Visdom(env=args.plot_env)
