@@ -161,8 +161,6 @@ class CommNetMLP(nn.Module):
         return x, hidden_state, cell_state
 
     def generate_comm(self,raw_comm):
-        if self.args.no_comm:
-            return torch.zeros_like(raw_comm), torch.zeros_like(raw_comm)
         if self.args.comm_detail == 'raw':
             comm = raw_comm
         else :
@@ -184,6 +182,8 @@ class CommNetMLP(nn.Module):
             qt_comm = qt_comm/(self.args.quant_levels-1)
             qt_comm = qt_comm*2-1
             comm_inuse = (qt_comm-comm).detach()+comm
+        if self.args.no_comm:
+            return torch.zeros_like(comm_inuse), torch.zeros_like(comm_inuse)
         return comm_inuse, comm_info
         
 

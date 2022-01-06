@@ -397,19 +397,29 @@ if __name__ == '__main__':
         entropy_set = []
         success_set = []
         steps_set = []
+        distribution_set = []
         for model_path in args.test_models:
             load(model_path)
-            entropy, success, steps = trainer.test_batch(args.test_times)
-            entropy_set.append(entropy)
-            success_set.append(success)
-            steps_set.append(steps)
+            entropy, success, steps, distributions = trainer.test_batch(args.test_times)
+            entropy_set.append(np.mean(entropy))
+            success_set.append(np.mean(success))
+            steps_set.append(np.mean(steps))
+            distribution_set.append(distributions)
         
-        entropy_set = np.vstack(entropy_set)
-        success_set = np.vstack(success_set)
-        steps_set = np.vstack(steps_set)
+        entropy_set = np.array(entropy_set)
+        success_set = np.array(success_set)
+        steps_set = np.array(steps_set)
+        distribution_set = list(np.mean(np.vstack(distribution_set),axis=0))
+
+
         print('entropy: ', np.mean(entropy_set),' std: ', np.std(entropy_set))
         print('success: ', np.mean(success_set),' std: ', np.std(success_set) )
-        print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set))        
+        print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set))     
+        print('distributions: ')     
+        print('[', end='')
+        for items in distribution_set:
+            print(items, end=',')
+        print(']')
 
 
     else:

@@ -14,3 +14,8 @@ register(
     id='CooperativeSearch-v0',
     entry_point='ic3net_envs.cooperative_search_env:CooperativeSearchEnv',
 )
+
+register(
+    id='TreasureHunt-v0',
+    entry_point='ic3net_envs.treasure_hunt_env:TreasureHuntEnv',
+)

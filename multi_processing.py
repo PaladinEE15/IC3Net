@@ -150,7 +150,7 @@ class MultiProcessTrainer(object):
         #print('msg distributions: ',distribution_acc)
         #print('steps: ', np.mean(steps_taken_acc),' std: ', np.std(steps_taken_acc))
            
-        return final_entropy, success_times_acc, steps_taken_acc
+        return final_entropy, success_times_acc, steps_taken_acc, distribution_acc
 
     def train_batch(self, epoch):
         # run workers in parallel

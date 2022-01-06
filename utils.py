@@ -110,6 +110,7 @@ def init_args_for_env(parser):
         'number_pairs': 'NumberPairs-v0',
         'predator_prey': 'PredatorPrey-v0',
         'traffic_junction': 'TrafficJunction-v0',
+        'treasure_hunt': 'TreasureHunt-v0',
         'coop_search': 'CooperativeSearch-v0',
         'starcraft': 'StarCraftWrapper-v0'
     }

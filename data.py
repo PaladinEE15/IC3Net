@@ -30,6 +30,10 @@ def init(env_name, args, final_init=True):
         env = gym.make('CooperativeSearch-v0')
         env.multi_agent_init(args)
         env = GymWrapper(env)
+    elif env_name == 'treasure_hunt':
+        env = gym.make('TreasureHunt-v0')
+        env.multi_agent_init(args)
+        env = GymWrapper(env)
     elif env_name == 'starcraft':
         env = StarCraft2Env(map_name=args.map_name)
         env = GymWrapper(env)

@@ -36,7 +36,7 @@ class CooperativeSearchEnv(gym.Env):
         self.ref_act = np.array([[-0.71,0.71],[0,1],[0.71,0.71],[-1,0],[0,0],[1,0],[-0.71,-0.71],[0,-1],[0.71,-0.71]])
 
     def init_args(self, parser):
-        env = parser.add_argument_group('Cooperative Search task')
+        env = parser.add_argument_group('Treasure Hunt Group')
 
         env.add_argument("--difficulty", type=str, default="easy", choices=["easy", "medium"], 
                     help="The difficulty of the environment")
