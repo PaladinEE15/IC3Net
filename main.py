@@ -166,6 +166,10 @@ parser.add_argument("--redirect_path", type=str, default= None, help='log of sc 
 #test_parameters
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')
+parser.add_argument('--test_type', default=0, type=int, 
+                    help='type0: normal. type1: pp-easy-ORI. type2: pp-easy-PEM')
+parser.add_argument('--error_rate', default=0, type=float, 
+                    help='bit error rate')                    
 parser.add_argument('--test_models', default='', nargs='+', type=str,
                     help='name of tested models')
 
@@ -395,31 +399,43 @@ if __name__ == '__main__':
     log['comm_entropy'] = LogField(list(), True, 'epoch', None)
     if args.test_times>0:
         entropy_set = []
+        msg_len_set = []
         success_set = []
         steps_set = []
         distribution_set = []
         for model_path in args.test_models:
             load(model_path)
-            entropy, success, steps, distributions = trainer.test_batch(args.test_times)
-            entropy_set.append(np.mean(entropy))
-            success_set.append(np.mean(success))
-            steps_set.append(np.mean(steps))
-            distribution_set.append(distributions)
-        
-        entropy_set = np.array(entropy_set)
-        success_set = np.array(success_set)
-        steps_set = np.array(steps_set)
-        distribution_set = list(np.mean(np.vstack(distribution_set),axis=0))
-
-
-        print('entropy: ', np.mean(entropy_set),' std: ', np.std(entropy_set))
-        print('success: ', np.mean(success_set),' std: ', np.std(success_set) )
-        print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set))     
-        print('distributions: ')     
-        print('[', end='')
-        for items in distribution_set:
-            print(items, end=',')
-        print(']')
+            if args.test_type == 0:
+                entropy, success, steps, distributions = trainer.test_batch(args.test_times)
+                entropy_set.append(np.mean(entropy))
+                success_set.append(np.mean(success))
+                steps_set.append(np.mean(steps))
+                distribution_set.append(distributions)
+            else:
+                channel_msg_len, success, steps = trainer.test_batch(args.test_times)
+                msg_len_set.append(channel_msg_len)
+                success_set.append(np.mean(success))
+                steps_set.append(np.mean(steps))
+        if args.test_type > 0:
+            success_set = np.array(success_set)
+            steps_set = np.array(steps_set)
+            msg_len_set = np.array(msg_len_set)   
+            print('success: ', np.mean(success_set),' std: ', np.std(success_set) )
+            print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set))     
+            print('channel msg avg len:', np.mean(msg_len_set))         
+        else:
+            entropy_set = np.array(entropy_set)
+            success_set = np.array(success_set)
+            steps_set = np.array(steps_set)
+            distribution_set = list(np.mean(np.vstack(distribution_set),axis=0))
+            print('entropy: ', np.mean(entropy_set),' std: ', np.std(entropy_set))
+            print('success: ', np.mean(success_set),' std: ', np.std(success_set) )
+            print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set))     
+            print('distributions: ')     
+            print('[', end='')
+            for items in distribution_set:
+                print(items, end=',')
+            print(']')
 
 
     else:

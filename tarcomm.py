@@ -4,6 +4,7 @@ from torch import nn
 import sys
 from models import MLP
 from action_utils import select_action, translate_action
+from channel import modify_message
 
 class TARMACMLP(nn.Module):
     """
@@ -206,6 +207,8 @@ class TARMACMLP(nn.Module):
             # Choose current or prev depending on recurrent
             raw_comm = hidden_state.view(n, self.hid_size) if self.args.recurrent else hidden_state
             comm, broad_comm, key = self.generate_comm(raw_comm)
+            if self.args.test_type > 0:
+                comm, broad_comm = modify_message(comm, self.args.test_type, self.args.error_rate)
             #comm shape: n x msg_size
             #key shape: n x qk_size
             # Get the next communication vector based on next hidden state
