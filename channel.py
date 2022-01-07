@@ -39,18 +39,54 @@ class HuffmanTree(object):
     def get_code(self):
         self.pre(self.root,0)
 
-huffman_dict_2 = { #type2-PEM
-    0: bitarray('1'), 0.25: bitarray('01'), 0.5: bitarray('0001'), 0.75: bitarray('000001'), 1: bitarray('00000000'), -1: bitarray('00000001'), -0.75: bitarray('0000001'), -0.5:bitarray('00001'), -0.25:bitarray('001')}
+def decode_huffman(input_string,  char_store, freq_store):
+    #input_string 哈夫曼编码
+    #char_store 字符集合 
+    #freq_store 字符转编码01序列
+    encode = ''
+    decode = ''
+    for index in range(len(input_string)):
+        encode = encode + input_string[index]
+        for item in zip(char_store, freq_store):
+            if encode == item[1]:
+                decode = decode + item[0]
+                encode = ''
+    return decode;     
 
-huffman_dict_1 = { #type1-ORI
-    0: bitarray('0'), 0.25: bitarray('10'), 0.5: bitarray('1100'), 0.75: bitarray('110100'), 1: bitarray('11010100'), -1: bitarray('11010101'), -0.75: bitarray('1101011'), -0.5:bitarray('11011'), -0.25:bitarray('111')}
 
-huffman_set = [0,huffman_dict_1,huffman_dict_2]
-prefix_set = [0,[0,0,0,0,0,0,0,0,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1,1,1]]
+huffman_set = [0]
+huffman_set.append({ #type1-ORI+PPA
+    0: bitarray('0'), 0.25: bitarray('111'), 0.5: bitarray('1100'), 0.75: bitarray('110100'), 1: bitarray('11010101'), -1: bitarray('11010100'), -0.75: bitarray('1101011'), -0.5:bitarray('11011'), -0.25: bitarray('10')}) 
+
+huffman_set.append({ #type2-PEM+PPA
+    0: bitarray('1'), 0.25: bitarray('001'), 0.5: bitarray('0001'), 0.75: bitarray('000001'), 1: bitarray('00000000'), -1: bitarray('00000001'), -0.75: bitarray('0000001'), -0.5:bitarray('00001'), -0.25:bitarray('01')})
+
+huffman_set.append({ #type3-ORI+PPB
+    0: bitarray('0'), 0.25: bitarray('10'), 0.5: bitarray('11011'), 0.75: bitarray('11000'), 1: bitarray('110100'), -1: bitarray('1101010'), -0.75: bitarray('1101011'), -0.5:bitarray('11001'), -0.25:bitarray('111')})
+
+huffman_set.append({ #type4-PEM+PPB
+    0: bitarray('1'), 0.25: bitarray('01'), 0.5: bitarray('00001'), 0.75: bitarray('0000001'), 1: bitarray('00000001'), -1: bitarray('00000000'), -0.75: bitarray('000001'), -0.5:bitarray('0001'), -0.25:bitarray('001')})
+
+huffman_set.append({ #type5-ORI+THA
+    0: bitarray('11'), 0.25: bitarray('01'), 0.5: bitarray('1011'), 0.75: bitarray('1000'), 1: bitarray('100111'), -1: bitarray('100110'), -0.75: bitarray('10010'), -0.5:bitarray('1010'), -0.25:bitarray('00')})
+
+huffman_set.append({ #type6-PEM+THA
+    0: bitarray('0'), 0.25: bitarray('100'), 0.5: bitarray('11001'), 0.75: bitarray('101'), 1: bitarray('1100000'), -1: bitarray('1100001'), -0.75: bitarray('110001'), -0.5:bitarray('1101'), -0.25:bitarray('111')})
+
+huffman_set.append({ #type7-ORI+THB
+    0: bitarray('11'), 0.25: bitarray('01'), 0.5: bitarray('1011'), 0.75: bitarray('1000'), 1: bitarray('100101'), -1: bitarray('100100'), -0.75: bitarray('10011'), -0.5:bitarray('1010'), -0.25:bitarray('00')})
+
+huffman_set.append({ #type8-PEM+THB
+    0: bitarray('1'), 0.25: bitarray('011'), 0.5: bitarray('01011'), 0.75: bitarray('0101001'), 1: bitarray('01010000'), -1: bitarray('01010001'), -0.75: bitarray('010101'), -0.5:bitarray('0100'), -0.25:bitarray('00')})
+
+
+z_s = [0,0,0,0,0,0,0,0,0,0,0,0]
+o_s = [1,1,1,1,1,1,1,1,1,1,1,1]
+prefix_set = [0,z_s,o_s,z_s,o_s,o_s,z_s,o_s,o_s]
 cc1 = fec.FECConv(('101','111'),10)
 cc2 = fec.FECConv(('111','111','101'),10)
 
-cc_set = [0,cc1,cc2]
+cc_set = [0,cc1,cc2,cc1,cc2,cc1,cc2,cc1,cc2]
 
 def modify_message(msg, exp_type, ber):
     #preprocess msg
