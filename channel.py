@@ -39,20 +39,22 @@ class HuffmanTree(object):
     def get_code(self):
         self.pre(self.root,0)
 
-def decode_huffman(input_string,  char_store, freq_store):
-    #input_string 哈夫曼编码
-    #char_store 字符集合 
-    #freq_store 字符转编码01序列
-    encode = ''
-    decode = ''
-    for index in range(len(input_string)):
-        encode = encode + input_string[index]
-        for item in zip(char_store, freq_store):
-            if encode == item[1]:
-                decode = decode + item[0]
-                encode = ''
-    return decode;     
+def decode_huffman(input_msg, decode_dict):
+    str_msg = [str(x) for x in input_msg]
+    key_set = decode_dict.keys()
+    target_str = ''
+    output_msg = []
+    for index in range(len(input_msg)):
+        target_str = target_str + str_msg[index]
+        if target_str in key_set:
+            output_msg.append(decode_dict[target_str])
+            target_str = ''
+    return np.array(output_msg)     
 
+def convert_dict(input_dict):
+    keys = list(input_dict.keys())
+    values = list(input_dict.values())
+    return dict(zip(values,keys))
 
 huffman_set = [0]
 huffman_set.append({ #type1-ORI+PPA
@@ -79,10 +81,36 @@ huffman_set.append({ #type7-ORI+THB
 huffman_set.append({ #type8-PEM+THB
     0: bitarray('1'), 0.25: bitarray('011'), 0.5: bitarray('01011'), 0.75: bitarray('0101001'), 1: bitarray('01010000'), -1: bitarray('01010001'), -0.75: bitarray('010101'), -0.5:bitarray('0100'), -0.25:bitarray('00')})
 
+huffman_set_backup = []
+huffman_set_backup.append({ #type1-ORI+PPA
+    0:  '0', 0.25:  '111', 0.5:  '1100', 0.75:  '110100', 1:  '11010101', -1:  '11010100', -0.75:  '1101011', -0.5: '11011', -0.25:  '10'}) 
 
-z_s = [0,0,0,0,0,0,0,0,0,0,0,0]
-o_s = [1,1,1,1,1,1,1,1,1,1,1,1]
-prefix_set = [0,z_s,o_s,z_s,o_s,o_s,z_s,o_s,o_s]
+huffman_set_backup.append({ #type2-PEM+PPA
+    0:  '1', 0.25:  '001', 0.5:  '0001', 0.75:  '000001', 1:  '00000000', -1:  '00000001', -0.75:  '0000001', -0.5: '00001', -0.25: '01'})
+
+huffman_set_backup.append({ #type3-ORI+PPB
+    0:  '0', 0.25:  '10', 0.5:  '11011', 0.75:  '11000', 1:  '110100', -1:  '1101010', -0.75:  '1101011', -0.5: '11001', -0.25: '111'})
+
+huffman_set_backup.append({ #type4-PEM+PPB
+    0:  '1', 0.25:  '01', 0.5:  '00001', 0.75:  '0000001', 1:  '00000001', -1:  '00000000', -0.75:  '000001', -0.5: '0001', -0.25: '001'})
+
+huffman_set_backup.append({ #type5-ORI+THA
+    0:  '11', 0.25:  '01', 0.5:  '1011', 0.75:  '1000', 1:  '100111', -1:  '100110', -0.75:  '10010', -0.5: '1010', -0.25: '00'})
+
+huffman_set_backup.append({ #type6-PEM+THA
+    0:  '0', 0.25:  '100', 0.5:  '11001', 0.75:  '101', 1:  '1100000', -1:  '1100001', -0.75:  '110001', -0.5: '1101', -0.25: '111'})
+
+huffman_set_backup.append({ #type7-ORI+THB
+    0:  '11', 0.25:  '01', 0.5:  '1011', 0.75:  '1000', 1:  '100101', -1:  '100100', -0.75:  '10011', -0.5: '1010', -0.25: '00'})
+
+huffman_set_backup.append({ #type8-PEM+THB
+    0:  '1', 0.25:  '011', 0.5:  '01011', 0.75:  '0101001', 1:  '01010000', -1:  '01010001', -0.75:  '010101', -0.5: '0100', -0.25: '00'})
+
+decode_set = [0]
+
+for dicts in huffman_set_backup:
+    decode_set.append(convert_dict(dicts))
+
 cc1 = fec.FECConv(('101','111'),10)
 cc2 = fec.FECConv(('111','111','101'),10)
 
@@ -115,10 +143,7 @@ def modify_message(msg, exp_type, ber):
         c_d_seq = cc_set[exp_type].viterbi_decoder(recv_seq,'hard')
         c_d_seq = list(c_d_seq.astype(int))
         #huffman decoding
-        s_d_seq = bitarray()
-        c_d_seq += prefix_set[exp_type]
-        s_d_seq.extend(c_d_seq)
-        s_d_seq = s_d_seq.decode(huffman_set[exp_type])
+        s_d_seq = decode_huffman(c_d_seq,decode_set[exp_type])
         s_d_seq = np.append(np.array(s_d_seq),np.zeros(48))
         s_d_seq = s_d_seq[0:raw_len] 
         output_set.append(s_d_seq)
