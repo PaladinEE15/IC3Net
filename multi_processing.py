@@ -7,12 +7,22 @@ from collections import Counter
 ctx = mp.get_context("spawn")
 
 def get_distribution(comm, args):
-    comm = (comm+1)*0.5
-    comm = comm*(args.quant_levels-1)  
-    calcu_comm = np.rint(comm)      
-    counts = np.array(list(map(lambda x: np.sum(calcu_comm==x),range(args.quant_levels))))
-    probs = counts/(comm.shape[0]*comm.shape[1])
-    return probs
+    if args.distribution_output_type == 2:
+        comm = (comm+1)*0.5
+        comm = comm*(args.quant_levels-1)  
+        calcu_comm = np.rint(comm)      
+        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x),range(args.quant_levels))))
+        probs = counts/(comm.shape[0]*comm.shape[1])
+        return probs
+    elif args.distribution_output_type == 1:
+        comm = (comm+1)*0.5
+        comm = comm*(args.quant_levels-1)  
+        calcu_comm = np.rint(comm)      
+        counts = np.vstack(list(map(lambda x: np.sum(calcu_comm==x, axis=0),range(args.quant_levels))))
+        probs = counts/comm.shape[0]
+        return probs
+    else:
+        return np.zeros(1)
 class MultiProcessWorker(ctx.Process):
     # TODO: Make environment init threadsafe
     def __init__(self, id, trainer_maker, comm, main_args, seed, *args, **kwargs):

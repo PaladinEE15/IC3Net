@@ -152,6 +152,8 @@ parser.add_argument('--loss_alpha', default=0, type=float,
                     help='the weight of entropy loss')
 parser.add_argument('--no_input_grad', default=False, action='store_true', 
                     help='whether treat encoding input as no-grad. True: no grad. False: grad')
+parser.add_argument('--distribution_output_type', default=0, type=int, 
+                    help='whether output distributions of messages. 0: do not output; 1: output distributions of each digit; 2 :output distributions of the whole messages')
 # Configs for gumbel-softmax
 parser.add_argument('--gumbel_gamma', default=1, type=float,
                     help='gamma of gumbel-softmax')
@@ -402,7 +404,7 @@ if __name__ == '__main__':
         msg_len_set = []
         success_set = []
         steps_set = []
-        distribution_set = []
+        distribution_acc = None
         for model_path in args.test_models:
             load(model_path)
             if args.test_type == 0:
@@ -410,7 +412,10 @@ if __name__ == '__main__':
                 entropy_set.append(np.mean(entropy))
                 success_set.append(np.mean(success))
                 steps_set.append(np.mean(steps))
-                distribution_set.append(distributions)
+                if distribution_acc is not None:
+                    distribution_acc += distributions
+                else:
+                    distribution_acc = distributions
             else:
                 channel_msg_len, success, steps = trainer.test_batch(args.test_times)
                 msg_len_set.append(channel_msg_len)
@@ -427,15 +432,26 @@ if __name__ == '__main__':
             entropy_set = np.array(entropy_set)
             success_set = np.array(success_set)
             steps_set = np.array(steps_set)
-            distribution_set = list(np.mean(np.vstack(distribution_set),axis=0))
+            
             print('entropy: ', np.mean(entropy_set),' std: ', np.std(entropy_set))
             print('success: ', np.mean(success_set),' std: ', np.std(success_set) )
-            print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set))     
-            print('distributions: ')     
-            print('[', end='')
-            for items in distribution_set:
-                print(items, end=',')
-            print(']')
+            print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set)) 
+            if args.distribution_output_type == 2:    
+                distribution_set = list(distribution_acc/len(args.test_models))
+                print('distributions: ')     
+                print('[', end='')
+                for items in distribution_set:
+                    print(items, end=',')
+                print(']')
+            elif args.distribution_output_type == 1:   
+                distribution_acc = distribution_acc/len(args.test_models)
+                for digit_idx in range(distribution_acc.shape[1]):
+                    print('distributions of No.',digit_idx,' digit:')
+                    print('[', end='')
+                    for number_idx in range(distribution_acc.shape[0]):
+                        print(distribution_acc[number_idx, digit_idx], end=', ')
+                    print(']')
+
 
 
     else:
