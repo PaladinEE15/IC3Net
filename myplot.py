@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-#import gym
+import gym
 from textwrap import fill
 
 '''
@@ -54,32 +54,31 @@ for idx in range(6):
     #plt.show()
 
 
-'''
 #the following is used for reducing message size
-raw_entropy_set = np.array([20,11,5.99,3.26])
-raw_steps_set = 20 - np.array([10.35,10.54,10.23,10.26])
-pem_entropy_set = np.array([2.81,1.6,0.53])
-pem_steps_set = 20 - np.array([10.59,10.7,11.17])
+raw_entropy_set = np.array([22,12.4,6.7,4.3])
+raw_steps_set = 40 - np.array([15.9,15.1,16.2,19.8])
+pem_entropy_set = np.array([4.25,2.88,1.24])
+pem_steps_set = 40 - np.array([15.05,15.3,16.4])
 plt.figure()
-#plt.subplot(111)
+plt.subplot(111)
 #ax1 = axe.scatter(raw_entropy_set, raw_steps_set, c='deepskyblue')
 #ax2 = axe.scatter(pem_entropy_set, pem_steps_set, c='orangered')
 plt.scatter(raw_entropy_set, raw_steps_set, c='#9192ab',label='ORI',linewidths=3)
 plt.scatter(pem_entropy_set, pem_steps_set, c='#7cd6cf',label='PEM',linewidths=3)
+
 txt_ori = ['ORI, 16', 'ORI, 8', 'ORI, 4', 'ORI, 2']
 txt_pem = ['PEM, 16', 'PEM, 8', 'PEM, 4']
 for idx in range(len(raw_entropy_set)):
     plt.annotate(txt_ori[idx], xy = (raw_entropy_set[idx], raw_steps_set[idx]), xytext = (raw_entropy_set[idx]+0.2, raw_steps_set[idx]-0.3),fontsize=12)
     if idx <=2:
         plt.annotate(txt_pem[idx], xy = (pem_entropy_set[idx], pem_steps_set[idx]), xytext = (pem_entropy_set[idx]+0.2, pem_steps_set[idx]-0.3),fontsize=12)
-plt.xlim(0,25)
-plt.ylim(7.5,10.5)
+plt.xlim(0,30)
+plt.ylim(19,26)
 plt.ylabel('remaining timesteps',fontsize=16)
 plt.xlabel('entropy',fontsize=16)
 plt.legend(loc = 'lower right',fontsize=12)
 #plt.show()
-plt.title('Predator Prey A')
-plt.savefig('E:\lengthreduceA.pdf', bbox_inches='tight')
+plt.savefig('D:\Git\IC3Net\Figures\lengthreduce.pdf', bbox_inches='tight')
 
 '''
 title_set = ['Distribution of digit 0','Distribution of digit 1','Distribution of digit 2','Distribution of digit 3']
@@ -125,6 +124,7 @@ for idx in range(4):
     plt.savefig('D:\Git\IC3Net\Figures\distribution_'+name_set[idx]+'.pdf', bbox_inches='tight')
 
 
+'''
 x = np.arange(5)
 bar_width = 0.3
 #ori_set = 20 - np.array([10.15, 9.62, 10.89, 15.28, 16.65])
