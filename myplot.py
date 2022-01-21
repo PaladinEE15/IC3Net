@@ -54,33 +54,9 @@ for idx in range(6):
     #plt.show()
 
 
-#the following is used for reducing message size
-raw_entropy_set = np.array([22,12.4,6.7,4.3])
-raw_steps_set = 40 - np.array([15.9,15.1,16.2,19.8])
-pem_entropy_set = np.array([4.25,2.88,1.24])
-pem_steps_set = 40 - np.array([15.05,15.3,16.4])
-plt.figure()
-plt.subplot(111)
-#ax1 = axe.scatter(raw_entropy_set, raw_steps_set, c='deepskyblue')
-#ax2 = axe.scatter(pem_entropy_set, pem_steps_set, c='orangered')
-plt.scatter(raw_entropy_set, raw_steps_set, c='#9192ab',label='ORI',linewidths=3)
-plt.scatter(pem_entropy_set, pem_steps_set, c='#7cd6cf',label='PEM',linewidths=3)
 
-txt_ori = ['ORI, 16', 'ORI, 8', 'ORI, 4', 'ORI, 2']
-txt_pem = ['PEM, 16', 'PEM, 8', 'PEM, 4']
-for idx in range(len(raw_entropy_set)):
-    plt.annotate(txt_ori[idx], xy = (raw_entropy_set[idx], raw_steps_set[idx]), xytext = (raw_entropy_set[idx]+0.2, raw_steps_set[idx]-0.3),fontsize=12)
-    if idx <=2:
-        plt.annotate(txt_pem[idx], xy = (pem_entropy_set[idx], pem_steps_set[idx]), xytext = (pem_entropy_set[idx]+0.2, pem_steps_set[idx]-0.3),fontsize=12)
-plt.xlim(0,30)
-plt.ylim(19,26)
-plt.ylabel('remaining timesteps',fontsize=16)
-plt.xlabel('entropy',fontsize=16)
-plt.legend(loc = 'lower right',fontsize=12)
-#plt.show()
-plt.savefig('D:\Git\IC3Net\Figures\lengthreduce.pdf', bbox_inches='tight')
 
-'''
+
 title_set = ['Distribution of digit 0','Distribution of digit 1','Distribution of digit 2','Distribution of digit 3']
 name_set = ['ppb4mlp0', 'ppb4mlp1', 'ppb4mlp2', 'ppb4mlp3']
 dataset = []
@@ -123,23 +99,79 @@ for idx in range(4):
     plt.title(title_set[idx])
     plt.savefig('D:\Git\IC3Net\Figures\distribution_'+name_set[idx]+'.pdf', bbox_inches='tight')
 
-
-'''
 x = np.arange(5)
 bar_width = 0.3
-#ori_set = 20 - np.array([10.15, 9.62, 10.89, 15.28, 16.65])
-#pem_set = 20 - np.array([10.27, 10.35, 10.2, 11.40, 14.57])
-ori_set = 40 - np.array([16.25, 15.41, 17.43, 25.78, 31.13])
-pem_set = 40 - np.array([16.24, 16.6, 16.69, 17.4, 23.39])
+ori_set = 20 - np.array([10.15, 9.62, 10.89, 15.28, 16.65])
+pem_set = 20 - np.array([10.27, 10.35, 10.2, 11.40, 14.57])
+#ori_set = 40 - np.array([16.25, 15.41, 17.43, 25.78, 31.13])
+#pem_set = 40 - np.array([16.24, 16.6, 16.69, 17.4, 23.39])
 
 plt.figure()
 plt.bar(x-0.5*bar_width, ori_set, bar_width, bottom = 0, label='TARMAC-ORI',color='#9192ab')
 plt.bar(x+0.5*bar_width, pem_set, bar_width, bottom = 0, label='TARMAC-PEM',color='#7cd6cf')
-plt.ylabel('remaining timesteps',fontsize=16)
-plt.xlabel('value of p',fontsize=16)
-plt.xticks(x,[0,0.01,0.05,0.1,0.15])
+plt.ylabel('remaining timesteps',fontsize=20)
+plt.xlabel('crossover probability p',fontsize=20)
+plt.xticks(x,[0,0.01,0.05,0.1,0.15],fontsize=18)
 plt.legend(fontsize=14,loc="lower left")
-plt.title('Predator Prey B',fontsize=18)
-plt.savefig('D:\Git\IC3Net\Figures\PPBcomm.pdf', bbox_inches='tight')
+plt.title('Predator Prey A',fontsize=22)
+plt.savefig('D:\Git\IC3Net\Figures\PPAcomm.pdf', bbox_inches='tight')
+
+
 #
 '''
+
+#the following is used for reducing message size
+raw_entropy_set = np.array([20,11,5.99,3.26])
+raw_steps_set = 20 - np.array([10.35,10.54,10.10,10.26])
+pem_entropy_set = np.array([2.81,1.24,0.53])
+pem_steps_set = 20 - np.array([10.52,10.70,11.04])
+plt.figure()
+plt.subplot(111)
+#ax1 = axe.scatter(raw_entropy_set, raw_steps_set, c='deepskyblue')
+#ax2 = axe.scatter(pem_entropy_set, pem_steps_set, c='orangered')
+plt.scatter(raw_entropy_set, raw_steps_set, c='#9192ab',label='ORI',linewidths=5)
+plt.scatter(pem_entropy_set, pem_steps_set, c='#7cd6cf',label='PEM',linewidths=5)
+
+txt_ori = ['ORI, 16', 'ORI, 8', 'ORI, 4', 'ORI, 2']
+txt_pem = ['PEM, 16', 'PEM, 8', 'PEM, 4']
+for idx in range(len(raw_entropy_set)):
+    plt.annotate(txt_ori[idx], xy = (raw_entropy_set[idx], raw_steps_set[idx]), xytext = (raw_entropy_set[idx]+0.2, raw_steps_set[idx]-0.15),fontsize=18)
+    if idx <=2:
+        plt.annotate(txt_pem[idx], xy = (pem_entropy_set[idx], pem_steps_set[idx]), xytext = (pem_entropy_set[idx]+0.2, pem_steps_set[idx]-0.15),fontsize=18)
+plt.xlim(0,25)
+plt.ylim(7.5,10.5)
+plt.tick_params(labelsize=16)
+plt.ylabel('remaining timesteps',fontsize=20)
+plt.xlabel('entropy',fontsize=20)
+plt.legend(loc = 'lower right',fontsize=18)
+plt.title('Predator Prey A',fontsize=22)
+#plt.show()
+plt.savefig('D:\Git\IC3Net\Figures\lengthreduceA.pdf', bbox_inches='tight')
+
+#the following is used for reducing message size
+raw_entropy_set = np.array([22,12.4,6.7,4.3])
+raw_steps_set = 40 - np.array([15.9,15.1,16.2,19.8])
+pem_entropy_set = np.array([4.25,2.88,1.24])
+pem_steps_set = 40 - np.array([15.05,15.4,16.4])
+plt.figure()
+plt.subplot(111)
+#ax1 = axe.scatter(raw_entropy_set, raw_steps_set, c='deepskyblue')
+#ax2 = axe.scatter(pem_entropy_set, pem_steps_set, c='orangered')
+plt.scatter(raw_entropy_set, raw_steps_set, c='#9192ab',label='ORI',linewidths=5)
+plt.scatter(pem_entropy_set, pem_steps_set, c='#7cd6cf',label='PEM',linewidths=5)
+
+txt_ori = ['ORI, 16', 'ORI, 8', 'ORI, 4', 'ORI, 2']
+txt_pem = ['PEM, 16', 'PEM, 8', 'PEM, 4']
+for idx in range(len(raw_entropy_set)):
+    plt.annotate(txt_ori[idx], xy = (raw_entropy_set[idx], raw_steps_set[idx]), xytext = (raw_entropy_set[idx]+0.2, raw_steps_set[idx]-0.4),fontsize=18)
+    if idx <=2:
+        plt.annotate(txt_pem[idx], xy = (pem_entropy_set[idx], pem_steps_set[idx]), xytext = (pem_entropy_set[idx]+0.2, pem_steps_set[idx]-0.4),fontsize=18)
+plt.xlim(0,30)
+plt.ylim(19,26)
+plt.tick_params(labelsize=16)
+plt.ylabel('remaining timesteps',fontsize=20)
+plt.xlabel('entropy',fontsize=20)
+plt.legend(loc = 'lower right',fontsize=18)
+plt.title('Predator Prey B',fontsize=22)
+#plt.show()
+plt.savefig('D:\Git\IC3Net\Figures\lengthreduceB.pdf', bbox_inches='tight')
