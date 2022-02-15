@@ -36,11 +36,13 @@ class MultiProcessWorker(ctx.Process):
     def calcu_entropy(self, comm):
         if self.args.comm_detail == 'mim':
             comm = np.split(comm,3,1)[0]
+        elif self.args.comm_detail == 'ndq':
+            comm = np.split(comm,2,1)[0]
         comm = (comm+1)*0.5
         comm = comm*(self.args.quant_levels-1)  
         calcu_comm = np.rint(comm)      
-        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
-        probs = counts/comm.shape[0]
+        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x),range(self.args.quant_levels))))
+        probs = counts/(comm.shape[0]*comm.shape[1])
         probs[probs==0] = 1 #avoid ln0
         entropy = -np.sum(probs*np.log(probs))
         return entropy
@@ -130,18 +132,17 @@ class MultiProcessTrainer(object):
 
     def calcu_entropy(self, comm):
         if self.args.comm_detail == 'mim':
-            comm = np.split(comm,3,1)[0]        
+            comm = np.split(comm,3,1)[0]    
+        elif self.args.comm_detail == 'ndq':
+            comm = np.split(comm,2,1)[0]    
         comm = (comm+1)*0.5
         comm = comm*(self.args.quant_levels-1)  
         calcu_comm = np.rint(comm)      
-        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=0),range(self.args.quant_levels))))
-        probs = counts/comm.shape[0]
+        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x),range(self.args.quant_levels))))
+        probs = counts/(comm.shape[0]*comm.shape[1])
         probs[probs==0] = 1 #avoid ln0
         entropy = -np.sum(probs*np.log(probs))
         return entropy
-
-
-
 
     def test_batch(self,times):
         for comm in self.comms:

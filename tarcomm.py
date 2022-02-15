@@ -1,8 +1,6 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
-import sys
-from models import MLP
 from action_utils import select_action, translate_action
 from channel import modify_message
 
@@ -37,6 +35,8 @@ class TARMACMLP(nn.Module):
             self.comm_mask = torch.zeros(self.nagents, self.nagents).to(torch.device("cuda"))
         else:
             self.comm_mask = torch.ones(self.nagents, self.nagents).to(torch.device("cuda")) - torch.eye(self.nagents, self.nagents).to(torch.device("cuda"))
+        
+        self.sqrt_var = torch.sqrt(self.args.mim_gauss_var)
 
         if self.args.comm_detail == 'mim':
             self.msg_initializer = nn.Sequential()
@@ -175,11 +175,16 @@ class TARMACMLP(nn.Module):
             comm = torch.clamp(comm,min=-1,max=1)
             comm_info = torch.cat((comm,mu,lnsigma),-1)
             comm_inuse = comm
+        elif self.args.comm_detail == 'ndq':
+            mu = self.m_generator(mid_comm)
+            comm = mu + self.sqrt_var*(torch.randn_like(mu).cuda())
+            comm = torch.clamp(comm,min=-1,max=1)
+            comm_info = torch.cat((comm,mu),-1)
+            comm_inuse = comm
         else: #assume mlp
             comm = self.m_generator(mid_comm)
             comm_info = comm
             comm_inuse = comm
-
         #the message range is (-1, 1)
         if self.quant:
             qt_comm = (comm+1)*0.5
