@@ -1,8 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
-import sys
-from models import MLP
+import math
 from action_utils import select_action, translate_action
 
 class CommNetMLP(nn.Module):
@@ -41,6 +40,8 @@ class CommNetMLP(nn.Module):
             self.comm_mask = torch.zeros(self.nagents, self.nagents).to(torch.device("cuda"))
         else:
             self.comm_mask = torch.ones(self.nagents, self.nagents).to(torch.device("cuda")) - torch.eye(self.nagents, self.nagents).to(torch.device("cuda"))
+
+        self.sqrt_var = math.sqrt(self.args.mim_gauss_var)
 
         if self.args.comm_detail == 'mim':
             self.msg_encoder = nn.Sequential()
@@ -173,6 +174,11 @@ class CommNetMLP(nn.Module):
             comm = mu + torch.exp(lnsigma)*(torch.randn_like(lnsigma).cuda())
             comm = torch.clamp(comm,min=-1,max=1)
             comm_info = torch.cat((comm,mu,lnsigma),-1)
+            comm_inuse = comm
+        elif self.args.comm_detail == 'ndq':
+            comm = comm + self.sqrt_var*(torch.randn_like(comm).cuda())
+            comm = torch.clamp(comm,min=-1,max=1)
+            comm_info = torch.cat((comm,mu),-1)
             comm_inuse = comm
         #the message range is (-1, 1)
         if self.quant:

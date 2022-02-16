@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch import nn
 from action_utils import select_action, translate_action
 from channel import modify_message
-
+import math
 class TARMACMLP(nn.Module):
     """
     MLP based CommNet. Uses communication vector to communicate info
@@ -36,7 +36,7 @@ class TARMACMLP(nn.Module):
         else:
             self.comm_mask = torch.ones(self.nagents, self.nagents).to(torch.device("cuda")) - torch.eye(self.nagents, self.nagents).to(torch.device("cuda"))
         
-        self.sqrt_var = torch.sqrt(self.args.mim_gauss_var)
+        self.sqrt_var = math.sqrt(self.args.mim_gauss_var)
 
         if self.args.comm_detail == 'mim':
             self.msg_initializer = nn.Sequential()
