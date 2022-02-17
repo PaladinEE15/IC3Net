@@ -176,10 +176,11 @@ class CommNetMLP(nn.Module):
             comm_info = torch.cat((comm,mu,lnsigma),-1)
             comm_inuse = comm
         elif self.args.comm_detail == 'ndq':
-            comm = comm + self.sqrt_var*(torch.randn_like(comm).cuda())
-            comm = torch.clamp(comm,min=-1,max=1)
-            comm_info = torch.cat((comm,mu),-1)
-            comm_inuse = comm
+            comm_new = comm + self.sqrt_var*(torch.randn_like(comm).cuda())
+            comm_new = torch.clamp(comm,min=-1,max=1)
+            comm_info = torch.cat((comm_new,comm),-1)
+            comm_inuse = comm_new
+            comm = comm_inuse
         #the message range is (-1, 1)
         if self.quant:
             qt_comm = (comm+1)*0.5
