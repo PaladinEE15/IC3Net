@@ -1,3 +1,4 @@
+from cgitb import enable
 from collections import namedtuple
 from inspect import getargspec
 import numpy as np
@@ -9,7 +10,7 @@ from utils import *
 from action_utils import *
 
 Transition = namedtuple('Transition', ('state', 'action', 'action_out', 'value', 'episode_mask', 'episode_mini_mask', 'next_state',
-                                       'reward', 'misc'))
+                                       'reward', 'misc', 'larg_val', 'pelt_val', 'gate_sfm', 'gate_array'))
 
 class Trainer(object):
     def __init__(self, args, policy_net, env):
@@ -48,28 +49,27 @@ class Trainer(object):
             quant = False
 
         prev_hid = torch.zeros(1, self.args.nagents, self.args.hid_size).to(torch.device("cuda"))
-
+        if epoch>=self.args.train_gate_start and epoch<self.args.train_gate_end:
+            train_gate = 1
+        else:
+            train_gate = 0
         for t in range(self.args.max_steps):
             misc = dict()
             if t == 0 and self.args.hard_attn and self.args.commnet:
                 info['comm_action'] = np.zeros(self.args.nagents, dtype=int)
-
+            info['train_gate'] = train_gate
             # recurrence over time
-            if self.args.recurrent:
-                if t == 0:
-                    prev_hid = self.policy_net.init_hidden(batch_size=state.shape[0])
+            if t == 0:
+                prev_hid = self.policy_net.init_hidden(batch_size=state.shape[0])
 
-                x = [state, prev_hid]
-                comm, action_out, value, prev_hid = self.policy_net(x, info, quant)
+            x = [state, prev_hid]
+            comm, action_out, value, prev_hid, larg_val, pelt_val, gate_sfm, gate_array = self.policy_net(x, info, quant)
 
-                if (t + 1) % self.args.detach_gap == 0:
-                    if self.args.rnn_type == 'LSTM':
-                        prev_hid = (prev_hid[0].detach(), prev_hid[1].detach())
-                    else:#GRU
-                        prev_hid = prev_hid.detach()
-            else:
-                x = state
-                comm, action_out, value = self.policy_net(x, info, quant)
+            if (t + 1) % self.args.detach_gap == 0:
+                if self.args.rnn_type == 'LSTM':
+                    prev_hid = (prev_hid[0].detach(), prev_hid[1].detach())
+                else:#GRU
+                    prev_hid = prev_hid.detach()
             
             if self.args.calcu_entropy:
                 if t == 0:
@@ -121,7 +121,7 @@ class Trainer(object):
             if should_display:
                 self.env.display()
 
-            trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
+            trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc, larg_val, pelt_val, gate_sfm, gate_array)
             episode.append(trans)
             state = next_state
             if done:
@@ -145,7 +145,64 @@ class Trainer(object):
             merge_stat(self.env.get_stat(), stat)
         return (episode, stat, comm_stat)
 
+    def compute_grad_gate(self, batch):
+        stat = dict()
+        n = self.args.nagents
+        batch_size = len(batch.state)
 
+        rewards = torch.Tensor(batch.reward).to(torch.device("cuda"))
+        episode_masks = torch.Tensor(batch.episode_mask).to(torch.device("cuda"))
+        episode_mini_masks = torch.Tensor(batch.episode_mini_mask).to(torch.device("cuda"))
+
+        # old_actions = torch.Tensor(np.concatenate(batch.action, 0))
+        # old_actions = old_actions.view(-1, n, dim_actions)
+        # print(old_actions == actions)
+
+        # can't do batch forward.
+        values = torch.cat(batch.value, dim=0)
+        larg_vals = torch.cat(batch.larg_val, dim=0)
+        pelt_vals = torch.cat(batch.pelt_val, dim=0)
+        gate_sfms = torch.cat(batch.gate_sfm, dim=0)
+        gate_arrays = torch.cat(batch.gate_array, dim=0)
+
+        alive_masks = torch.Tensor(np.concatenate([item['alive_mask'] for item in batch.misc])).view(-1).to(torch.device("cuda"))
+
+        larg_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        pelt_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        c_sup = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+        values = values.view(batch_size, n)
+
+        gate_probs = torch.gather(gate_sfms,2,gate_arrays.view(batch_size, n, 1)).squeeze()
+
+        c_sup_item = self.args.comm_freq*torch.Tensor(1, n).to(torch.device("cuda"))
+
+
+        prev_larg_return = 0
+        prev_pelt_return = 0
+        prev_c_sup = 0
+        prev_value = 0
+
+        for i in reversed(range (rewards.size(0))):
+            larg_returns[i] = rewards[i] - self.labda*gate_arrays[i] + self.args.gamma * prev_larg_return * episode_masks[i] * episode_mini_masks[i]
+            pelt_returns[i] = gate_arrays[i] + self.args.gamma * prev_pelt_return * episode_masks[i] * episode_mini_masks[i]
+            c_sup[i] = c_sup_item + self.args.gamma * prev_c_sup * episode_masks[i] * episode_mini_masks[i]
+
+            prev_larg_return = larg_returns[i].clone()
+            prev_pelt_return = pelt_returns[i].clone()
+            prev_c_sup = c_sup[i].clone()
+
+        #larg loss term
+        larg_diff = larg_returns - larg_vals
+        gate_loss = - torch.log(gate_probs)*larg_diff + self.args.explore_weight*(gate_probs*torch.log(gate_probs)+(1-gate_probs)*torch.log(1-gate_probs))
+        larg_loss = larg_diff.pow(2)
+        pelt_loss = (pelt_returns - pelt_vals).pow(2)
+        
+        loss = gate_loss + 0.1*larg_loss + 0.1*pelt_loss
+
+        lambda_gradient = (c_sup-prev_pelt_return).sum()
+        loss.backward()
+
+        return stat, lambda_gradient
 
 
     def compute_grad(self, comm_info, batch, loss_alpha):
