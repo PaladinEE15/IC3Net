@@ -67,10 +67,6 @@ class MultiProcessWorker(ctx.Process):
                     entro_stat = {'comm_entropy':final_entropy}
                     merge_stat(entro_stat, stat)
                 self.trainer.optimizer.zero_grad()
-                if epoch <= self.args.train_gate_start:
-                    s = self.trainer.compute_grad(comm_info, batch, 0)
-                elif epoch<=self.args.train_gate_end:
-                    s, 
                 if epoch>=self.args.loss_start:
                     s = self.trainer.compute_grad(comm_info, batch, self.args.loss_alpha)
                 else:
