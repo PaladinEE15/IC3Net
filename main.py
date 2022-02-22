@@ -91,8 +91,6 @@ parser.add_argument('--ic3net', action='store_true', default=False,
                     help="enable commnet model")
 parser.add_argument('--tarmac', action='store_true', default=False,
                     help="enable tarmac model")
-parser.add_argument('--etcnet', action='store_true', default=False,
-                    help="enable etcnet model")
 parser.add_argument('--nagents', type=int, default=1,
                     help="Number of agents (used in multiagent)")
 parser.add_argument('--comm_mode', type=str, default='avg',
@@ -141,12 +139,6 @@ parser.add_argument('--quant_levels', default=17, type=int,
 parser.add_argument('--GPU', default=0, type=int, 
                     help='run on which GPU')
 # Configs for entropy loss
-parser.add_argument('--train_gate_start', default=100, type=int, 
-                    help='which epoch starts training gate network')
-parser.add_argument('--train_gate_end', default=200, type=int, 
-                    help='which epoch stops training gate network')
-parser.add_argument('--comm_freq', default=0.5, type=float,
-                    help='how frequently can agents communicate')
 parser.add_argument('--mim_gauss_var', default=1/9, type=float,
                     help='the variance of ref gaussian in mutual information minimization')
 parser.add_argument('--calcu_entropy', default=False, action='store_true', 
@@ -159,8 +151,6 @@ parser.add_argument('--quant_start', default=0, type=int,
                     help='which epoch starts quant')
 parser.add_argument('--loss_alpha', default=0, type=float,
                     help='the weight of entropy loss')
-parser.add_argument('--explore_weight', default=0, type=float,
-                    help='the weight of exploration')
 parser.add_argument('--no_input_grad', default=False, action='store_true', 
                     help='whether treat encoding input as no-grad. True: no grad. False: grad')
 parser.add_argument('--distribution_output_type', default=0, type=int, 
