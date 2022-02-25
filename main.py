@@ -272,6 +272,8 @@ def run(num_epochs):
                 print('Add-Rate: {:.3f}'.format(stat['add_rate']))
             if 'success' in stat.keys():
                 print('Success: {:.3f}'.format(stat['success']))
+            if 'cars_arrival' in stat.keys():
+                print('Cars_arrival: {:.3f}'.format(stat['cars_arrival']))
             if 'steps_taken' in stat.keys():
                 print('Steps-taken: {:.2f}'.format(stat['steps_taken']))
             if 'comm_action' in stat.keys():
@@ -390,6 +392,7 @@ if __name__ == '__main__':
     log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['cars_arrival'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
@@ -442,7 +445,7 @@ if __name__ == '__main__':
                 print('distributions: ')     
                 print('[', end='')
                 for items in distribution_set:
-                    print(items, end=',')
+                    print(format(items,'.3f'), end=',')
                 print(']')
             elif args.distribution_output_type == 1:   
                 distribution_acc = distribution_acc/len(args.test_models)
