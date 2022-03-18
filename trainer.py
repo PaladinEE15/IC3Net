@@ -1,5 +1,5 @@
 from collections import namedtuple
-from inspect import getargspec
+from inspect import getfullargspec
 import numpy as np
 import math
 import torch
@@ -29,7 +29,7 @@ class Trainer(object):
 
     def get_episode(self, epoch):
         episode = []
-        reset_args = getargspec(self.env.reset).args
+        reset_args = getfullargspec(self.env.reset).args
         if 'epoch' in reset_args:
             state = self.env.reset(epoch)
         else:

@@ -2,7 +2,10 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from action_utils import select_action, translate_action
-from channel import modify_message
+#from channel import modify_message
+
+def modify_message():
+    return 0
 import math
 class TARMACMLP(nn.Module):
     """

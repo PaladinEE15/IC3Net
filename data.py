@@ -2,7 +2,6 @@ import sys
 import gym
 import ic3net_envs
 from env_wrappers import *
-from smac.env import StarCraft2Env
 
 def init(env_name, args, final_init=True):
     if env_name == 'levers':
@@ -33,9 +32,6 @@ def init(env_name, args, final_init=True):
     elif env_name == 'treasure_hunt':
         env = gym.make('TreasureHunt-v0')
         env.multi_agent_init(args)
-        env = GymWrapper(env)
-    elif env_name == 'starcraft':
-        env = StarCraft2Env(map_name=args.map_name)
         env = GymWrapper(env)
 
     else:
