@@ -74,9 +74,9 @@ class Trainer(object):
             if self.args.calcu_entropy:
                 if t == 0:
                     #init comm
-                    comm_stat = torch.squeeze(comm) 
+                    comm_stat = comm.view(self.args.nagents,-1)
                 else:
-                    comm_stat = torch.cat((comm_stat, torch.squeeze(comm)),dim = 0)
+                    comm_stat = torch.cat((comm_stat, comm.view(self.args.nagents,-1)),dim = 0)
             else:
                 comm_stat = torch.zeros(1)
 
