@@ -190,7 +190,7 @@ class CommNetMLP(nn.Module):
             qt_comm = qt_comm*2-1
             comm_inuse = (qt_comm-comm).detach()+comm
         if self.args.no_comm:
-            return torch.zeros_like(comm_inuse), torch.zeros_like(comm_inuse)
+            return torch.zeros_like(comm_inuse), torch.zeros_like(comm_info)
         return comm_inuse, comm_info
         
 

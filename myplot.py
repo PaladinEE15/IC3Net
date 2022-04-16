@@ -150,7 +150,82 @@ plt.title('Predator Prey B',fontsize=22)
 plt.savefig('D:\Git\IC3Net\Figures\lengthreduceB.pdf', bbox_inches='tight')
 
 
-'''
+
+
+steps_1 = np.array([8.28,8.30,8.14,9.54,18.44])
+entropy_1 = np.array([1.8,1.16,0.59,0.11])
+steps_2 = np.array([23.81,24.34,23.95,59.52,59.99])
+entropy_2 = np.array([1.76,1.09,0.32,0.09])
+steps_3 = np.array([10.11,10.28,10.48,13.05,14.94])
+entropy_3 = np.array([1.56,0.92,0.19,0.04])
+steps_4 = np.array([15.65,15.11,16.33,23.1,23.39])
+entropy_4 = np.array([1.55,0.89,0.21,0.12])
+steps_5 = np.array([0.958,0.966,0.972,0.948,0.956])
+entropy_5 = np.array([2.35,1.73,1.15,0.75])
+steps_6 = np.array([0.95,0.946,0.954,0.95,0.934])
+entropy_6 = np.array([1.92,1.62,1.32,1.06])
+step_set = [steps_1,steps_2,steps_3,steps_4,steps_5,steps_6]
+entropy_set = [entropy_1,entropy_2,entropy_3,entropy_4,entropy_5,entropy_6]
+name_set = ['Treasure Hunt A', 'Treasure Hunt B', 'Predator-Prey A', 'Predator-Prey B', 'Traffic Junction A', 'Traffic Junction B']
+xticks = [0,0.125,0.25,0.5,1]
+x1 = np.arange(5)
+x2 = np.arange(1,5)
+
+#subplotset = [231,232,233,234,235,236]
+ylegend = ['timesteps↓','timesteps↓','timesteps↓','timesteps↓','success rates↑','success rates↑']
+ylabel = ['timesteps↓','timesteps↓','timesteps↓','timesteps↓','success rates↑','success rates↑']
+bar_width = 0.3
+for idx in range(6):  
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    bar1 = ax1.bar(x1-0.5*bar_width, step_set[idx],bar_width,bottom = 0, label=ylegend[idx], ec='black',color='#09b0d3')
+    ax2 = ax1.twinx()
+    bar2 = ax2.bar(x2+0.5*bar_width, entropy_set[idx],bar_width,bottom = 0, label='entropy', ec='black', color='#1d27c9')
+    ax1.set_ylabel(ylabel[idx],fontsize=18)
+    ax2.set_ylabel('entropy (nat)',fontsize=18)
+    ax1.set_xlabel('value of $\Delta$',fontsize=18)
+    ax1.set_xticks(ticks=x1)
+    ax1.set_xticklabels(xticks)
+    lns = bar1 + bar2
+    labs = [l.get_label() for l in lns]
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
+    #ax1.legend(loc = 'upper right', bbox_to_anchor=(1, 1))
+    #ax2.legend(loc = 'upper right', bbox_to_anchor=(1, 0.92))
+    ax1.set_title(name_set[idx],fontsize=18)
+    #plt.tight_layout()
+    plt.savefig('D:\Git\IC3Net\TNNLS_Figures\quant'+str(idx)+'.pdf', bbox_inches='tight')
+    #plt.show()
+
+
+
+
+plt.figure()
+plt.bar([0], [8.15], 0.4, bottom = 0, ec='black', label='Baseline',color='#05f8d6')
+plt.bar([1,2], [9.29,11.46], 0.4, bottom = 0, ec='black', label='RMS',color='#0082fc')
+plt.bar([2.4], [9.06], 0.4, bottom = 0, ec='black', label='RMS+MC',color='#0082fc',hatch='//')
+plt.ylabel('timesteps↓',fontsize=20)
+plt.xlabel('bandwidth limits',fontsize=20)
+plt.xticks([0,1,2.2],['100%','5%','2.5%'],fontsize=18)
+plt.legend(fontsize=14,loc="lower left")
+plt.title('Treasure Hunt A',fontsize=22)
+#plt.show()
+plt.savefig('D:\Git\IC3Net\TNNLS_Figures\RS1.pdf', bbox_inches='tight')
+
+plt.figure()
+plt.bar([0], [23.36], 0.4, bottom = 0, ec='black', label='Baseline',color='#05f8d6')
+plt.bar([1,2], [27.73,39.41], 0.4, bottom = 0, ec='black', label='RMS',color='#0082fc')
+plt.bar([2.4], [24.64], 0.4, bottom = 0, ec='black', label='RMS+MC',color='#0082fc',hatch='//')
+plt.ylabel('timesteps↓',fontsize=20)
+plt.xlabel('bandwidth limits',fontsize=20)
+plt.xticks([0,1,2.2],['100%','20%','10%'],fontsize=18)
+plt.legend(fontsize=14,loc="lower left")
+plt.title('Treasure Hunt B',fontsize=22)
+#plt.show()
+plt.savefig('D:\Git\IC3Net\TNNLS_Figures\RS2.pdf', bbox_inches='tight')
+    '''
+
 title_set = ['Before Message Compression','After Message Compression','Before Message Compression','After Message Compression']
 name_set = ['TJA_before', 'TJA_after', 'THA_before', 'THA_after']
 dataset = []
@@ -160,7 +235,7 @@ dataset.append(np.array([0.245,0.000,0.000,0.000,0.572,0.000,0.000,0.000,0.183])
 dataset.append(np.array([0.000,0.003,0.021,0.177,0.574,0.193,0.029,0.004,0.000]))
 dataset.append(np.array([0.000,0.000,0.004,0.077,0.818,0.093,0.007,0.000,0.000]))
 
-color_set = ['#d5d6d8', '#555555', '#d5d6d8', '#555555']
+color_set = ['#fdd845', '#22ed7c', '#fdd845', '#22ed7c']
 xset = np.arange(9)
 
 for idx in range(4):
