@@ -25,7 +25,14 @@ class Trainer(object):
         
         self.params = [p for p in self.policy_net.parameters()]
         self.mark_reftensor = False #mark whether the reftensor is created
-
+    
+    def get_distribution_simple(self,input_comm):
+        input_comm = (input_comm+1)*0.5
+        input_comm = input_comm*(self.args.quant_levels-1)  
+        calcu_comm = np.rint(input_comm)      
+        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=1),range(self.args.quant_levels))))
+        probs = counts/input_comm.shape[1]
+        return probs
 
     def get_episode(self, epoch):
         episode = []
@@ -71,6 +78,7 @@ class Trainer(object):
                 x = state
                 comm, action_out, value = self.policy_net(x, info, quant)
             
+            
             if self.args.calcu_entropy:
                 if t == 0:
                     #init comm
@@ -85,6 +93,13 @@ class Trainer(object):
             action, actual = translate_action(self.args, self.env, action)
             next_state, reward, done, info = self.env.step(actual)
             next_state = torch.from_numpy(next_state).double().to(torch.device("cuda"))
+
+            #here, begin env data display
+            if self.args.detailed_info:
+                print('info begin!timestep:',t)
+                print('predator locs:', info['predator_locs'])
+                print('prey locs:', info['prey_locs'])
+                print('comm info:',self.get_distribution_simple(comm.view(self.args.nagents,-1).detach().cpu().numpy()))
 
             # store comm_action in info for next step
             if self.args.hard_attn and self.args.commnet:

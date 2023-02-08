@@ -104,3 +104,7 @@ ENV/
 *.onnx
 *.pt
 *.pdf
+*.svg
+*.png
+*.eps
+*.svgz

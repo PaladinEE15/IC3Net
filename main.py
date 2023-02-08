@@ -175,6 +175,8 @@ parser.add_argument('--error_rate', default=0, type=float,
                     help='bit error rate')                    
 parser.add_argument('--test_models', default='', nargs='+', type=str,
                     help='name of tested models')
+parser.add_argument('--detailed_info', default=False, action='store_true', 
+                    help='whether output detailed information of experiments')
 
 
 
