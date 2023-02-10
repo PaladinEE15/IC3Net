@@ -122,6 +122,8 @@ parser.add_argument("--comm_detail", type=str, default="mlp", choices=["raw", "m
                     help="How to process broadcasting messages")
 parser.add_argument('--entropy_limit', default=1.0, type=float,
                     help='the weight of entropy loss')
+parser.add_argument('--drop_prob', default=0, type=float,
+                    help='the probability of dropping messages')
 parser.add_argument('--quant', default=False, action='store_true', 
                     help='Whether test and do quantification')
 parser.add_argument('--v_size', default=32, type=int,

@@ -4,7 +4,7 @@ from torch import nn
 import math
 from action_utils import select_action, translate_action
 
-class CommNetMLP(nn.Module):
+class ETCNETMLP(nn.Module):
     """
     MLP based CommNet. Uses communication vector to communicate info
     between agents
@@ -19,7 +19,7 @@ class CommNetMLP(nn.Module):
             num_inputs {number} -- Environment observation dimension for agents
         """
 
-        super(CommNetMLP, self).__init__()
+        super(ETCNETMLP, self).__init__()
         self.args = args
         self.nagents = args.nagents
         self.hid_size = args.hid_size
@@ -27,11 +27,7 @@ class CommNetMLP(nn.Module):
         self.recurrent = args.recurrent
 
         self.continuous = args.continuous
-        if self.continuous:
-            self.action_mean = nn.Linear(args.hid_size, args.dim_actions)
-            self.action_log_std = nn.Parameter(torch.zeros(1, args.dim_actions)).to(torch.device("cuda"))
-        else:
-            self.heads = nn.ModuleList([nn.Linear(args.hid_size, o)
+        self.heads = nn.ModuleList([nn.Linear(args.hid_size, o)
                                         for o in args.naction_heads])
         self.init_std = args.init_std if hasattr(args, 'comm_init_std') else 0.2
 
@@ -43,33 +39,28 @@ class CommNetMLP(nn.Module):
 
         self.sqrt_var = math.sqrt(self.args.mim_gauss_var)
 
-        if self.args.comm_detail == 'mim':
-            self.msg_encoder = nn.Sequential()
-            msg_layer_num = len(self.args.msg_hid_layer)
-            for i in range(msg_layer_num):
-                if i == 0:
-                    self.msg_encoder.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
-                    self.msg_encoder.add_module('activate1',nn.ReLU())
-                else:
-                    self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
-                    self.msg_encoder.add_module('activate2',nn.ReLU())
-            self.mu_layer = nn.Sequential()    
-            self.mu_layer.add_module('mu_out',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
-            self.mu_layer.add_module('activate3',nn.Tanh())    
-            self.lnsigma_layer = nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size)
-        elif self.args.comm_detail != 'raw':
-            self.msg_encoder = nn.Sequential()
-            msg_layer_num = len(self.args.msg_hid_layer)
-            for i in range(msg_layer_num):
-                if i == 0:
-                    self.msg_encoder.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
-                    self.msg_encoder.add_module('activate1',nn.ReLU())
-                else:
-                    self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
-                    self.msg_encoder.add_module('activate2',nn.ReLU())
-            self.msg_encoder.add_module('fc3',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
-            self.msg_encoder.add_module('activate3',nn.Tanh())
 
+        self.msg_encoder = nn.Sequential()
+        self.gate_network = nn.Sequential()
+        msg_layer_num = len(self.args.msg_hid_layer)
+        for i in range(msg_layer_num):
+            if i == 0:
+                self.msg_encoder.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
+                self.msg_encoder.add_module('activate1',nn.ReLU())
+                self.gate_network.add_module('gate_fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
+                self.gate_network.add_module('gate_activate1',nn.ReLU())
+            else:
+                self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
+                self.msg_encoder.add_module('activate2',nn.ReLU())
+                self.gate_network.add_module('gate_fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
+                self.gate_network.add_module('gate_activate2',nn.ReLU())
+        self.msg_encoder.add_module('fc3',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
+        self.msg_encoder.add_module('activate3',nn.Tanh())
+
+        self.gate_module = nn.Linear(self.args.msg_hid_layer[i],2)
+        self.larg_module = nn.Linear(self.args.msg_hid_layer[i],1)
+        self.pelt_module = nn.Linear(self.args.msg_hid_layer[i],1)
+        self.sfm = nn.Softmax(dim=-1)
         # Since linear layers in PyTorch now accept * as any number of dimensions
         # between last and first dim, num_agents dimension will be covered.
         # The network below is function r in the paper for encoding
@@ -123,6 +114,14 @@ class CommNetMLP(nn.Module):
 
         self.value_head = nn.Linear(self.hid_size, 1)
 
+    def get_gate(self, hid_state):
+        gate_net_out = self.gate_network(hid_state)
+        gate_module_out = self.gate_module(gate_net_out)
+        larg_val = self.larg_module(gate_net_out)
+        pelt_val = self.pelt_module(gate_net_out)
+        gate_sfm = self.sfm(gate_module_out)              
+        
+        return larg_val, pelt_val, gate_sfm
 
     def get_agent_mask(self, batch_size, info):
         n = self.nagents
@@ -144,20 +143,10 @@ class CommNetMLP(nn.Module):
 
     def forward_state_encoder(self, x):
         hidden_state, cell_state = None, None
-
-        if self.args.recurrent:
-            x, extras = x
-            x = self.encoder(x)
-
-            if self.args.rnn_type == 'LSTM':
-                hidden_state, cell_state = extras
-            else:
-                hidden_state = extras
-            # hidden_state = self.tanh( self.hidd_encoder(prev_hidden_state) + x)
-        else:
-            x = self.encoder(x)
-            x = self.tanh(x)
-            hidden_state = x
+        x, extras = x
+        x = self.encoder(x)
+                     
+        hidden_state = extras
 
         return x, hidden_state, cell_state
 
@@ -231,20 +220,22 @@ class CommNetMLP(nn.Module):
 
         #get mask for record
 
-
-        # Hard Attention - action whether an agent communicates or not
-        if self.args.hard_attn:
-            comm_action = torch.tensor(info['comm_action']).to(torch.device("cuda"))
-            comm_action_mask = comm_action.expand(batch_size, n, n).unsqueeze(-1)
-            # action 1 is talk, 0 is silent i.e. act as dead for comm purposes.
-            agent_mask = agent_mask*comm_action_mask.double()
-
         agent_mask_transpose = agent_mask.transpose(1, 2)
 
         for i in range(self.comm_passes): #decide how many times to communicate, default 1
             # Choose current or prev depending on recurrent
             raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
             comm, broad_comm = self.generate_comm(raw_comm)
+            if info['activate_gate']:
+                larg_val, pelt_val, gate_sfm = self.get_gate(raw_comm)
+                gate_array = torch.multinomial(gate_sfm.view(-1, 2),1).detach()
+                comm = comm*(gate_array.view(batch_size, n, 1).expand_as(comm))
+                if torch.sum(gate_array)>0:
+                    gather_idx = torch.nonzero(gate_array.view(-1), as_tuple=False).view(-1,1).expand(-1,broad_comm.size()[-1])
+                    broad_comm = torch.gather(broad_comm.view(n,-1),0,gather_idx)
+                else:
+                    broad_comm = None
+                
             # Get the next communication vector based on next hidden state
             comm = comm.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
 
@@ -305,13 +296,11 @@ class CommNetMLP(nn.Module):
             # discrete actions
             action = [F.log_softmax(head(h), dim=-1) for head in self.heads]
 
-        if self.args.recurrent :
-            if self.args.rnn_type == 'LSTM':
-                return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone())
-            else:
-                return broad_comm, action, value_head, hidden_state.clone()
+        if info['activate_gate']:
+            return broad_comm, action, value_head, hidden_state.clone(), larg_val.view(1,n), pelt_val.view(1,n), gate_sfm.view(1,n,2), gate_array.view(1,n)
         else:
-            return broad_comm, action, value_head
+            return broad_comm, action, value_head, hidden_state.clone(),0,0,0,0
+
 
     def init_weights(self, m):
         if type(m) == nn.Linear:

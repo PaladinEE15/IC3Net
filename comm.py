@@ -247,6 +247,17 @@ class CommNetMLP(nn.Module):
             raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
             comm, broad_comm = self.generate_comm(raw_comm)
             # Get the next communication vector based on next hidden state
+
+            if self.args.drop_prob > 0:
+                random_mat = torch.rand(batch_size, n).to(torch.device("cuda"))
+                judge_ref_mat = self.args.drop_prob*torch.ones((batch_size, n)).to(torch.device("cuda"))
+                raw_msg_weight = (random_mat>judge_ref_mat).reshape(batch_size, n, 1)
+                fake_comm = torch.zeros(batch_size, n, self.args.msg_size).to(torch.device("cuda"))
+                fake_msg_weight = (random_mat<=judge_ref_mat).reshape(batch_size,n, 1)
+                comm_agents = torch.sum(raw_msg_weight)
+                comm = comm*raw_msg_weight + fake_comm*fake_msg_weight
+                assert (batch_size==1)
+
             comm = comm.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
 
             # Create mask for masking self communication
@@ -259,7 +270,13 @@ class CommNetMLP(nn.Module):
 
             if hasattr(self.args, 'comm_mode') and self.args.comm_mode == 'avg' \
                 and num_agents_alive > 1:
-                comm = comm / (num_agents_alive - 1)
+                if self.args.drop_prob > 0:
+                    comm_numbers = comm_agents*torch.ones(batch_size, n, 1).to(torch.device("cuda"))
+                    comm_numbers = comm_numbers - raw_msg_weight
+                    comm_weight = comm_numbers.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
+                    comm = comm/comm_weight
+                else:
+                    comm = comm / (num_agents_alive - 1)
 
             # Mask comm_in
             # Mask communcation from dead agents
