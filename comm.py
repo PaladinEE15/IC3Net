@@ -46,17 +46,22 @@ class CommNetMLP(nn.Module):
         if self.args.comm_detail == 'mim':
             self.msg_encoder = nn.Sequential()
             msg_layer_num = len(self.args.msg_hid_layer)
-            for i in range(msg_layer_num):
-                if i == 0:
-                    self.msg_encoder.add_module('fc1',nn.Linear(args.hid_size, self.args.msg_hid_layer[0]))
-                    self.msg_encoder.add_module('activate1',nn.ReLU())
-                else:
-                    self.msg_encoder.add_module('fc2',nn.Linear(self.args.msg_hid_layer[i-1], self.args.msg_hid_layer[i]))
-                    self.msg_encoder.add_module('activate2',nn.ReLU())
-            self.mu_layer = nn.Sequential()    
-            self.mu_layer.add_module('mu_out',nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size))
-            self.mu_layer.add_module('activate3',nn.Tanh())    
-            self.lnsigma_layer = nn.Linear(self.args.msg_hid_layer[i], self.args.msg_size)
+            self.msg_encoder.add_module('fc1',nn.Linear(args.hid_size, 128))
+            self.msg_encoder.add_module('activate1',nn.ReLU())          
+            self.mu_layer = nn.Sequential()  
+            self.mu_layer.add_module('fcmu1',nn.Linear(128, 64))
+            self.mu_layer.add_module('activatemu1',nn.ReLU())
+            self.mu_layer.add_module('fcmu2',nn.Linear(64, 64))
+            self.mu_layer.add_module('activatemu2',nn.ReLU())
+            self.mu_layer.add_module('muout',nn.Linear(64, self.args.msg_size))
+            self.mu_layer.add_module('activatemu3',nn.Tanh())
+
+            self.lnsigma_layer = nn.Sequential() 
+            self.lnsigma_layer.add_module('fcsigma1',nn.Linear(128, 64))
+            self.lnsigma_layer.add_module('activatesigma1',nn.ReLU())
+            self.lnsigma_layer.add_module('fcsigma2',nn.Linear(64, 64))
+            self.lnsigma_layer.add_module('activatesigma2',nn.ReLU())
+            self.lnsigma_layer.add_module('sigmaout',nn.Linear(64, self.args.msg_size))          
         elif self.args.comm_detail != 'raw':
             self.msg_encoder = nn.Sequential()
             msg_layer_num = len(self.args.msg_hid_layer)
