@@ -118,9 +118,12 @@ parser.add_argument('--share_weights', default=False, action='store_true',
                     help='Share weights for hops')
 
 # Comm message design details
-parser.add_argument("--comm_detail", type=str, default="mlp", choices=["raw", "mlp", "triangle", "cos", "widecos", "bell", "mim"], 
+parser.add_argument("--comm_detail", type=str, default="mlp", choices=["raw", "mlp", "triangle", "cos", "widecos", "bell", "mim", "ndq","bar"], 
                     help="How to process broadcasting messages")
-
+parser.add_argument('--entropy_limit', default=1.0, type=float,
+                    help='the weight of entropy loss')
+parser.add_argument('--drop_prob', default=0, type=float,
+                    help='the probability of dropping messages')
 parser.add_argument('--quant', default=False, action='store_true', 
                     help='Whether test and do quantification')
 parser.add_argument('--v_size', default=32, type=int,
@@ -139,6 +142,8 @@ parser.add_argument('--GPU', default=0, type=int,
                     help='run on which GPU')
 # Configs for entropy loss
 parser.add_argument('--mim_gauss_var', default=1/9, type=float,
+                    help='the variance of ref gaussian in mutual information minimization')
+parser.add_argument('--epsilon', default=1e-2, type=float,
                     help='the variance of ref gaussian in mutual information minimization')
 parser.add_argument('--calcu_entropy', default=False, action='store_true', 
                     help='whether calculate entropy. ')
@@ -174,6 +179,10 @@ parser.add_argument('--error_rate', default=0, type=float,
                     help='bit error rate')                    
 parser.add_argument('--test_models', default='', nargs='+', type=str,
                     help='name of tested models')
+parser.add_argument('--detailed_info', default=False, action='store_true', 
+                    help='whether output detailed information of experiments')
+parser.add_argument('--compress_msg', default=1.0, type=float, 
+                    help='compress msg to meet bandwidth restriction')      
 
 
 
@@ -271,6 +280,8 @@ def run(num_epochs):
                 print('Add-Rate: {:.3f}'.format(stat['add_rate']))
             if 'success' in stat.keys():
                 print('Success: {:.3f}'.format(stat['success']))
+            if 'cars_arrival' in stat.keys():
+                print('Cars_arrival: {:.3f}'.format(stat['cars_arrival']))
             if 'steps_taken' in stat.keys():
                 print('Steps-taken: {:.2f}'.format(stat['steps_taken']))
             if 'comm_action' in stat.keys():
@@ -389,6 +400,7 @@ if __name__ == '__main__':
     log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['cars_arrival'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
@@ -441,7 +453,7 @@ if __name__ == '__main__':
                 print('distributions: ')     
                 print('[', end='')
                 for items in distribution_set:
-                    print(items, end=',')
+                    print(format(items,'.3f'), end=',')
                 print(']')
             elif args.distribution_output_type == 1:   
                 distribution_acc = distribution_acc/len(args.test_models)

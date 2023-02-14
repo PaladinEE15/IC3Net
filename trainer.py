@@ -1,5 +1,5 @@
 from collections import namedtuple
-from inspect import getargspec
+from inspect import getfullargspec
 import numpy as np
 import math
 import torch
@@ -25,11 +25,18 @@ class Trainer(object):
         
         self.params = [p for p in self.policy_net.parameters()]
         self.mark_reftensor = False #mark whether the reftensor is created
-
+    
+    def get_distribution_simple(self,input_comm):
+        input_comm = (input_comm+1)*0.5
+        input_comm = input_comm*(self.args.quant_levels-1)  
+        calcu_comm = np.rint(input_comm)      
+        counts = np.array(list(map(lambda x: np.sum(calcu_comm==x,axis=1),range(self.args.quant_levels))))
+        probs = counts/input_comm.shape[1]
+        return probs
 
     def get_episode(self, epoch):
         episode = []
-        reset_args = getargspec(self.env.reset).args
+        reset_args = getfullargspec(self.env.reset).args
         if 'epoch' in reset_args:
             state = self.env.reset(epoch)
         else:
@@ -71,12 +78,13 @@ class Trainer(object):
                 x = state
                 comm, action_out, value = self.policy_net(x, info, quant)
             
+            
             if self.args.calcu_entropy:
                 if t == 0:
                     #init comm
-                    comm_stat = torch.squeeze(comm) 
+                    comm_stat = comm.view(self.args.nagents,-1)
                 else:
-                    comm_stat = torch.cat((comm_stat, torch.squeeze(comm)),dim = 0)
+                    comm_stat = torch.cat((comm_stat, comm.view(self.args.nagents,-1)),dim = 0)
             else:
                 comm_stat = torch.zeros(1)
 
@@ -85,6 +93,13 @@ class Trainer(object):
             action, actual = translate_action(self.args, self.env, action)
             next_state, reward, done, info = self.env.step(actual)
             next_state = torch.from_numpy(next_state).double().to(torch.device("cuda"))
+
+            #here, begin env data display
+            if self.args.detailed_info:
+                print('info begin!timestep:',t)
+                print('predator locs:', info['predator_locs'])
+                print('prey locs:', info['prey_locs'])
+                print('comm info:',self.get_distribution_simple(comm.view(self.args.nagents,-1).detach().cpu().numpy()))
 
             # store comm_action in info for next step
             if self.args.hard_attn and self.args.commnet:
@@ -195,9 +210,9 @@ class Trainer(object):
                     mid_mat = torch.clamp(mid_mat, min=0)
                     square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
                     final_mat = (square_mat-mid_mat).detach()+mid_mat
-                    freq = torch.mean(final_mat,dim=0)+1e-20
+                    freq = torch.mean(final_mat)+1e-4
                     freq = -freq*torch.log(freq)
-                    comm_entro_loss += torch.mean(freq)
+                    comm_entro_loss += freq
             elif self.args.comm_detail == 'cos':
                 ref_info = (comm_info+1)*0.5
                 ref_info = ref_info*(self.args.quant_levels-1) 
@@ -206,9 +221,21 @@ class Trainer(object):
                     mid_mat = 0.5*(ref_info>target-1)*(ref_info<target+1)*(torch.cos(math.pi*(ref_info-target))+1)
                     square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
                     final_mat = (square_mat-mid_mat).detach()+mid_mat
-                    freq = torch.mean(final_mat,dim=0)+1e-20
+                    freq = torch.mean(final_mat)+1e-4
                     freq = -freq*torch.log(freq)
-                    comm_entro_loss += torch.mean(freq)
+                    comm_entro_loss += freq
+            elif self.args.comm_detail == 'bar':
+                ref_info = (comm_info+1)*0.5
+                ref_info = ref_info*(self.args.quant_levels-1) 
+                comm_entro_loss = 0
+                for target in range(self.args.quant_levels):
+                    mid_mat = 0.5*(ref_info>target-1)*(ref_info<target+1)*(torch.cos(math.pi*(ref_info-target))+1)
+                    square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
+                    final_mat = (square_mat-mid_mat).detach()+mid_mat
+                    freq = torch.mean(final_mat)+1e-2
+                    freq = -freq*torch.log(freq)
+                    comm_entro_loss += freq
+                comm_entro_loss = F.relu(comm_entro_loss - self.args.entropy_limit) 
             elif self.args.comm_detail == 'widecos':
                 ref_info = (comm_info+1)*0.5
                 ref_info = ref_info*(self.args.quant_levels-1) 
@@ -217,9 +244,9 @@ class Trainer(object):
                     mid_mat = (ref_info>target-1)*(ref_info<target+1)*torch.cos(0.5*math.pi*(ref_info-target))
                     square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
                     final_mat = (square_mat-mid_mat).detach()+mid_mat
-                    freq = torch.mean(final_mat,dim=0)+1e-20
+                    freq = torch.mean(final_mat)+1e-4
                     freq = -freq*torch.log(freq)
-                    comm_entro_loss += torch.mean(freq)
+                    comm_entro_loss += freq
             elif self.args.comm_detail == 'bell':
                 ref_info = (comm_info+1)*0.5
                 ref_info = ref_info*(self.args.quant_levels-1) 
@@ -228,14 +255,19 @@ class Trainer(object):
                     mid_mat = (ref_info>target-1)*(ref_info<target+1)*torch.exp(-4*(ref_info-target)**2)
                     square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
                     final_mat = (square_mat-mid_mat).detach()+mid_mat
-                    freq = torch.mean(final_mat,dim=0)+1e-20
+                    freq = torch.mean(final_mat)+1e-4
                     freq = -freq*torch.log(freq)
-                    comm_entro_loss += torch.mean(freq)
+                    comm_entro_loss += freq
             elif self.args.comm_detail == 'mim':
                 split_size = int(comm_info.size()[1]/3)
                 _, mu, lnsigma = torch.split(comm_info,split_size,1) 
                 loss_mat = 0.5*(mu**2 + (torch.exp(lnsigma))**2)/self.args.mim_gauss_var - lnsigma    
-                comm_entro_loss = torch.mean(loss_mat)        
+                comm_entro_loss = torch.mean(loss_mat)    
+            elif self.args.comm_detail == 'ndq':
+                split_size = int(comm_info.size()[1]/2)
+                _, mu = torch.split(comm_info,split_size,1) 
+                loss_mat = 0.5*(mu**2)/self.args.mim_gauss_var   
+                comm_entro_loss = torch.mean(loss_mat)     
         else:
             comm_entro_loss = torch.Tensor([0]).cuda()
 

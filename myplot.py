@@ -6,18 +6,18 @@ import matplotlib.pyplot as plt
 '''
 #the following is used for assist experiment 1
 #datainput area
-steps_1 = 20 - np.array([8.3,8.2,8.3,9.5,18.3])
-entropy_1 = np.array([200,125,60,9.8])
-steps_2 = 60 - np.array([23.9,23.7,25,59,60])
-entropy_2 = np.array([194,121,33,9])
-steps_3 = 20 - np.array([10.2,10.4,10.3,13.2,15.2])
-entropy_3 = np.array([178,103,21.3,4.9])
-steps_4 = 40 - np.array([15.7,15.2,16.2,22.2,23.4])
-entropy_4 = np.array([175,99,25,12])
-steps_5 = np.array([0.97,0.96,0.96,0.96,0.97])
-entropy_5 = np.array([171,128,88,58])
-steps_6 = np.array([0.95,0.94,0.94,0.94,0.93])
-entropy_6 = np.array([140,118,96,78])
+steps_1 = np.array([8.28,8.30,8.14,9.54,18.44])
+entropy_1 = np.array([1.8,1.16,0.59,0.11])
+steps_2 = np.array([23.81,24.34,23.95,59.52,59.99])
+entropy_2 = np.array([1.76,1.09,0.32,0.09])
+steps_3 = np.array([10.11,10.28,10.48,13.05,14.94])
+entropy_3 = np.array([1.56,0.92,0.19,0.04])
+steps_4 = np.array([15.65,15.11,16.33,23.1,23.39])
+entropy_4 = np.array([1.55,0.89,0.21,0.12])
+steps_5 = np.array([0.958,0.966,0.972,0.948,0.956])
+entropy_5 = np.array([2.35,1.73,1.15,0.75])
+steps_6 = np.array([0.90,0.90,0.90,0.90,0.87])
+entropy_6 = np.array([1.51,0.91,0.30,0.07])
 step_set = [steps_1,steps_2,steps_3,steps_4,steps_5,steps_6]
 entropy_set = [entropy_1,entropy_2,entropy_3,entropy_4,entropy_5,entropy_6]
 name_set = ['Treasure Hunt A', 'Treasure Hunt B', 'Predator-Prey A', 'Predator-Prey B', 'Traffic Junction A', 'Traffic Junction B']
@@ -26,31 +26,30 @@ x1 = np.arange(5)
 x2 = np.arange(1,5)
 
 #subplotset = [231,232,233,234,235,236]
-ylegend = ['remaining\ntimesteps','remaining\ntimesteps','remaining\ntimesteps','remaining\ntimesteps','success\nrates','success\nrates']
-ylabel = ['remaining timesteps','remaining timesteps','remaining timesteps','remaining timesteps','success rates','success rates']
+ylegend = ['timesteps↓','timesteps↓','timesteps↓','timesteps↓','success rates↑','success rates↑']
+ylabel = ['timesteps↓','timesteps↓','timesteps↓','timesteps↓','success rates↑','success rates↑']
 bar_width = 0.3
 for idx in range(6):  
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
-    bar1 = ax1.bar(x1-0.5*bar_width, step_set[idx],bar_width,bottom = 0, label=ylegend[idx],color='#7cd6cf')
+    bar1 = ax1.bar(x1-0.5*bar_width, step_set[idx],bar_width,bottom = 0, label=ylegend[idx], ec='black',color='#63b2ee')
     ax2 = ax1.twinx()
-    bar2 = ax2.bar(x2+0.5*bar_width, entropy_set[idx],bar_width,bottom = 0, label='entropy',color='#9192ab')
-    ax1.set_ylabel(ylabel[idx],fontsize=16)
-
-    ax2.set_ylabel('entropy (nat)',fontsize=16)
-    ax1.set_xlabel('value of $\Delta$',fontsize=16)
+    bar2 = ax2.bar(x2+0.5*bar_width, entropy_set[idx],bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
+    ax1.set_ylabel(ylabel[idx],fontsize=18)
+    ax2.set_ylabel('entropy (nat)',fontsize=18)
+    ax1.set_xlabel('value of $\Delta$',fontsize=18)
     ax1.set_xticks(ticks=x1)
     ax1.set_xticklabels(xticks)
     lns = bar1 + bar2
     labs = [l.get_label() for l in lns]
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=14)
+    ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
     #ax1.legend(loc = 'upper right', bbox_to_anchor=(1, 1))
     #ax2.legend(loc = 'upper right', bbox_to_anchor=(1, 0.92))
-    ax1.set_title(name_set[idx],fontsize=16)
+    ax1.set_title(name_set[idx],fontsize=18)
     #plt.tight_layout()
-    plt.savefig('D:\Git\IC3Net\Figures\quant'+str(idx)+'.pdf', bbox_inches='tight')
+    plt.savefig('D:\Git\IC3Net\TNNLS_Figures\quant'+str(idx)+'.pdf', bbox_inches='tight')
     #plt.show()
 
 
@@ -91,18 +90,34 @@ dataset.append(np.array([0.011656214720292957, 0.02115859110757057, 0.0990629946
 dataset.append(np.array([0.003891854817505162, 0.009338410745518808, 0.05583064748339237, 0.3528437014759584, 0.3154339055446483, 0.19677412458283097, 0.03344980545424783, 0.02070535792749324, 0.011732191968404932, ]))
 
 
-xset = np.arange(9)
 
-for idx in range(4):
-    plt.figure()
-    plt.bar(xset,dataset[idx],1,bottom=0,color = '#9192ab')
-    plt.ylabel('probability',fontsize=18)
-    plt.ylim(0,1)
-    plt.xlabel('reconstruction points',fontsize=18)
-    plt.xticks(xset,labels=[-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1],fontsize=14)
-    plt.title(title_set[idx])
-    plt.savefig('D:\Git\IC3Net\Figures\distribution_'+name_set[idx]+'.pdf', bbox_inches='tight')
-    #plt.show()
+
+x1 = np.arange(5)
+x2 = np.arange(1,5)
+bar_width = 0.3
+xticks = [0,0.125,0.25,0.5,1]
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+bar1 = ax1.bar(x1-0.5*bar_width, step_set[idx],bar_width,bottom = 0, label='success rates↑', ec='black',color='#d5d6d8')
+ax2 = ax1.twinx()
+bar2 = ax2.bar(x2+0.5*bar_width, entropy_set[idx],bar_width,bottom = 0, label='entropy', ec='black', color='#555555')
+ax1.set_ylabel('success rates↑',fontsize=18)
+ax2.set_ylabel('entropy (nat)',fontsize=18)
+ax1.set_xlabel('value of $\Delta$',fontsize=18)
+ax1.set_xticks(ticks=x1)
+ax1.set_xticklabels(xticks)
+lns = bar1 + bar2
+labs = [l.get_label() for l in lns]
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
+#ax1.legend(loc = 'upper right', bbox_to_anchor=(1, 1))
+#ax2.legend(loc = 'upper right', bbox_to_anchor=(1, 0.92))
+ax1.set_title('Traffic Junction B',fontsize=18)
+#plt.tight_layout()
+plt.savefig('D:\Git\IC3Net\TNNLS_Figures\quant5.pdf', bbox_inches='tight')
+
+
 
 title_set = ['Distribution of digit 0','Distribution of digit 1','Distribution of digit 2','Distribution of digit 3']
 name_set = ['ppb4ent0', 'ppb4ent1', 'ppb4ent2', 'ppb4ent3']
@@ -124,23 +139,24 @@ for idx in range(4):
     plt.title(title_set[idx])
     plt.savefig('D:\Git\IC3Net\Figures\distribution_'+name_set[idx]+'.pdf', bbox_inches='tight')
 
-
 x = np.arange(5)
 bar_width = 0.3
-#ori_set = 20 - np.array([10.15, 9.62, 10.89, 15.28, 16.65])
-#pem_set = 20 - np.array([10.27, 10.35, 10.2, 11.40, 14.57])
-ori_set = 40 - np.array([16.25, 15.41, 17.43, 25.78, 31.13])
-pem_set = 40 - np.array([16.24, 16.6, 16.69, 17.4, 23.39])
+ori_set = 20 - np.array([10.15, 9.62, 10.89, 15.28, 16.65])
+pem_set = 20 - np.array([10.27, 10.35, 10.2, 11.40, 14.57])
+#ori_set = 40 - np.array([16.25, 15.41, 17.43, 25.78, 31.13])
+#pem_set = 40 - np.array([16.24, 16.6, 16.69, 17.4, 23.39])
 
 plt.figure()
 plt.bar(x-0.5*bar_width, ori_set, bar_width, bottom = 0, label='TARMAC-ORI',color='#9192ab')
 plt.bar(x+0.5*bar_width, pem_set, bar_width, bottom = 0, label='TARMAC-PEM',color='#7cd6cf')
-plt.ylabel('remaining timesteps',fontsize=16)
-plt.xlabel('value of p',fontsize=16)
-plt.xticks(x,[0,0.01,0.05,0.1,0.15])
+plt.ylabel('remaining timesteps',fontsize=20)
+plt.xlabel('crossover probability p',fontsize=20)
+plt.xticks(x,[0,0.01,0.05,0.1,0.15],fontsize=18)
 plt.legend(fontsize=14,loc="lower left")
-plt.title('Predator Prey B',fontsize=18)
-plt.savefig('D:\Git\IC3Net\Figures\PPBcomm.pdf', bbox_inches='tight')
+plt.title('Predator Prey A',fontsize=22)
+plt.savefig('D:\Git\IC3Net\Figures\PPAcomm.pdf', bbox_inches='tight')
+
+
 #
 '''
 xset = [1,2,3,4,5]

@@ -167,7 +167,8 @@ class TrafficJunctionEnv(gym.Env):
         """
         self.episode_over = False
         self.has_failed = 0
-
+        self.add_sign = 0
+        self.cars_arrival = 0
         self.alive_mask = np.zeros(self.ncar)
         self.wait = np.zeros(self.ncar)
         self.cars_in_sys = 0
@@ -248,6 +249,7 @@ class TrafficJunctionEnv(gym.Env):
 
         self.stat['success'] = 1 - self.has_failed
         self.stat['add_rate'] = self.add_rate
+        self.stat['cars_arrival'] = self.cars_arrival
 
         return obs, reward, self.episode_over, debug
 
@@ -370,6 +372,9 @@ class TrafficJunctionEnv(gym.Env):
         for r_i, routes in enumerate(self.routes):
             if self.cars_in_sys >= self.ncar:
                 return
+            elif self.add_sign == 0:
+                self.cars_arrival += 1
+                self.add_sign = 1
 
             # Add car to system and set on path
             if np.random.uniform() <= self.add_rate:
@@ -391,6 +396,7 @@ class TrafficJunctionEnv(gym.Env):
 
                 # increase count
                 self.cars_in_sys += 1
+                self.add_sign = 0
 
     def _set_paths_easy(self):
         h, w = self.dims
