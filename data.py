@@ -33,7 +33,9 @@ def init(env_name, args, final_init=True):
         env = gym.make('TreasureHunt-v0')
         env.multi_agent_init(args)
         env = GymWrapper(env)
-
+    elif env_name == 'joint_monitoring':
+        env = gym.make('JointMonitoring-v0')
+        env = GymWrapper(env)
     else:
         raise RuntimeError("wrong env name")
 

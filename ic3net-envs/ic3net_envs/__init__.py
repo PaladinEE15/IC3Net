@@ -19,3 +19,8 @@ register(
     id='TreasureHunt-v0',
     entry_point='ic3net_envs.treasure_hunt_env:TreasureHuntEnv',
 )
+
+register(
+    id='JointMonitoring-v0',
+    entry_point='ic3net_envs.joint_monitoring_env:JointMonitoringEnv',
+)

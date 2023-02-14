@@ -19,7 +19,7 @@ import numpy as np
 from gym import spaces
 
 
-class TreasureHuntEnv(gym.Env):
+class JointMonitoringEnv(gym.Env):
     # metadata = {'render.modes': ['human']}
 
     def __init__(self,):
@@ -35,23 +35,38 @@ class TreasureHuntEnv(gym.Env):
 
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative Search task')
-        env.add_argument("--dim", type=int, default=5)
+        env.add_argument("--evader_speed", type=float, default=0.2, 
+                    help="How many targets one agent must reach")
+        env.add_argument("--observation_type", type=int, default=0, 
+                    help="0-self abs coords + partial target observation;1-all others relative coords + partial target observation;2-self abs ccords+ full...")
+        return
     
 
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
-        self.dim = args.dim
-        self.speed = 0.75/args.dim
-        self.reach_distance = 0.5/args.dim
-        self.agents = args.nagents
-        self.treatures = args.nagents
+        self.evader_speed = args.evader_speed
+        if args.nagents == 4:
+            self.xlen = 2.414
+            self.ylen = 2.414
+            self.monitors = 4
+            self.evaders = 5
+        elif args.nagents == 6:
+            self.xlen = 3.414
+            self.ylen = 2.414
+            self.monitors = 6
+            self.evaders = 8            
+        else:
+            return
 
-        self.ref_act = self.speed*np.array([[-0.71,0.71],[0,1],[0.71,0.71],[-1,0],[0,0],[1,0],[-0.71,-0.71],[0,-1],[0.71,-0.71]])
-        self.naction = 9
+        self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,1/6*math.pi,-1/6*math.pi])
+        self.naction = 4
 
         self.action_space = spaces.MultiDiscrete([self.naction])
         #observation space design
-
+        #self angle:1
+        #self abs coords:2
+        #others relative coords: 2*(n-1)
+        #target observation: 2*evaders
 
         self.obs_dim = 2*self.agents + 4
         # Observation for each agent will be 7n-1 ndarray

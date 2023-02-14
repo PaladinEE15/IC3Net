@@ -112,6 +112,7 @@ def init_args_for_env(parser):
         'traffic_junction': 'TrafficJunction-v0',
         'treasure_hunt': 'TreasureHunt-v0',
         'coop_search': 'CooperativeSearch-v0',
+        'joint_monitoring':'JointMonitoring-v0',
         'starcraft': 'StarCraftWrapper-v0'
     }
 
