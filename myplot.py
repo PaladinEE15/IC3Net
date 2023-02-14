@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 #import gym
-from textwrap import fill
+#from textwrap import fill
 
 '''
 #the following is used for assist experiment 1
@@ -54,7 +54,7 @@ for idx in range(6):
     #plt.show()
 
 
-'''
+
 #the following is used for reducing message size
 raw_entropy_set = np.array([20,11,5.99,3.26])
 raw_steps_set = 20 - np.array([10.35,10.54,10.23,10.26])
@@ -69,19 +69,19 @@ plt.scatter(pem_entropy_set, pem_steps_set, c='#7cd6cf',label='PEM',linewidths=3
 txt_ori = ['ORI, 16', 'ORI, 8', 'ORI, 4', 'ORI, 2']
 txt_pem = ['PEM, 16', 'PEM, 8', 'PEM, 4']
 for idx in range(len(raw_entropy_set)):
-    plt.annotate(txt_ori[idx], xy = (raw_entropy_set[idx], raw_steps_set[idx]), xytext = (raw_entropy_set[idx]+0.2, raw_steps_set[idx]-0.3),fontsize=12)
+    plt.annotate(txt_ori[idx], xy = (raw_entropy_set[idx], raw_steps_set[idx]), xytext = (raw_entropy_set[idx]+0.2, raw_steps_set[idx]-0.13),fontsize=12)
     if idx <=2:
-        plt.annotate(txt_pem[idx], xy = (pem_entropy_set[idx], pem_steps_set[idx]), xytext = (pem_entropy_set[idx]+0.2, pem_steps_set[idx]-0.3),fontsize=12)
+        plt.annotate(txt_pem[idx], xy = (pem_entropy_set[idx], pem_steps_set[idx]), xytext = (pem_entropy_set[idx]+0.2, pem_steps_set[idx]-0.13),fontsize=12)
 plt.xlim(0,25)
 plt.ylim(7.5,10.5)
 plt.ylabel('remaining timesteps',fontsize=16)
 plt.xlabel('entropy',fontsize=16)
 plt.legend(loc = 'lower right',fontsize=12)
 #plt.show()
-plt.title('Predator Prey A')
+plt.title('Predator Prey A',fontsize=18)
 plt.savefig('E:\lengthreduceA.pdf', bbox_inches='tight')
 
-'''
+
 title_set = ['Distribution of digit 0','Distribution of digit 1','Distribution of digit 2','Distribution of digit 3']
 name_set = ['ppb4mlp0', 'ppb4mlp1', 'ppb4mlp2', 'ppb4mlp3']
 dataset = []
@@ -143,3 +143,24 @@ plt.title('Predator Prey B',fontsize=18)
 plt.savefig('D:\Git\IC3Net\Figures\PPBcomm.pdf', bbox_inches='tight')
 #
 '''
+xset = [1,2,3,4,5]
+dataset = 20-np.array([10.30,10.60,11.56,11.44,15.40])
+plt.figure()
+plt.bar(xset,dataset,0.5,bottom=0,color = '#9192ab')
+plt.ylabel('remaining timesteps',fontsize=18)
+plt.xlabel('entropy limits',fontsize=18)
+plt.xticks(xset,labels=['100%','25%','10%','5%','2%'],fontsize=14)
+plt.title('Predator Prey A',fontsize=22)
+#plt.show()
+plt.savefig('E:\entropy_limit_A.pdf', bbox_inches='tight')
+
+xset = [1,2,3,4,5]
+dataset = 40-np.array([17.41,18.66,17.20,20.59,26.13])
+plt.figure()
+plt.bar(xset,dataset,0.5,bottom=0,color = '#9192ab')
+plt.ylabel('remaining timesteps',fontsize=18)
+plt.xlabel('entropy limits',fontsize=18)
+plt.xticks(xset,labels=['100%','50%','25%','10%','2%'],fontsize=14)
+plt.title('Predator Prey B',fontsize=22)
+#plt.show()
+plt.savefig('E:\entropy_limit_B.pdf', bbox_inches='tight')
