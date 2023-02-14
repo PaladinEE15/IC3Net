@@ -232,7 +232,7 @@ class Trainer(object):
                     mid_mat = 0.5*(ref_info>target-1)*(ref_info<target+1)*(torch.cos(math.pi*(ref_info-target))+1)
                     square_mat = (ref_info>target-0.5)*(ref_info<target+0.5)*torch.ones_like(ref_info).to(torch.device("cuda"))
                     final_mat = (square_mat-mid_mat).detach()+mid_mat
-                    freq = torch.mean(final_mat)+1e-4
+                    freq = torch.mean(final_mat)+1e-2
                     freq = -freq*torch.log(freq)
                     comm_entro_loss += freq
                 comm_entro_loss = F.relu(comm_entro_loss - self.args.entropy_limit) 
