@@ -26,38 +26,44 @@ class JointMonitoringEnv(gym.Env):
         self.__version__ = "0.0.1"
 
         # TODO: better config handling
-        self.TIMESTEP_PENALTY = -0.05
-        self.TREASURE_OCCUPY_REWARD = 0
-        self.TREASURE_DIGGING_REWARD = 0.5
-        self.ASSIST_REWARD = 0.2
-
+        self.FULL_MONITORING_REWARD = 1
+        self.IN_MONITORING_REWARD = 0.2
         self.episode_over = False
 
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative Search task')
         env.add_argument("--evader_speed", type=float, default=0.2, 
                     help="How many targets one agent must reach")
+        env.add_argument("--monitor_angle", type=float, default=0.25, 
+                    help="Monitor observation angle")
         env.add_argument("--observation_type", type=int, default=0, 
                     help="0-self abs coords + partial target observation;1-all others relative coords + partial target observation;2-self abs ccords+ full...")
+        #there's another kind of observation: rangefinder. However the detection is complex......
+        #firstly, calculate the sector according to angle
+        #secondly, update corresponding sensor data (note that covering......)
         return
     
 
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
         self.evader_speed = args.evader_speed
+        self.monitor_angle = args.monitor_angle
         if args.nagents == 4:
             self.xlen = 2.414
             self.ylen = 2.414
             self.monitors = 4
             self.evaders = 5
+            self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707]])
         elif args.nagents == 6:
             self.xlen = 3.414
             self.ylen = 2.414
             self.monitors = 6
-            self.evaders = 8            
+            self.evaders = 8        
+            self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707],[2.707,1.707],[2.707,0.707]])    
         else:
             return
 
+        self.observation_type = args.observation_type
         self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,1/6*math.pi,-1/6*math.pi])
         self.naction = 4
 
@@ -67,11 +73,46 @@ class JointMonitoringEnv(gym.Env):
         #self abs coords:2
         #others relative coords: 2*(n-1)
         #target observation: 2*evaders
+        if (self.observation_type == 0) or (self.observation_type == 2):
+            self.obs_dim = 3 + 2*self.evaders
+        else:
+            self.obs_dim = 1 + 2*self.monitors + 2*self.evaders
+        
+        #calculate monitors locs and relative locs first
+        if (self.observation_type == 1) or (self.observation_type == 3):
+            monitor_locs_d1expand = np.tile(self.monitor_locs,(1,self.monitors))
+            monitor_locs_d0expand = np.tile(self.monitor_locs.reshape((1,-1)),(self.monitors,1))
+            monitor_locs_xy = monitor_locs_d0expand - monitor_locs_d1expand
+            monitor_locs_mid = monitor_locs_xy.reshape((-1,2))
+            monitor_locs_d = np.linalg.norm(monitor_locs_mid,axis=1,keepdims=True).reshape((-1,1))
+            monitor_locs_theta = np.arctan((monitor_locs_mid[:,1]/monitor_locs_mid[:,0])).reshape((-1,1))
+            self.monitor_relative_locs = np.concatenate((monitor_locs_d,monitor_locs_theta),axis=1).reshape((self.monitors,-1))
 
-        self.obs_dim = 2*self.agents + 4
-        # Observation for each agent will be 7n-1 ndarray
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(1,self.obs_dim), dtype=int)
+        self.observation_space = spaces.Box(low=-4, high=4, shape=(1,self.obs_dim), dtype=int)
         return
+
+    def calcu_evader2monitor(self):
+        #calculate the relative locations of evaders to monitors
+        fullmonitoring = False
+        evader_locs_full = np.tile(self.evader_locs.reshape((1,-1)),(self.monitors,1))
+        monitors_locs_full = np.tile(self.monitor_locs,(1,self.evaders))
+        monitors_angles_full = np.tile(self.monitor_angles,(1,self.evaders))
+        relative_locs_xy = evader_locs_full - monitors_locs_full
+        relative_locs_mid = relative_locs_xy.reshape((-1,2))
+        self.relative_locs_d = np.linalg.norm(relative_locs_mid,axis=1,keepdims=True).reshape((self.monitors,self.evaders))
+        self.relative_locs_theta = np.arctan((relative_locs_mid[:,1]/relative_locs_mid[:,0])).reshape((self.monitors, self.evaders))
+        inrange = self.relative_locs_d < 1
+        inangle = (self.relative_locs_theta>monitors_angles_full)*(self.relative_locs_theta<(monitors_angles_full+np.pi*self.monitor_angle))+(2*np.pi+self.relative_locs_theta>monitors_angles_full)*(2*np.pi+self.relative_locs_theta<(monitors_angles_full+np.pi*self.monitor_angle)) 
+
+
+        self.monitoring_mat = inrange*inangle
+        #shape: (monitors,evaders)
+        monitoring_perevader = np.sum(self.monitoring_mat,axis=0)
+        if np.sum(monitoring_perevader==0)==0:
+            fullmonitoring = True
+        else:
+            fullmonitoring = False
+        return fullmonitoring
 
     def reset(self):
         """
@@ -81,60 +122,46 @@ class JointMonitoringEnv(gym.Env):
         -------
         observation (object): the initial observation of the space.
         """
-        self.episode_over = False
-        self.trasures_hunted = np.zeros(self.treatures)
 
-        coord = np.arange(self.dim)
-        xv, yv = np.meshgrid(coord,coord)
-        self.ref_loc = np.array(list(zip(xv.flat, yv.flat)))
-        #Spawn agents and targets
-        spawn_locs = np.random.choice(np.arange(self.dim*self.dim),size=self.agents+self.treatures,replace=False)
-        agent_loc_raw = spawn_locs[0:self.agents]
-        treasure_loc_raw = spawn_locs[self.agents:]
-        self.agent_loc = self.ref_loc[agent_loc_raw]*(1.0/self.dim) + 0.1
-        self.treature_loc = self.ref_loc[treasure_loc_raw]*(1.0/self.dim) + 0.1
+        #spawn evaders randomly 
+        self.evader_locs = np.random.rand(self.evaders,2)
+        self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen
+        self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen
+        self.monitor_angles = 2*math.pi*np.random.rand(self.monitors,1) - math.pi
+
+        self.episode_over = False
+        self.evaders_displacement = np.zeros((self.evaders,2))
         self.stat = dict()
+        self.stat['full_monitoring'] = 0
 
         # Observation will be nagent * vision * vision ndarray
         self.obs = self._get_obs()
         return self.obs
 
-    def check_arrival(self):
-        digging_rewards = np.zeros(self.agents)
-        for t_idx in range(self.treatures):
-            if self.trasures_hunted[t_idx] == 0:
-                digging_agents = []
-                for a_idx in range(self.agents):
-                    if np.linalg.norm(self.agent_loc[a_idx,:] - self.treature_loc[t_idx,:]) <= self.reach_distance and not (a_idx == t_idx):
-                        digging_agents.append(a_idx)  
-                    if len(digging_agents) >= 1:
-                        self.trasures_hunted[t_idx] = 1
-                        for a_idx in digging_agents:
-                            digging_rewards[a_idx] += self.TREASURE_DIGGING_REWARD
-                        digging_rewards[t_idx] += self.ASSIST_REWARD                   
-                                  
-        return digging_rewards
-
     def _get_obs(self):
         '''
         there are n agents
-        0:2: self location
-        2:4: self treasure location
-        4:2n+4: all agents location
+        0:1, self angle
+        1:2*evaders+1, evaders loc
+        2*evaders+1:2*evaders+3, if abs coords
+        2*evaders+1:2*evaders+1+2*monitors, if relative locs
         '''
-        new_obs_set = []
-        for idx in range(self.agents):
-            obs = np.zeros((self.agents+2,2))
-            obs[0,:] = self.agent_loc[idx,:]
-            if self.trasures_hunted[idx] == 0:
-                obs[1,:] = self.treature_loc[idx,:]
-            else:
-                obs[1,:] = np.array([-1,-1])
-            obs[2:,:] = self.agent_loc
-            new_obs_set.append(obs.flatten())
+        if self.observation_type <= 1:
+            temp_relative_locs_d = self.relative_locs_d 
+            temp_relative_locs_theta = self.relative_locs_theta
+            temp_relative_locs_d[self.monitoring_mat==False] = -1
+            temp_relative_locs_theta[self.monitoring_mat==False] = 0
+            evader_locs = np.concatenate((temp_relative_locs_d.reshape((-1,1)),temp_relative_locs_theta.reshape((-1,1)))).reshape((-1,2))
+        else:
+            evader_locs = np.concatenate((self.relative_locs_d.reshape((-1,1)),self.relative_locs_theta.reshape((-1,1)))).reshape((-1,2))
         
-        new_obs = np.vstack(new_obs_set)
-        return new_obs.copy()
+        if (self.observation_type == 0) or (self.observation_type == 2):
+            monitor_locs = self.monitor_locs
+        else:
+            monitor_locs = self.monitor_relative_locs
+
+        new_obs = np.concatenate((self.monitor_angles, evader_locs, monitor_locs),axis=1)
+        return new_obs
 
 
     def step(self, action):
@@ -157,31 +184,43 @@ class JointMonitoringEnv(gym.Env):
         if self.episode_over:
             raise RuntimeError("Episode is done")
 
+        #adjust monitors according to actions
         action = np.array(action).squeeze()
         #action = np.atleast_1d(action)
         assert np.all(action <= self.naction), "Actions should be in the range [0,naction)."
-        trans_action = [self.ref_act[idx,:] for idx in action]
-        self.agent_loc = self.agent_loc + trans_action
+        trans_action = [self.ref_act[idx] for idx in action]
+        self.monitor_angles = self.monitor_angles + trans_action
+        self.monitor_angles[self.monitor_angles>=math.pi] = self.monitor_angles[self.monitor_angles>=math.pi] - 2*math.pi
+        self.monitor_angles[self.monitor_angles<math.pi] = self.monitor_angles[self.monitor_angles<math.pi] + 2*math.pi
 
+        #let evaders run randomly
+        evaders_angle = 2*math.pi*np.random.rand(self.evaders)
+        self.evaders_displacement[:,0] = np.cos(evaders_angle)
+        self.evaders_displacement[:,1] = np.sin(evaders_angle)
+        self.evader_locs += self.evader_speed*self.self.evaders_displacement
+        x = self.evader_locs[:,0]
+        y = self.evader_locs[:,1]
+        x[x<0] = -x[x<0]
+        y[y<0] = -y[y<0]
+        x[x>self.xlen] = 2*self.xlen - x[x>self.xlen]
+        y[y>self.ylen] = 2*self.ylen - y[y>self.ylen]
+        self.evader_locs[:,0] = x
+        self.evader_locs[:,1] = y
         #renew observations
         self.obs = self._get_obs()
-        #check dones
-        digging_rewards = self.check_arrival()
+        full_monitoring = self.calcu_evader2monitor()
 
-        if np.sum(self.trasures_hunted) == self.treatures:
-            self.episode_over = True
-            self.stat['success'] = 1
+        if full_monitoring == True:
+            reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
+            self.stat['full_monitoring'] += 1
         else:
-            self.episode_over = False 
-            self.stat['success'] = 0
-        reward = np.full(self.agents, self.TIMESTEP_PENALTY)
-        reward += digging_rewards
+            reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
 
-        debug = {'agent_locs':self.agent_loc,'treature_locs':self.treature_loc}
+        monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
+        reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD
+
+        debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs}
         return self.obs, reward, self.episode_over, debug
 
     def seed(self):
         return
-
-    def reward_terminal(self):
-        return np.zeros(self.agents)
