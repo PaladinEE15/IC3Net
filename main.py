@@ -143,7 +143,7 @@ parser.add_argument('--GPU', default=0, type=int,
 # Configs for entropy loss
 parser.add_argument('--mim_gauss_var', default=1/9, type=float,
                     help='the variance of ref gaussian in mutual information minimization')
-parser.add_argument('--epsilon', default=1e-2, type=float,
+parser.add_argument('--epsilon', default=1e-4, type=float,
                     help='the variance of ref gaussian in mutual information minimization')
 parser.add_argument('--calcu_entropy', default=False, action='store_true', 
                     help='whether calculate entropy. ')
