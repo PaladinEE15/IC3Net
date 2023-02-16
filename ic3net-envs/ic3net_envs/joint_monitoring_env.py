@@ -47,7 +47,7 @@ class JointMonitoringEnv(gym.Env):
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
         self.evader_speed = args.evader_speed
-        self.monitor_angle = args.monitor_angle
+        self.single_monitor_angle = args.monitor_angle
         if args.nagents == 4:
             self.xlen = 2.414
             self.ylen = 2.414
@@ -85,7 +85,7 @@ class JointMonitoringEnv(gym.Env):
             monitor_locs_xy = monitor_locs_d0expand - monitor_locs_d1expand
             monitor_locs_mid = monitor_locs_xy.reshape((-1,2))
             monitor_locs_d = np.linalg.norm(monitor_locs_mid,axis=1,keepdims=True).reshape((-1,1))
-            monitor_locs_theta = np.arctan((monitor_locs_mid[:,1]/monitor_locs_mid[:,0])).reshape((-1,1))
+            monitor_locs_theta = np.arctan((monitor_locs_mid[:,1]/(monitor_locs_mid[:,0]+1e-4))).reshape((-1,1))
             self.monitor_relative_locs = np.concatenate((monitor_locs_d,monitor_locs_theta),axis=1).reshape((self.monitors,-1))
 
         self.observation_space = spaces.Box(low=-4, high=4, shape=(1,self.obs_dim), dtype=int)
@@ -97,12 +97,14 @@ class JointMonitoringEnv(gym.Env):
         evader_locs_full = np.tile(self.evader_locs.reshape((1,-1)),(self.monitors,1))
         monitors_locs_full = np.tile(self.monitor_locs,(1,self.evaders))
         monitors_angles_full = np.tile(self.monitor_angles,(1,self.evaders))
+        
         relative_locs_xy = evader_locs_full - monitors_locs_full
         relative_locs_mid = relative_locs_xy.reshape((-1,2))
         self.relative_locs_d = np.linalg.norm(relative_locs_mid,axis=1,keepdims=True).reshape((self.monitors,self.evaders))
-        self.relative_locs_theta = np.arctan((relative_locs_mid[:,1]/relative_locs_mid[:,0])).reshape((self.monitors, self.evaders))
+        self.relative_locs_theta = np.arctan((relative_locs_mid[:,1]/(relative_locs_mid[:,0]+1e-4))).reshape((self.monitors, self.evaders))
         inrange = self.relative_locs_d < 1
-        inangle = (self.relative_locs_theta>monitors_angles_full)*(self.relative_locs_theta<(monitors_angles_full+np.pi*self.monitor_angle))+((2*np.pi+self.relative_locs_theta)>monitors_angles_full)*((2*np.pi+self.relative_locs_theta)<(monitors_angles_full+np.pi*self.monitor_angle)) 
+
+        inangle = (self.relative_locs_theta>monitors_angles_full)*(self.relative_locs_theta<(monitors_angles_full+np.pi*self.single_monitor_angle))+((2*np.pi+self.relative_locs_theta)>monitors_angles_full)*((2*np.pi+self.relative_locs_theta)<(monitors_angles_full+np.pi*self.single_monitor_angle)) 
 
 
         self.monitoring_mat = inrange*inangle
@@ -135,6 +137,7 @@ class JointMonitoringEnv(gym.Env):
         self.stat['full_monitoring'] = 0
 
         # Observation will be nagent * vision * vision ndarray
+        _ = self.calcu_evader2monitor()
         self.obs = self._get_obs()
         return self.obs
 
@@ -189,7 +192,7 @@ class JointMonitoringEnv(gym.Env):
         #action = np.atleast_1d(action)
         assert np.all(action <= self.naction), "Actions should be in the range [0,naction)."
         trans_action = [self.ref_act[idx] for idx in action]
-        self.monitor_angles = self.monitor_angles + trans_action
+        self.monitor_angles = self.monitor_angles + np.array(trans_action).reshape((-1,1))
         self.monitor_angles[self.monitor_angles>=math.pi] = self.monitor_angles[self.monitor_angles>=math.pi] - 2*math.pi
         self.monitor_angles[self.monitor_angles<-math.pi] = self.monitor_angles[self.monitor_angles<-math.pi] + 2*math.pi
 
@@ -213,11 +216,13 @@ class JointMonitoringEnv(gym.Env):
         if full_monitoring == True:
             reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
             self.stat['full_monitoring'] += 1
+        else:
+            reward = np.zeros(self.monitors)
 
         monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
         reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD
 
-        debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs}
+        debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs, 'full_monitoring':self.stat['full_monitoring']}
         return self.obs, reward, self.episode_over, debug
 
     def seed(self):

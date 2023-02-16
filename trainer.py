@@ -143,8 +143,6 @@ class Trainer(object):
                 break
         stat['num_steps'] = t + 1
         stat['steps_taken'] = stat['num_steps']
-        if 'full_monitoring' in stat:
-            stat['full_monitoring'] = stat['full_monitoring']
 
         if hasattr(self.env, 'reward_terminal'):
             reward = self.env.reward_terminal()
