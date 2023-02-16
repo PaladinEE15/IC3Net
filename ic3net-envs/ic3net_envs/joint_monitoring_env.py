@@ -102,7 +102,7 @@ class JointMonitoringEnv(gym.Env):
         self.relative_locs_d = np.linalg.norm(relative_locs_mid,axis=1,keepdims=True).reshape((self.monitors,self.evaders))
         self.relative_locs_theta = np.arctan((relative_locs_mid[:,1]/relative_locs_mid[:,0])).reshape((self.monitors, self.evaders))
         inrange = self.relative_locs_d < 1
-        inangle = (self.relative_locs_theta>monitors_angles_full)*(self.relative_locs_theta<(monitors_angles_full+np.pi*self.monitor_angle))+(2*np.pi+self.relative_locs_theta>monitors_angles_full)*(2*np.pi+self.relative_locs_theta<(monitors_angles_full+np.pi*self.monitor_angle)) 
+        inangle = (self.relative_locs_theta>monitors_angles_full)*(self.relative_locs_theta<(monitors_angles_full+np.pi*self.monitor_angle))+((2*np.pi+self.relative_locs_theta)>monitors_angles_full)*((2*np.pi+self.relative_locs_theta)<(monitors_angles_full+np.pi*self.monitor_angle)) 
 
 
         self.monitoring_mat = inrange*inangle
@@ -151,9 +151,9 @@ class JointMonitoringEnv(gym.Env):
             temp_relative_locs_theta = self.relative_locs_theta
             temp_relative_locs_d[self.monitoring_mat==False] = -1
             temp_relative_locs_theta[self.monitoring_mat==False] = 0
-            evader_locs = np.concatenate((temp_relative_locs_d.reshape((-1,1)),temp_relative_locs_theta.reshape((-1,1)))).reshape((-1,2))
+            evader_locs = np.concatenate((temp_relative_locs_d.reshape((-1,1)),temp_relative_locs_theta.reshape((-1,1))),axis=1).reshape((self.monitors,-1))
         else:
-            evader_locs = np.concatenate((self.relative_locs_d.reshape((-1,1)),self.relative_locs_theta.reshape((-1,1)))).reshape((-1,2))
+            evader_locs = np.concatenate((self.relative_locs_d.reshape((-1,1)),self.relative_locs_theta.reshape((-1,1))),axis=1).reshape((self.monitors,-1))
         
         if (self.observation_type == 0) or (self.observation_type == 2):
             monitor_locs = self.monitor_locs
@@ -191,13 +191,13 @@ class JointMonitoringEnv(gym.Env):
         trans_action = [self.ref_act[idx] for idx in action]
         self.monitor_angles = self.monitor_angles + trans_action
         self.monitor_angles[self.monitor_angles>=math.pi] = self.monitor_angles[self.monitor_angles>=math.pi] - 2*math.pi
-        self.monitor_angles[self.monitor_angles<math.pi] = self.monitor_angles[self.monitor_angles<math.pi] + 2*math.pi
+        self.monitor_angles[self.monitor_angles<-math.pi] = self.monitor_angles[self.monitor_angles<-math.pi] + 2*math.pi
 
         #let evaders run randomly
         evaders_angle = 2*math.pi*np.random.rand(self.evaders)
         self.evaders_displacement[:,0] = np.cos(evaders_angle)
         self.evaders_displacement[:,1] = np.sin(evaders_angle)
-        self.evader_locs += self.evader_speed*self.self.evaders_displacement
+        self.evader_locs += self.evader_speed*self.evaders_displacement
         x = self.evader_locs[:,0]
         y = self.evader_locs[:,1]
         x[x<0] = -x[x<0]
@@ -213,8 +213,6 @@ class JointMonitoringEnv(gym.Env):
         if full_monitoring == True:
             reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
             self.stat['full_monitoring'] += 1
-        else:
-            reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
 
         monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
         reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD

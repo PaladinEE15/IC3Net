@@ -143,6 +143,8 @@ class Trainer(object):
                 break
         stat['num_steps'] = t + 1
         stat['steps_taken'] = stat['num_steps']
+        if 'full_monitoring' in stat:
+            stat['full_monitoring'] = stat['full_monitoring']
 
         if hasattr(self.env, 'reward_terminal'):
             reward = self.env.reward_terminal()
@@ -347,7 +349,10 @@ class Trainer(object):
                 comm_stat_acc = comm_stat.detach().cpu().numpy()
             else:
                 comm_stat_acc = np.concatenate((comm_stat_acc,comm_stat.detach().cpu().numpy()))
-            success_times.append(episode_stat['success'])
+            if 'success' in episode_stat.keys():
+                success_times.append(episode_stat['success'])
+            else:
+                success_times.append(episode_stat['full_monitoring'])
             steps_taken.append(episode_stat['steps_taken'])   
 
         return comm_stat_acc, np.array(steps_taken), np.array(success_times)

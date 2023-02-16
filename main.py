@@ -2,7 +2,9 @@ import sys
 import time
 import signal
 import argparse
-
+import warnings
+import warnings
+warnings.filterwarnings("ignore", message="Parameters to load are deprecated")
 import numpy as np
 import torch
 import visdom
@@ -284,6 +286,8 @@ def run(num_epochs):
                 print('Cars_arrival: {:.3f}'.format(stat['cars_arrival']))
             if 'steps_taken' in stat.keys():
                 print('Steps-taken: {:.2f}'.format(stat['steps_taken']))
+            if 'full_monitoring' in stat.keys():
+                print('full_monitoring: {:.2f}'.format(stat['full_monitoring']))
             if 'comm_action' in stat.keys():
                 print('Comm-Action: {}'.format(stat['comm_action']))
             if 'enemy_comm' in stat.keys():
@@ -402,6 +406,7 @@ if __name__ == '__main__':
     log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['cars_arrival'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['full_monitoring'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['comm_action'] = LogField(list(), True, 'epoch', 'num_steps')
     log['enemy_comm'] = LogField(list(), True, 'epoch', 'num_steps')
