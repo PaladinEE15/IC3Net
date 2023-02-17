@@ -27,13 +27,14 @@ class JointMonitoringEnv(gym.Env):
 
         # TODO: better config handling
         self.FULL_MONITORING_REWARD = 1
-        self.IN_MONITORING_REWARD = 0.1
+        self.TIME_PENALTY = -0.02
+        self.IN_MONITORING_REWARD = 0.01
         self.episode_over = False
 
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative Search task')
-        env.add_argument("--evader_speed", type=float, default=0.2, 
-                    help="How many targets one agent must reach")
+        env.add_argument("--evader_speed", type=float, default=0, 
+                    help="speed of evaders")
         env.add_argument("--monitor_angle", type=float, default=0.25, 
                     help="Monitor observation angle")
         env.add_argument("--observation_type", type=int, default=0, 
@@ -67,8 +68,8 @@ class JointMonitoringEnv(gym.Env):
             return
 
         self.observation_type = args.observation_type
-        self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,1/6*math.pi,-1/6*math.pi])
-        self.naction = 4
+        self.ref_act = np.array([0.5*math.pi,-0.5*math.pi])
+        self.naction = 2
 
         self.action_space = spaces.MultiDiscrete([self.naction])
         #observation space design
@@ -137,7 +138,7 @@ class JointMonitoringEnv(gym.Env):
         self.episode_over = False
         self.evaders_displacement = np.zeros((self.evaders,2))
         self.stat = dict()
-        self.stat['full_monitoring'] = 0
+        self.stat['success'] = 0
 
         # Observation will be nagent * vision * vision ndarray
         _ = self.calcu_evader2monitor()
@@ -218,14 +219,17 @@ class JointMonitoringEnv(gym.Env):
 
         if full_monitoring == True:
             reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
-            self.stat['full_monitoring'] += 1
+            self.stat['success'] = 1
+            self.episode_over = True
         else: 
-            reward = np.zeros(self.monitors)
+            self.episode_over = False
+            self.stat['success'] = 0
+            reward = self.TIME_PENALTY*np.ones(self.monitors)
             if self.reward_type == 1:          
                 monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
                 reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD
 
-        debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs, 'full_monitoring':self.stat['full_monitoring']}
+        debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs}
         return self.obs, reward, self.episode_over, debug
 
     def seed(self):
