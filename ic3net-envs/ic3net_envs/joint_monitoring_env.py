@@ -75,11 +75,11 @@ class JointMonitoringEnv(gym.Env):
         #self angle:1
         #self abs coords:2
         #others relative coords: 2*(n-1)
-        #target observation: 2*evaders
+        #target observation: 3*evaders, including whether observes
         if (self.observation_type == 0) or (self.observation_type == 2):
-            self.obs_dim = 3 + 2*self.evaders
+            self.obs_dim = 3 + 3*self.evaders
         else:
-            self.obs_dim = 1 + 2*self.monitors + 2*self.evaders
+            self.obs_dim = 1 + 2*self.monitors + 3*self.evaders
         
         #calculate monitors locs and relative locs first
         if (self.observation_type == 1) or (self.observation_type == 3):
@@ -166,7 +166,7 @@ class JointMonitoringEnv(gym.Env):
         else:
             monitor_locs = self.monitor_relative_locs
 
-        new_obs = np.concatenate((self.monitor_angles, evader_locs, monitor_locs),axis=1)
+        new_obs = np.concatenate((self.monitor_angles, evader_locs, monitor_locs,self.monitoring_mat.astype(np.float32)),axis=1)
         return new_obs
 
 
