@@ -27,7 +27,7 @@ class JointMonitoringEnv(gym.Env):
 
         # TODO: better config handling
         self.FULL_MONITORING_REWARD = 1
-        self.IN_MONITORING_REWARD = 0.2
+        self.IN_MONITORING_REWARD = 0.1
         self.episode_over = False
 
     def init_args(self, parser):
@@ -38,6 +38,8 @@ class JointMonitoringEnv(gym.Env):
                     help="Monitor observation angle")
         env.add_argument("--observation_type", type=int, default=0, 
                     help="0-self abs coords + partial target observation;1-all others relative coords + partial target observation;2-self abs ccords+ full...")
+        env.add_argument("--reward_type", type=int, default=0, 
+                    help="0-only full observation reward;1-when not full observation, give individual reward")
         #there's another kind of observation: rangefinder. However the detection is complex......
         #firstly, calculate the sector according to angle
         #secondly, update corresponding sensor data (note that covering......)
@@ -48,17 +50,18 @@ class JointMonitoringEnv(gym.Env):
         # General variables defining the environment : CONFIG
         self.evader_speed = args.evader_speed
         self.single_monitor_angle = args.monitor_angle
+        self.reward_type = args.reward_type
         if args.nagents == 4:
             self.xlen = 2.414
             self.ylen = 2.414
             self.monitors = 4
-            self.evaders = 5
+            self.evaders = 4
             self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707]])
         elif args.nagents == 6:
             self.xlen = 3.414
             self.ylen = 2.414
             self.monitors = 6
-            self.evaders = 8        
+            self.evaders = 6        
             self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707],[2.707,1.707],[2.707,0.707]])    
         else:
             return
@@ -216,11 +219,11 @@ class JointMonitoringEnv(gym.Env):
         if full_monitoring == True:
             reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
             self.stat['full_monitoring'] += 1
-        else:
+        else: 
             reward = np.zeros(self.monitors)
-
-        monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
-        reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD
+            if self.reward_type == 1:          
+                monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
+                reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD
 
         debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs, 'full_monitoring':self.stat['full_monitoring']}
         return self.obs, reward, self.episode_over, debug
