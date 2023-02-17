@@ -239,11 +239,11 @@ class CommNetMLP(nn.Module):
 
 
         # Hard Attention - action whether an agent communicates or not
-        if self.args.hard_attn:
-            comm_action = torch.tensor(info['comm_action']).to(torch.device("cuda"))
-            comm_action_mask = comm_action.expand(batch_size, n, n).unsqueeze(-1)
+        #if self.args.hard_attn:
+            #comm_action = torch.tensor(info['comm_action']).to(torch.device("cuda"))
+            #comm_action_mask = comm_action.expand(batch_size, n, n).unsqueeze(-1)
             # action 1 is talk, 0 is silent i.e. act as dead for comm purposes.
-            agent_mask = agent_mask*comm_action_mask.double()
+            #agent_mask = agent_mask*comm_action_mask.double()
 
         agent_mask_transpose = agent_mask.transpose(1, 2)
 
