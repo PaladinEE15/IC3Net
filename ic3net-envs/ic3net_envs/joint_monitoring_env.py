@@ -35,12 +35,14 @@ class JointMonitoringEnv(gym.Env):
         env = parser.add_argument_group('Cooperative Search task')
         env.add_argument("--evader_speed", type=float, default=0, 
                     help="speed of evaders")
-        env.add_argument("--monitor_angle", type=float, default=0.5, 
-                    help="Monitor observation angle")
         env.add_argument("--observation_type", type=int, default=0, 
                     help="0-self abs coords + partial target observation;1-all others relative coords + partial target observation;2-self abs ccords+ full...")
         env.add_argument("--reward_type", type=int, default=0, 
                     help="0-full cooperative;1-mix cooperative")
+        env.add_argument("--monitor_type", type=int, default=0, 
+                    help="0-not in corners, 1-in corners")
+        env.add_argument("--add_evaders", type=int, default=0, 
+                    help="number of additional evaders")            
         #there's another kind of observation: rangefinder. However the detection is complex......
         #firstly, calculate the sector according to angle
         #secondly, update corresponding sensor data (note that covering......)
@@ -50,25 +52,43 @@ class JointMonitoringEnv(gym.Env):
     def multi_agent_init(self, args):
         # General variables defining the environment : CONFIG
         self.evader_speed = args.evader_speed
-        self.single_monitor_angle = args.monitor_angle
         self.reward_type = args.reward_type
-        if args.nagents == 4:
-            self.xlen = 2.414
-            self.ylen = 2.414
-            self.monitors = 4
-            self.evaders = 4
-            self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707]])
-        elif args.nagents == 6:
-            self.xlen = 3.414
-            self.ylen = 2.414
-            self.monitors = 6
-            self.evaders = 6        
-            self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707],[2.707,1.707],[2.707,0.707]])    
+        self.monitor_type = args.monitor_type
+        if self.monitor_type == 0:
+            self.single_monitor_angle = 0.5
+            self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,0.25*math.pi,-0.25*math.pi,0])
+            if args.nagents == 4:
+                self.xlen = 2.414
+                self.ylen = 2.414
+                self.monitors = 4
+                self.evaders = 4 + args.add_evaders
+                self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707]])
+            elif args.nagents == 6:
+                self.xlen = 3.414
+                self.ylen = 2.414
+                self.monitors = 6
+                self.evaders = 6 + args.add_evaders        
+                self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707],[2.707,1.707],[2.707,0.707]])    
+        elif self.monitor_type == 1:
+            self.single_monitor_angle = 1/6
+            self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,1/6*math.pi,-1/6*math.pi,0])
+            if args.nagents == 4:
+                self.xlen = 1
+                self.ylen = 1
+                self.monitors = 4
+                self.evaders = 4 + args.add_evaders
+                self.monitor_locs = np.array([[0,0],[0,1],[1,0],[1,1]])
+            elif args.nagents == 6:
+                self.xlen = 2
+                self.ylen = 1
+                self.monitors = 6
+                self.evaders = 6 + args.add_evaders        
+                self.monitor_locs = np.array([[0,0],[0,1],[1,0],[1,1],[2,1],[2,0]]) 
         else:
             return
 
         self.observation_type = args.observation_type
-        self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,0.25*math.pi,-0.25*math.pi,0])
+        
         self.naction = 5
 
         self.action_space = spaces.MultiDiscrete([self.naction])
@@ -79,8 +99,10 @@ class JointMonitoringEnv(gym.Env):
         #target observation: 3*evaders, including whether observes
         if (self.observation_type == 0) or (self.observation_type == 2):
             self.obs_dim = 3 + 3*self.evaders
-        else:
+        elif (self.observation_type == 1) or (self.observation_type == 3):
             self.obs_dim = 1 + 2*self.monitors + 3*self.evaders
+        else:
+            self.obs_dim = 11 + self.evaders
         
         #calculate monitors locs and relative locs first
         if (self.observation_type == 1) or (self.observation_type == 3):
@@ -165,15 +187,38 @@ class JointMonitoringEnv(gym.Env):
             temp_relative_locs_d[self.monitoring_mat==False] = -1
             temp_relative_locs_theta[self.monitoring_mat==False] = 0
             evader_locs = np.concatenate((temp_relative_locs_d.reshape((-1,1)),temp_relative_locs_theta.reshape((-1,1))),axis=1).reshape((self.monitors,-1))
-        else:
+        elif self.observation_type <= 3:
             evader_locs = np.concatenate((self.relative_locs_d.reshape((-1,1)),self.relative_locs_theta.reshape((-1,1))),axis=1).reshape((self.monitors,-1))
         
         if (self.observation_type == 0) or (self.observation_type == 2):
             monitor_locs = self.monitor_locs
-        else:
+        elif (self.observation_type == 1) or (self.observation_type == 3):
             monitor_locs = self.monitor_relative_locs
-
-        new_obs = np.concatenate((self.monitor_angles, evader_locs, monitor_locs,self.monitoring_mat.astype(np.float32)),axis=1)
+        
+        '''
+        type4:
+        0:1, self angle
+        1:3, self coordinates
+        3:11, eight sensor range
+        11:11+nevaders, one hot, denote whether evader is observed
+        self.relative_locs_d
+        self.relative_locs_theta
+        self.monitoring_mat
+        monitors_angles_full = np.tile(self.monitor_angles,(1,self.evaders))
+        '''
+        if self.observation_type == 4:
+            monitor_sensors_status = np.ones((self.monitors,9))
+            monitors_angles_full = np.tile(self.monitor_angles,(1,self.evaders))
+            sec_angle = self.single_monitor_angle*np.pi/8
+            add_idx = (self.relative_locs_theta<monitors_angles_full)*self.monitoring_mat
+            self.relative_locs_theta[add_idx] += 2*np.pi
+            sectors = (np.ceil((self.relative_locs_theta - monitors_angles_full)/sec_angle)*self.monitoring_mat).astype(int)
+            x_idx = np.arange(self.monitors).reshape(-1,1)
+            monitor_sensors_status[x_idx, sectors] = self.relative_locs_d
+            new_obs = np.concatenate((self.monitor_angles, self.monitor_locs, monitor_sensors_status[:,1:], self.monitoring_mat.astype(np.float32)),axis=1)
+        else:
+            new_obs = np.concatenate((self.monitor_angles, evader_locs, monitor_locs,self.monitoring_mat.astype(np.float32)),axis=1)
+        
         return new_obs
 
 
@@ -220,8 +265,8 @@ class JointMonitoringEnv(gym.Env):
         self.evader_locs[:,0] = x
         self.evader_locs[:,1] = y
         #renew observations
-        self.obs = self._get_obs()
         full_monitoring = self.calcu_evader2monitor()
+        self.obs = self._get_obs()
 
         if full_monitoring == True:
             reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
