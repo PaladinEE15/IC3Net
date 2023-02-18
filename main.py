@@ -282,6 +282,8 @@ def run(num_epochs):
                 print('Add-Rate: {:.3f}'.format(stat['add_rate']))
             if 'success' in stat.keys():
                 print('Success: {:.3f}'.format(stat['success']))
+            if 'full_monitoring' in stat.keys():
+                print('Full monitoring: {:.3f}'.format(stat['full_monitoring']))
             if 'cars_arrival' in stat.keys():
                 print('Cars_arrival: {:.3f}'.format(stat['cars_arrival']))
             if 'steps_taken' in stat.keys():
@@ -402,6 +404,7 @@ if __name__ == '__main__':
     log['reward'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['enemy_reward'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['success'] = LogField(list(), True, 'epoch', 'num_episodes')
+    log['full_monitoring'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['cars_arrival'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['steps_taken'] = LogField(list(), True, 'epoch', 'num_episodes')
     log['add_rate'] = LogField(list(), True, 'epoch', 'num_episodes')
