@@ -42,7 +42,9 @@ class JointMonitoringEnv(gym.Env):
         env.add_argument("--monitor_type", type=int, default=0, 
                     help="0-not in corners, 1-in corners")
         env.add_argument("--add_evaders", type=int, default=0, 
-                    help="number of additional evaders")            
+                    help="number of additional evaders")   
+        env.add_argument('--catch', default=False, action='store_true', 
+                    help='catch or monitor')         
         #there's another kind of observation: rangefinder. However the detection is complex......
         #firstly, calculate the sector according to angle
         #secondly, update corresponding sensor data (note that covering......)
@@ -54,6 +56,7 @@ class JointMonitoringEnv(gym.Env):
         self.evader_speed = args.evader_speed
         self.reward_type = args.reward_type
         self.monitor_type = args.monitor_type
+        self.catch = args.catch
         if self.monitor_type == 0:
             self.single_monitor_angle = 0.5
             self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,0.25*math.pi,-0.25*math.pi,0])
@@ -153,20 +156,28 @@ class JointMonitoringEnv(gym.Env):
 
         #spawn evaders randomly 
         self.evader_locs = np.random.rand(self.evaders,2)
-        self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen/2
-        if self.evaders == 4:
-            self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen/2
-            fix_locs = np.array([[0,0],[self.xlen/2,0],[0,self.ylen/2],[self.xlen/2,self.ylen/2]])
+
+        if self.monitor_type == 0:
+            self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen/2
+            if self.evaders == 4:
+                self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen/2
+                fix_locs = np.array([[0,0],[self.xlen/2,0],[0,self.ylen/2],[self.xlen/2,self.ylen/2]])
+            else:
+                self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen/3
+                fix_locs = np.array([[0,0],[self.xlen/3,0],[0,self.ylen/2],[self.xlen/3,self.ylen/2],[2*self.xlen/3,self.ylen/2],[2*self.xlen/3,0]])
+            self.evader_locs += fix_locs
         else:
-            self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen/3
-            fix_locs = np.array([[0,0],[self.xlen/3,0],[0,self.ylen/2],[self.xlen/3,self.ylen/2],[2*self.xlen/3,self.ylen/2],[2*self.xlen/3,0]])
-        self.evader_locs += fix_locs
+            self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen
+            self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen
         self.monitor_angles = 2*math.pi*np.random.rand(self.monitors,1) - math.pi
 
         self.episode_over = False
         self.evaders_displacement = np.zeros((self.evaders,2))
         self.stat = dict()
-        self.stat['full_monitoring'] = 0
+        if self.catch:
+            self.stat['success'] = 0
+        else:
+            self.stat['full_monitoring'] = 0
 
         # Observation will be nagent * vision * vision ndarray
         _ = self.calcu_evader2monitor()
@@ -270,7 +281,11 @@ class JointMonitoringEnv(gym.Env):
 
         if full_monitoring == True:
             reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
-            self.stat['full_monitoring'] += 1
+            if self.catch:
+                self.stat['success'] = 1
+                self.episode_over = True
+            else:
+                self.stat['full_monitoring'] += 1
         else: 
             reward = self.TIME_PENALTY*np.ones(self.monitors)
             monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
