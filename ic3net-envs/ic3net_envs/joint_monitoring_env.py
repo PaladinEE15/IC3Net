@@ -73,15 +73,17 @@ class JointMonitoringEnv(gym.Env):
                 self.evaders = 6 + args.add_evaders        
                 self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707],[2.707,1.707],[2.707,0.707]])    
         elif self.monitor_type == 1:
-            self.single_monitor_angle = 1/6
-            self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,1/6*math.pi,-1/6*math.pi,0])
             if args.nagents == 4:
+                self.ref_act = np.array([1/6*math.pi,-1/6*math.pi,1/12*math.pi,-1/12*math.pi,0])
+                self.single_monitor_angle = 1/6
                 self.xlen = 1
                 self.ylen = 1
                 self.monitors = 4
                 self.evaders = 4 + args.add_evaders
                 self.monitor_locs = np.array([[0,0],[0,1],[1,0],[1,1]])
             elif args.nagents == 6:
+                self.single_monitor_angle = 1/4
+                self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/2*math.pi,-1/2*math.pi,0])
                 self.xlen = 2
                 self.ylen = 1
                 self.monitors = 6
