@@ -187,6 +187,8 @@ class CommNetMLP(nn.Module):
             comm_inuse = comm_new
             comm = comm_inuse
         #the message range is (-1, 1)
+        comm = self.args.compress_msg*comm
+        comm_info = self.args.compress_msg*comm_info
         if self.quant:
             qt_comm = (comm+1)*0.5
             qt_comm = qt_comm*(self.args.quant_levels-1)
@@ -196,7 +198,7 @@ class CommNetMLP(nn.Module):
             comm_inuse = (qt_comm-comm).detach()+comm
         if self.args.no_comm:
             return torch.zeros_like(comm_inuse), torch.zeros_like(comm_info)
-        return self.args.compress_msg*comm_inuse, self.args.compress_msg*comm_info
+        return comm_inuse/self.args.compress_msg, comm_info
         
 
     def forward(self, x, info={}, quant=False):
