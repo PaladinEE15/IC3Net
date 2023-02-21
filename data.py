@@ -37,6 +37,10 @@ def init(env_name, args, final_init=True):
         env = gym.make('JointMonitoring-v0')
         env.multi_agent_init(args)
         env = GymWrapper(env)
+    elif env_name == 'cooperative_occupation':
+        env = gym.make('CooperativeOccupation-v0')
+        env.multi_agent_init(args)
+        env = GymWrapper(env)
     else:
         raise RuntimeError("wrong env name")
 

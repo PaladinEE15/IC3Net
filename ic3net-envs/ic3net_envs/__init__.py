@@ -24,3 +24,8 @@ register(
     id='JointMonitoring-v0',
     entry_point='ic3net_envs.joint_monitoring_env:JointMonitoringEnv',
 )
+
+register(
+    id='CooperativeOccupation-v0',
+    entry_point='ic3net_envs.cooperative_occupation_env:CooperativeOccupationEnv',
+)

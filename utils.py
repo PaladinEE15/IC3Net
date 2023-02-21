@@ -113,6 +113,7 @@ def init_args_for_env(parser):
         'treasure_hunt': 'TreasureHunt-v0',
         'coop_search': 'CooperativeSearch-v0',
         'joint_monitoring':'JointMonitoring-v0',
+        'cooperative_occupation':'CooperativeOccupation-v0',
         'starcraft': 'StarCraftWrapper-v0'
     }
 

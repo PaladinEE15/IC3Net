@@ -198,7 +198,7 @@ class CommNetMLP(nn.Module):
             comm_inuse = (qt_comm-comm).detach()+comm
         if self.args.no_comm:
             return torch.zeros_like(comm_inuse), torch.zeros_like(comm_info)
-        return comm_inuse/self.args.compress_msg, comm_info
+        return 1/self.args.compress_msg*comm_inuse, comm_info
         
 
     def forward(self, x, info={}, quant=False):
@@ -258,9 +258,9 @@ class CommNetMLP(nn.Module):
             if self.args.drop_prob > 0:
                 random_mat = torch.rand(batch_size, n).to(torch.device("cuda"))
                 judge_ref_mat = self.args.drop_prob*torch.ones((batch_size, n)).to(torch.device("cuda"))
-                raw_msg_weight = (random_mat>judge_ref_mat).reshape(batch_size, n, 1)
+                raw_msg_weight = (random_mat>judge_ref_mat).reshape(batch_size, n, 1).int()
                 fake_comm = torch.zeros(batch_size, n, self.args.msg_size).to(torch.device("cuda"))
-                fake_msg_weight = (random_mat<=judge_ref_mat).reshape(batch_size,n, 1)
+                fake_msg_weight = (random_mat<=judge_ref_mat).reshape(batch_size,n, 1).int()
                 comm_agents = torch.sum(raw_msg_weight)
                 comm = comm*raw_msg_weight + fake_comm*fake_msg_weight
                 assert (batch_size==1)
@@ -281,7 +281,9 @@ class CommNetMLP(nn.Module):
                     comm_numbers = comm_agents*torch.ones(batch_size, n, 1).to(torch.device("cuda"))
                     comm_numbers = comm_numbers - raw_msg_weight
                     comm_weight = comm_numbers.unsqueeze(-2).expand(-1, n, n, self.args.msg_size)
-                    comm = comm/comm_weight
+                    true_weight = comm_weight.clone()
+                    true_weight[comm_weight<=1] = 1
+                    comm = comm/true_weight
                 else:
                     comm = comm / (num_agents_alive - 1)
 
