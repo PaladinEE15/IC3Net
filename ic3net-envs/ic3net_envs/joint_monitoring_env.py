@@ -38,7 +38,7 @@ class JointMonitoringEnv(gym.Env):
         env.add_argument("--observation_type", type=int, default=0, 
                     help="0-self abs coords + partial target observation;1-all others relative coords + partial target observation;2-self abs ccords+ full...")
         env.add_argument("--reward_type", type=int, default=0, 
-                    help="0-full cooperative;1-mix cooperative")
+                    help="0-full_monitor;1-monitor as much as possible")
         env.add_argument("--monitor_type", type=int, default=0, 
                     help="0-not in corners, 1-in corners")
         env.add_argument("--add_evaders", type=int, default=0, 
@@ -159,18 +159,8 @@ class JointMonitoringEnv(gym.Env):
         #spawn evaders randomly 
         self.evader_locs = np.random.rand(self.evaders,2)
 
-        if self.monitor_type == 0:
-            self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen/2
-            if self.evaders == 4:
-                self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen/2
-                fix_locs = np.array([[0,0],[self.xlen/2,0],[0,self.ylen/2],[self.xlen/2,self.ylen/2]])
-            else:
-                self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen/3
-                fix_locs = np.array([[0,0],[self.xlen/3,0],[0,self.ylen/2],[self.xlen/3,self.ylen/2],[2*self.xlen/3,self.ylen/2],[2*self.xlen/3,0]])
-            self.evader_locs += fix_locs
-        else:
-            self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen
-            self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen
+        self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen
+        self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen
         self.monitor_angles = 2*math.pi*np.random.rand(self.monitors,1) - math.pi
 
         self.episode_over = False
@@ -280,21 +270,25 @@ class JointMonitoringEnv(gym.Env):
         #renew observations
         full_monitoring = self.calcu_evader2monitor()
         self.obs = self._get_obs()
-
-        if full_monitoring == True:
-            reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
-            if self.catch:
-                self.stat['success'] = 1
-                self.episode_over = True
-            else:
-                self.stat['full_monitoring'] += 1
-        else: 
-            reward = self.TIME_PENALTY*np.ones(self.monitors)
-            monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
-            if self.reward_type == 0:          
-                reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD
-            else:
-                reward[monitoring_permonitor>0] += 2*self.IN_MONITORING_REWARD
+        
+        if self.reward_type == 0:
+            if full_monitoring == True:
+                reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
+                if self.catch:
+                    self.stat['success'] = 1
+                    self.episode_over = True
+                else:
+                    self.stat['full_monitoring'] += 1
+            else: 
+                reward = self.TIME_PENALTY*np.ones(self.monitors)
+                monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
+                if self.reward_type == 0:          
+                    reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD
+        else:
+            monitoring_perevader = np.sum(self.monitoring_mat,axis=0)
+            monitor_numbers = np.sum(monitoring_perevader>0)
+            self.stat['full_monitoring'] += monitor_numbers
+            reward = monitor_numbers*self.IN_MONITORING_REWARD*np.ones(self.monitors)
 
         debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs}
         return self.obs, reward, self.episode_over, debug

@@ -38,7 +38,8 @@ class CooperativeOccupationEnv(gym.Env):
                     help="0-full cooperative with occupy;1-close reward")   
         env.add_argument("--setting", type=int, default=0, 
                     help="0-easy;1-hard")       
-
+        env.add_argument('--small_obs', action='store_true', default=False,
+                    help='small obstacle')
         #there's another kind of observation: rangefinder. However the detection is complex......
         #firstly, calculate the sector according to angle
         #secondly, update corresponding sensor data (note that covering......)
@@ -54,17 +55,24 @@ class CooperativeOccupationEnv(gym.Env):
             self.speed = 0.1 
             self.detection_range = 0.2
             self.occupation_range = 0.1
-            self.inner_col_range = 0.15
+            self.inner_col_range = 0.12
             self.outer_col_range = 0.2
             self.border_col_range = 0.075
             
-        else:
+        elif args.setting == 1:
             self.speed = 0.05
             self.border_col_range = 0.0375
             self.detection_range = 0.1
             self.occupation_range = 0.05
-            self.inner_col_range = 0.075
+            self.inner_col_range = 0.06
             self.outer_col_range = 0.2
+        
+        if args.small_obs:
+            self.spawn_limit = 0.2
+            self.outer_col_range = 0.1
+        else:
+            self.spawn_limit = 0.3
+
 
         self.nonobserve_mat = -1*np.ones((self.nagent,2*self.nagent))
         self.naction = 9
@@ -102,7 +110,7 @@ class CooperativeOccupationEnv(gym.Env):
         self.stat['success'] = 0
         self.stat['collisions'] = 0
         #generate obstacles
-        self.obs_locs = 0.3+0.4*np.random.rand(2).reshape((1,2))
+        self.obs_locs = 0.2+0.5*np.random.rand(2).reshape((1,2))
         #generate targets
         temp_target_idx = np.random.shuffle(self.raw_index)
         total_targets = self.potential_targets[temp_target_idx,:].squeeze()
@@ -112,7 +120,7 @@ class CooperativeOccupationEnv(gym.Env):
             sign = 0
             while sign == 0:
                 dist = np.linalg.norm(self.target_locs[check_idx,:]-self.obs_locs[0,:])
-                if dist <= 0.3:
+                if dist <= self.spawn_limit:
                     self.target_locs[check_idx,:] = total_targets[new_idx,:]
                     new_idx += 1
                 else:
@@ -123,7 +131,7 @@ class CooperativeOccupationEnv(gym.Env):
             sign = 0
             while sign == 0:
                 dist = np.linalg.norm(self.agent_locs[check_idx,:]-self.obs_locs[0,:])
-                if dist <= self.outer_col_range:
+                if dist <= self.spawn_limit:
                     self.agent_locs[check_idx,:] = np.random.rand(2)
                 else:
                     sign = 1
