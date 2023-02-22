@@ -204,7 +204,7 @@ class CooperativeOccupationEnv(gym.Env):
         self.obs, inagent_distance = self._get_obs()
 
         #check inagent collision
-        collision_mat = (inagent_distance<self.inner_col_range).reshape((self.nagent,self.nagent))
+        collision_mat = ((inagent_distance>0)*(inagent_distance<self.inner_col_range)).reshape((self.nagent,self.nagent))
         collision_peragent = np.sum(collision_mat,axis=1)
         reward[collision_peragent>0] += self.COLLISION_PENALTY
         self.stat['collisions'] += np.sum(collision_peragent>0)
