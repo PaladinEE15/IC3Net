@@ -29,7 +29,7 @@ class CooperativeOccupationEnv(gym.Env):
         self.FULL_OCCUPATION_REWARD = 1
         self.TIME_PENALTY = -0.1
         self.SINGLE_OCCUPATION_REWARD = 0.1
-        self.COLLISION_PENALTY = -1
+        self.COLLISION_PENALTY = -5
         self.episode_over = False
 
     def init_args(self, parser):
