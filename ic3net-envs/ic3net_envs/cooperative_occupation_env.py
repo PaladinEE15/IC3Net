@@ -35,7 +35,9 @@ class CooperativeOccupationEnv(gym.Env):
     def init_args(self, parser):
         env = parser.add_argument_group('Cooperative Occupation task')
         env.add_argument("--reward_type", type=int, default=0, 
-                    help="0-full cooperative with occupy;1-close reward")        
+                    help="0-full cooperative with occupy;1-close reward")   
+        env.add_argument("--setting", type=int, default=0, 
+                    help="0-easy;1-hard")       
 
         #there's another kind of observation: rangefinder. However the detection is complex......
         #firstly, calculate the sector according to angle
@@ -48,7 +50,7 @@ class CooperativeOccupationEnv(gym.Env):
         #assume the map is 1 x 1
         self.nagent = args.nagents
         self.reward_type = args.reward_type
-        if self.nagent == 4:
+        if args.setting == 0:
             self.speed = 0.1 
             self.detection_range = 0.2
             self.occupation_range = 0.1
@@ -56,7 +58,7 @@ class CooperativeOccupationEnv(gym.Env):
             self.outer_col_range = 0.2
             self.border_col_range = 0.075
             
-        elif self.nagent == 8:
+        else:
             self.speed = 0.05
             self.border_col_range = 0.0375
             self.detection_range = 0.1
