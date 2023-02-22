@@ -218,32 +218,6 @@ def signal_handler(signal, frame):
 
 #def disp():
 #    x = disp_trainer.get_episode()
-'''
-def test(num_epochs):
-    #running episodes equals to num_epochs*nprocess*batchsize
-    stat = dict()
-    success_set = []
-    steps_set = []
-    entropy_set = []
-
-    for n in range(num_epochs):
-        stat = trainer.test_batch(100)
-        if 'comm_entropy' in stat.keys():
-            entropy_set.append(stat['comm_entropy']/(args.batch_size*args.nprocesses))
-        if 'success' in stat.keys():
-            success_set.append(stat['success']/(args.batch_size*args.nprocesses))
-        if 'steps_taken' in stat.keys():
-            steps_set.append(stat['steps_taken']/(args.batch_size*args.nprocesses))
-    if 'comm_entropy' in stat.keys():
-        print('comm_entropy_mean: ', np.mean(entropy_set),' std: ', np.std(entropy_set))
-    if 'success' in stat.keys():
-        print('success_mean: ', np.mean(success_set),' std: ', np.std(success_set))
-    if 'steps_taken' in stat.keys():
-        print('steps_taken_mean: ', np.mean(steps_set),' std: ', np.std(steps_set))
-    return
-
-'''
-
 
 def run(num_epochs):
     for ep in range(num_epochs):
@@ -263,6 +237,7 @@ def run(num_epochs):
                 v.data.append(epoch)
             elif k == 'comm_entropy' and k in stat.keys():
                 stat[k] = stat[k] / (args.epoch_size*args.nprocesses)
+                v.data.append(stat.get(k, 0))
             else:
                 if k in stat and v.divide_by is not None and stat[v.divide_by] > 0:
                     stat[k] = stat[k] / stat[v.divide_by]
