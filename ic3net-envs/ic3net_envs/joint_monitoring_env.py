@@ -83,12 +83,10 @@ class JointMonitoringEnv(gym.Env):
                 self.monitor_locs = np.array([[0,0],[0,1],[1,0],[1,1]])
             elif args.nagents == 6:
                 self.single_monitor_angle = 1/4
-                self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/2*math.pi,-1/2*math.pi,0])
-                self.xlen = 2
-                self.ylen = 1
+                self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/8*math.pi,-1/8*math.pi,0])
                 self.monitors = 6
                 self.evaders = 6 + args.add_evaders        
-                self.monitor_locs = np.array([[0,0],[0,1],[1,0],[1,1],[2,1],[2,0]]) 
+                self.monitor_locs = np.array([[0,1],[0,-1],[math.sqrt(3)/3,0.5],[math.sqrt(3)/3,-0.5],[-math.sqrt(3)/3,0.5],[-math.sqrt(3)/3,-0.5]]) 
         else:
             return
 
@@ -157,10 +155,18 @@ class JointMonitoringEnv(gym.Env):
         """
 
         #spawn evaders randomly 
-        self.evader_locs = np.random.rand(self.evaders,2)
+        if self.monitors == 4:
+            self.evader_locs = np.random.rand(self.evaders,2)
 
-        self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen
-        self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen
+            self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen
+            self.evader_locs[:,1] = self.evader_locs[:,1]*self.ylen
+        else:
+            evader_locs_raw = np.random.rand(self.evaders,2)
+            self.evader_locs = np.zeros((self.evaders,2))
+            evader_locs_tho = np.sqrt(evader_locs_raw[:,0])
+            evader_locs_theta = 2*math.pi*evader_locs_raw[:,1]
+            self.evader_locs[:,0] = evader_locs_tho*np.cos(evader_locs_theta)
+            self.evader_locs[:,1] = evader_locs_tho*np.sin(evader_locs_theta)
         self.monitor_angles = 2*math.pi*np.random.rand(self.monitors,1) - math.pi
 
         self.episode_over = False
@@ -255,18 +261,19 @@ class JointMonitoringEnv(gym.Env):
         self.monitor_angles[self.monitor_angles<-math.pi] = self.monitor_angles[self.monitor_angles<-math.pi] + 2*math.pi
 
         #let evaders run randomly
-        evaders_angle = 2*math.pi*np.random.rand(self.evaders)
-        self.evaders_displacement[:,0] = np.cos(evaders_angle)
-        self.evaders_displacement[:,1] = np.sin(evaders_angle)
-        self.evader_locs += self.evader_speed*self.evaders_displacement
-        x = self.evader_locs[:,0]
-        y = self.evader_locs[:,1]
-        x[x<0] = -x[x<0]
-        y[y<0] = -y[y<0]
-        x[x>self.xlen] = 2*self.xlen - x[x>self.xlen]
-        y[y>self.ylen] = 2*self.ylen - y[y>self.ylen]
-        self.evader_locs[:,0] = x
-        self.evader_locs[:,1] = y
+        if self.evader_speed >0:
+            evaders_angle = 2*math.pi*np.random.rand(self.evaders)
+            self.evaders_displacement[:,0] = np.cos(evaders_angle)
+            self.evaders_displacement[:,1] = np.sin(evaders_angle)
+            self.evader_locs += self.evader_speed*self.evaders_displacement
+            x = self.evader_locs[:,0]
+            y = self.evader_locs[:,1]
+            x[x<0] = -x[x<0]
+            y[y<0] = -y[y<0]
+            x[x>self.xlen] = 2*self.xlen - x[x>self.xlen]
+            y[y>self.ylen] = 2*self.ylen - y[y>self.ylen]
+            self.evader_locs[:,0] = x
+            self.evader_locs[:,1] = y
         #renew observations
         full_monitoring = self.calcu_evader2monitor()
         self.obs = self._get_obs()
