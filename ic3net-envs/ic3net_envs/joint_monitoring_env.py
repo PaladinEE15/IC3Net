@@ -86,7 +86,7 @@ class JointMonitoringEnv(gym.Env):
                 self.ref_act = np.array([1/6*math.pi,-1/6*math.pi,1/12*math.pi,-1/12*math.pi,0])
                 self.monitors = 6
                 self.evaders = 6 + args.add_evaders        
-                self.monitor_locs = 0.8*np.array([[0,1],[0,-1],[math.sqrt(3)/2,0.5],[math.sqrt(3)/2,-0.5],[-math.sqrt(3)/2,0.5],[-math.sqrt(3)/2,-0.5]]) 
+                self.monitor_locs = 0.6*np.array([[0,1],[0,-1],[np.sqrt(3)/2,0.5],[np.sqrt(3)/2,-0.5],[-np.sqrt(3)/2,0.5],[-np.sqrt(3)/2,-0.5]]) 
         else:
             return
 
@@ -167,7 +167,7 @@ class JointMonitoringEnv(gym.Env):
             evader_locs_theta = 2*math.pi*evader_locs_raw[:,1]
             self.evader_locs[:,0] = evader_locs_tho*np.cos(evader_locs_theta)
             self.evader_locs[:,1] = evader_locs_tho*np.sin(evader_locs_theta)
-            self.evader_locs = 0.8*np.sqrt(3)/2*self.evader_locs
+            self.evader_locs = 0.6*self.evader_locs
         self.monitor_angles = 2*math.pi*np.random.rand(self.monitors,1) - math.pi
 
         self.episode_over = False
