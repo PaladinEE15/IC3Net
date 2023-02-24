@@ -44,7 +44,9 @@ class JointMonitoringEnv(gym.Env):
         env.add_argument("--add_evaders", type=int, default=0, 
                     help="number of additional evaders")   
         env.add_argument('--catch', default=False, action='store_true', 
-                    help='catch or monitor')         
+                    help='catch or monitor')     
+        env.add_argument('--random_monitor', default=False, action='store_true', 
+                    help='spawn monitor randomly')          
         #there's another kind of observation: rangefinder. However the detection is complex......
         #firstly, calculate the sector according to angle
         #secondly, update corresponding sensor data (note that covering......)
@@ -59,6 +61,7 @@ class JointMonitoringEnv(gym.Env):
         self.catch = args.catch
         self.monitors = args.nagents
         self.evaders = args.nagents + args.add_evaders
+        self.random_monitor = args.random_monitor
         if self.monitor_type == 0: #square in 
             self.single_monitor_angle = 0.5
             self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,0.25*math.pi,-0.25*math.pi,0])
@@ -143,6 +146,10 @@ class JointMonitoringEnv(gym.Env):
         """
 
         #spawn evaders randomly 
+        if self.random_monitor:
+            self.monitor_locs = np.random.rand(self.monitors,2)
+            self.monitor_locs[:,0] = (self.monitors/4)*self.monitor_locs[:,0]*self.xlen
+            self.monitor_locs[:,1] = (self.monitors/4)*self.monitor_locs[:,1]*self.ylen            
         if self.monitor_type != 2:
             self.evader_locs = np.random.rand(self.evaders,2)
 
@@ -187,6 +194,9 @@ class JointMonitoringEnv(gym.Env):
             evader_locs = np.concatenate((temp_relative_locs_d.reshape((-1,1)),temp_relative_locs_theta.reshape((-1,1))),axis=1).reshape((self.monitors,-1))
         elif self.observation_type ==1:
             evader_locs = np.tile(self.evader_locs.reshape((1,-1)),(self.monitors,1))
+            indicate_mat = np.repeat(self.monitoring_mat,2,axis=1)
+            evader_locs[indicate_mat == False] = 0
+
         
         monitor_locs = self.monitor_locs
         
