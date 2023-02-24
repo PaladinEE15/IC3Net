@@ -36,7 +36,7 @@ class JointMonitoringEnv(gym.Env):
         env.add_argument("--evader_speed", type=float, default=0, 
                     help="speed of evaders")
         env.add_argument("--observation_type", type=int, default=0, 
-                    help="0-self abs coords + partial target observation;1-all others relative coords + partial target observation;2-self abs ccords+ full...")
+                    help="0-self abs coords + relative target observation;1-self abs coords + target obsolute observation")
         env.add_argument("--reward_type", type=int, default=0, 
                     help="0-full_monitor;1-monitor as much as possible")
         env.add_argument("--monitor_type", type=int, default=0, 
@@ -57,35 +57,39 @@ class JointMonitoringEnv(gym.Env):
         self.reward_type = args.reward_type
         self.monitor_type = args.monitor_type
         self.catch = args.catch
-        if self.monitor_type == 0:
+        self.monitors = args.nagents
+        self.evaders = args.nagents + args.add_evaders
+        if self.monitor_type == 0: #square in 
             self.single_monitor_angle = 0.5
             self.ref_act = np.array([0.5*math.pi,-0.5*math.pi,0.25*math.pi,-0.25*math.pi,0])
             if args.nagents == 4:
                 self.xlen = 2.414
-                self.ylen = 2.414
-                self.monitors = 4
-                self.evaders = 4 + args.add_evaders
+                self.ylen = 2.414              
                 self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707]])
-            elif args.nagents == 6:
+            elif args.nagents == 6: 
                 self.xlen = 3.414
-                self.ylen = 2.414
-                self.monitors = 6
-                self.evaders = 6 + args.add_evaders        
+                self.ylen = 2.414        
                 self.monitor_locs = np.array([[0.707,0.707],[0.707,1.707],[1.707,0.707],[1.707,1.707],[2.707,1.707],[2.707,0.707]])    
-        elif self.monitor_type == 1:
+        elif self.monitor_type == 1: #square border
+            self.ref_act = np.array([1/6*math.pi,-1/6*math.pi,1/12*math.pi,-1/12*math.pi,0])
+            self.single_monitor_angle = 1/6
             if args.nagents == 4:
-                self.ref_act = np.array([1/6*math.pi,-1/6*math.pi,1/12*math.pi,-1/12*math.pi,0])
-                self.single_monitor_angle = 1/6
                 self.xlen = 1
                 self.ylen = 1
-                self.monitors = 4
-                self.evaders = 4 + args.add_evaders
                 self.monitor_locs = np.array([[0,0],[0,1],[1,0],[1,1]])
+            elif args.nagents == 5:
+                self.xlen = math.sqrt(2)
+                self.ylen = math.sqrt(2)        
+                self.monitor_locs = np.array([[0,0],[0,math.sqrt(2)],[math.sqrt(2),0],[math.sqrt(2),math.sqrt(2)],[math.sqrt(2)/2,math.sqrt(2)/2]])    
             elif args.nagents == 6:
+                self.xlen = math.sqrt(2)
+                self.ylen = math.sqrt(2)        
+                self.monitor_locs = np.array([[0,0],[0,math.sqrt(2)],[math.sqrt(2),0],[math.sqrt(2),math.sqrt(2)],[math.sqrt(2)/2+0.1,math.sqrt(2)/2],[math.sqrt(2)/2-0.1,math.sqrt(2)/2]])  
+
+        elif self.monitor_type == 2: #round
+            if args.nagents == 6:
                 self.single_monitor_angle = 1/6
-                self.ref_act = np.array([1/6*math.pi,-1/6*math.pi,1/12*math.pi,-1/12*math.pi,0])
-                self.monitors = 6
-                self.evaders = 6 + args.add_evaders        
+                self.ref_act = np.array([1/6*math.pi,-1/6*math.pi,1/12*math.pi,-1/12*math.pi,0])      
                 self.monitor_locs = 0.6*np.array([[0,1],[0,-1],[np.sqrt(3)/2,0.5],[np.sqrt(3)/2,-0.5],[-np.sqrt(3)/2,0.5],[-np.sqrt(3)/2,-0.5]]) 
         else:
             return
@@ -98,24 +102,8 @@ class JointMonitoringEnv(gym.Env):
         #observation space design
         #self angle:1
         #self abs coords:2
-        #others relative coords: 2*(n-1)
-        #target observation: 3*evaders, including whether observes
-        if (self.observation_type == 0) or (self.observation_type == 2):
-            self.obs_dim = 3 + 3*self.evaders
-        elif (self.observation_type == 1) or (self.observation_type == 3):
-            self.obs_dim = 1 + 2*self.monitors + 3*self.evaders
-        else:
-            self.obs_dim = 11 + self.evaders
-        
-        #calculate monitors locs and relative locs first
-        if (self.observation_type == 1) or (self.observation_type == 3):
-            monitor_locs_d1expand = np.tile(self.monitor_locs,(1,self.monitors))
-            monitor_locs_d0expand = np.tile(self.monitor_locs.reshape((1,-1)),(self.monitors,1))
-            monitor_locs_xy = monitor_locs_d0expand - monitor_locs_d1expand
-            monitor_locs_mid = monitor_locs_xy.reshape((-1,2))
-            monitor_locs_d = np.linalg.norm(monitor_locs_mid,axis=1,keepdims=True).reshape((-1,1))
-            monitor_locs_theta = np.arctan((monitor_locs_mid[:,1]/(monitor_locs_mid[:,0]+1e-4))).reshape((-1,1))
-            self.monitor_relative_locs = np.concatenate((monitor_locs_d,monitor_locs_theta),axis=1).reshape((self.monitors,-1))
+        #evaders coords + whether observes: 3*evaders
+        self.obs_dim = 3 + 3*self.evaders
 
         self.observation_space = spaces.Box(low=-4, high=4, shape=(1,self.obs_dim), dtype=int)
         return
@@ -155,7 +143,7 @@ class JointMonitoringEnv(gym.Env):
         """
 
         #spawn evaders randomly 
-        if self.monitors == 4:
+        if self.monitor_type != 2:
             self.evader_locs = np.random.rand(self.evaders,2)
 
             self.evader_locs[:,0] = self.evader_locs[:,0]*self.xlen
@@ -191,19 +179,16 @@ class JointMonitoringEnv(gym.Env):
         2*evaders+1:2*evaders+3, if abs coords
         2*evaders+1:2*evaders+1+2*monitors, if relative locs
         '''
-        if self.observation_type <= 1:
+        if self.observation_type == 0:
             temp_relative_locs_d = self.relative_locs_d 
             temp_relative_locs_theta = self.relative_locs_theta
             temp_relative_locs_d[self.monitoring_mat==False] = -1
             temp_relative_locs_theta[self.monitoring_mat==False] = 0
             evader_locs = np.concatenate((temp_relative_locs_d.reshape((-1,1)),temp_relative_locs_theta.reshape((-1,1))),axis=1).reshape((self.monitors,-1))
-        elif self.observation_type <= 3:
-            evader_locs = np.concatenate((self.relative_locs_d.reshape((-1,1)),self.relative_locs_theta.reshape((-1,1))),axis=1).reshape((self.monitors,-1))
+        elif self.observation_type ==1:
+            evader_locs = np.tile(self.evader_locs.reshape((1,-1)),(self.monitors,1))
         
-        if (self.observation_type == 0) or (self.observation_type == 2):
-            monitor_locs = self.monitor_locs
-        elif (self.observation_type == 1) or (self.observation_type == 3):
-            monitor_locs = self.monitor_relative_locs
+        monitor_locs = self.monitor_locs
         
         '''
         type4:
