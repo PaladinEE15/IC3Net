@@ -76,7 +76,12 @@ class JointMonitoringEnv(gym.Env):
         elif self.monitor_type == 1: #square border
             self.ref_act = np.array([1/6*math.pi,-1/6*math.pi,1/12*math.pi,-1/12*math.pi,0])
             self.single_monitor_angle = 1/6
-            if args.nagents == 4:
+            if args.nagents == 3:
+                self.xlen = 1
+                self.ylen = 1
+                self.single_monitor_angle = 1/4
+                self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/8*math.pi,-1/8*math.pi,0])
+            elif args.nagents == 4:
                 self.xlen = 1
                 self.ylen = 1
                 self.monitor_locs = np.array([[0,0],[0,1],[1,0],[1,1]])
@@ -148,8 +153,8 @@ class JointMonitoringEnv(gym.Env):
         #spawn evaders randomly 
         if self.random_monitor:
             self.monitor_locs = np.random.rand(self.monitors,2)
-            self.monitor_locs[:,0] = (self.monitors/4)*self.monitor_locs[:,0]*self.xlen
-            self.monitor_locs[:,1] = (self.monitors/4)*self.monitor_locs[:,1]*self.ylen            
+            self.monitor_locs[:,0] = self.monitor_locs[:,0]*self.xlen
+            self.monitor_locs[:,1] = self.monitor_locs[:,1]*self.ylen            
         if self.monitor_type != 2:
             self.evader_locs = np.random.rand(self.evaders,2)
 
