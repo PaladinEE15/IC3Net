@@ -38,7 +38,7 @@ class JointMonitoringEnv(gym.Env):
         env.add_argument("--observation_type", type=int, default=0, 
                     help="0-self abs coords + relative target observation;1-self abs coords + target obsolute observation")
         env.add_argument("--reward_type", type=int, default=0, 
-                    help="0-full_monitor;1-monitor as much as possible")
+                    help="0-full_monitor;1-monitor as much as possible;2-sparse reward;3-solo observe reward")
         env.add_argument("--monitor_type", type=int, default=0, 
                     help="0-not in corners, 1-in corners")
         env.add_argument("--add_evaders", type=int, default=0, 
@@ -316,6 +316,16 @@ class JointMonitoringEnv(gym.Env):
                 self.stat['full_monitoring'] += 1
             else:
                 reward = self.TIME_PENALTY*np.ones(self.monitors)
+        elif self.reward_type == 3:
+            if full_monitoring == True:
+                reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
+                self.stat['full_monitoring'] += 1
+            else:
+                reward = self.TIME_PENALTY*np.ones(self.monitors)
+                monitoring_perevader = np.sum(self.monitoring_mat,axis=0,keepdim=True)
+                check_idx = np.tile((monitoring_perevader==1).astype(int),(self.monitors,1))
+                solo_monitoring = np.sum(check_idx*self.monitoring_mat,axis=1)
+                reward[solo_monitoring>0] += self.IN_MONITORING_REWARD
 
         debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs}
         return self.obs, reward, self.episode_over, debug
