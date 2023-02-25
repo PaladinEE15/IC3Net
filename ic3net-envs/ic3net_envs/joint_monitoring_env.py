@@ -322,7 +322,7 @@ class JointMonitoringEnv(gym.Env):
                 self.stat['full_monitoring'] += 1
             else:
                 reward = self.TIME_PENALTY*np.ones(self.monitors)
-                monitoring_perevader = np.sum(self.monitoring_mat,axis=0,keepdim=True)
+                monitoring_perevader = np.sum(self.monitoring_mat,axis=0,keepdims=True)
                 check_idx = np.tile((monitoring_perevader==1).astype(int),(self.monitors,1))
                 solo_monitoring = np.sum(check_idx*self.monitoring_mat,axis=1)
                 reward[solo_monitoring>0] += self.IN_MONITORING_REWARD
