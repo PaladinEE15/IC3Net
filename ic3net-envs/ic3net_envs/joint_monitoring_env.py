@@ -99,6 +99,19 @@ class JointMonitoringEnv(gym.Env):
                 self.single_monitor_angle = 1/6
                 self.ref_act = np.array([1/6*math.pi,-1/6*math.pi,1/12*math.pi,-1/12*math.pi,0])      
                 self.monitor_locs = 0.6*np.array([[0,1],[0,-1],[np.sqrt(3)/2,0.5],[np.sqrt(3)/2,-0.5],[-np.sqrt(3)/2,0.5],[-np.sqrt(3)/2,-0.5]]) 
+        elif self.monitor_type == 3:
+            if args.nagents == 4:
+                self.xlen = math.sqrt(2)
+                self.ylen = math.sqrt(2)
+                self.single_monitor_angle = 1/4+(1/12)*args.add_evaders
+                self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/8*math.pi,-1/8*math.pi,0])      
+                self.monitor_locs = np.array([[0,0],[0,0],[0,0],[0,0]]) 
+            elif args.nagents == 3:
+                self.xlen = math.sqrt(2)
+                self.ylen = math.sqrt(2)
+                self.single_monitor_angle = 1/3+(1/12)*args.add_evaders
+                self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/8*math.pi,-1/8*math.pi,0])      
+                self.monitor_locs = np.array([[0,0],[0,0],[0,0]]) 
         else:
             return
 
@@ -300,6 +313,7 @@ class JointMonitoringEnv(gym.Env):
         elif self.reward_type == 2:
             if full_monitoring == True:
                 reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
+                self.stat['full_monitoring'] += 1
             else:
                 reward = self.TIME_PENALTY*np.ones(self.monitors)
 
