@@ -292,11 +292,16 @@ class JointMonitoringEnv(gym.Env):
                 monitoring_permonitor = np.sum(self.monitoring_mat,axis=1)
                 if self.reward_type == 0:          
                     reward[monitoring_permonitor>0] += self.IN_MONITORING_REWARD
-        else:
+        elif self.reward_type == 1:
             monitoring_perevader = np.sum(self.monitoring_mat,axis=0)
             monitor_numbers = np.sum(monitoring_perevader>0)
             self.stat['full_monitoring'] += monitor_numbers
             reward = monitor_numbers*self.IN_MONITORING_REWARD*np.ones(self.monitors)
+        elif self.reward_type == 2:
+            if full_monitoring == True:
+                reward = self.FULL_MONITORING_REWARD*np.ones(self.monitors)
+            else:
+                reward = self.TIME_PENALTY*np.ones(self.monitors)
 
         debug = {'monitor_angles':self.monitor_angles,'evader_locs':self.evader_locs}
         return self.obs, reward, self.episode_over, debug
