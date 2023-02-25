@@ -81,6 +81,7 @@ class JointMonitoringEnv(gym.Env):
                 self.ylen = 1
                 self.single_monitor_angle = 1/4
                 self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/8*math.pi,-1/8*math.pi,0])
+                self.monitor_locs = np.array([[0,0],[1,0],[0.5,1]])
             elif args.nagents == 4:
                 self.xlen = 1
                 self.ylen = 1
