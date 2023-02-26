@@ -27,7 +27,7 @@ class CooperativeOccupationEnv(gym.Env):
 
         # TODO: better config handling
         self.COLLECT_REWARD = 1
-        self.TIME_PENALTY = -0.1
+        self.TIME_PENALTY = -0.02
         self.POISON_PENALTY = -5
         self.episode_over = False
 
@@ -183,7 +183,7 @@ class CooperativeOccupationEnv(gym.Env):
         collection_mat = (np.linalg.norm(relative_loc,axis=1)<=0.1).reshape((self.nagent,8))
         #get reward 
         valid_set = np.tile(self.valid_mat.reshape((1,-1)),(self.nagent,1))
-        valid_set[valid_set<0] = -5
+        valid_set[valid_set<0] = -0.5
         reward_set = valid_set*collection_mat
         self.wrong_collection += np.sum(reward_set<0)
         collect_reward = np.sum(reward_set,axis=1)
