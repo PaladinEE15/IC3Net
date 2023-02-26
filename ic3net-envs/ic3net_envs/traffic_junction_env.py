@@ -589,7 +589,7 @@ class TrafficJunctionEnv(gym.Env):
 
 
     def _get_reward(self):
-        reward = np.full(self.ncar, self.TIMESTEP_PENALTY) * self.wait
+        reward = np.full(self.ncar, self.TIMESTEP_PENALTY)
 
         for i, l in enumerate(self.car_loc):
             if (len(np.where(np.all(self.car_loc[:i] == l,axis=1))[0]) or \

@@ -36,7 +36,7 @@ class JointMonitoringEnv(gym.Env):
         env.add_argument("--evader_speed", type=float, default=0, 
                     help="speed of evaders")
         env.add_argument("--observation_type", type=int, default=0, 
-                    help="0-self abs coords + relative target observation;1-self abs coords + target obsolute observation")
+                    help="0-self abs coords + relative target observation;1-self abs coords + target obsolute observation;2- one-hot id + obs")
         env.add_argument("--reward_type", type=int, default=0, 
                     help="0-full_monitor;1-monitor as much as possible;2-sparse reward;3-solo observe reward")
         env.add_argument("--monitor_type", type=int, default=0, 
@@ -106,13 +106,13 @@ class JointMonitoringEnv(gym.Env):
                 self.ylen = math.sqrt(2)
                 self.single_monitor_angle = 1/4+(1/12)*args.add_evaders
                 self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/8*math.pi,-1/8*math.pi,0])      
-                self.monitor_locs = np.array([[0,0],[0,0],[0,0],[0,0]]) 
+                self.monitor_locs = math.sqrt(2)/2 * np.ones((4,2))
             elif args.nagents == 3:
                 self.xlen = math.sqrt(2)
                 self.ylen = math.sqrt(2)
                 self.single_monitor_angle = 1/3+(1/12)*args.add_evaders
                 self.ref_act = np.array([1/4*math.pi,-1/4*math.pi,1/8*math.pi,-1/8*math.pi,0])      
-                self.monitor_locs = np.array([[0,0],[0,0],[0,0]]) 
+                self.monitor_locs = math.sqrt(2)/2 * np.ones((3,2))
         else:
             return
 
@@ -126,6 +126,9 @@ class JointMonitoringEnv(gym.Env):
         #self abs coords:2
         #evaders coords + whether observes: 3*evaders
         self.obs_dim = 3 + 3*self.evaders
+        if self.observation_type == 2:
+            self.monitor_ids = np.identity(self.monitors)
+            self.obs_dim = 1+self.monitors+self.evaders
 
         self.observation_space = spaces.Box(low=-4, high=4, shape=(1,self.obs_dim), dtype=int)
         return
@@ -211,10 +214,13 @@ class JointMonitoringEnv(gym.Env):
             temp_relative_locs_d[self.monitoring_mat==False] = -1
             temp_relative_locs_theta[self.monitoring_mat==False] = 0
             evader_locs = np.concatenate((temp_relative_locs_d.reshape((-1,1)),temp_relative_locs_theta.reshape((-1,1))),axis=1).reshape((self.monitors,-1))
-        elif self.observation_type ==1:
+        elif self.observation_type == 1:
             evader_locs = np.tile(self.evader_locs.reshape((1,-1)),(self.monitors,1))
             indicate_mat = np.repeat(self.monitoring_mat,2,axis=1)
             evader_locs[indicate_mat == False] = 0
+        elif self.observation_type == 2:
+            new_obs = np.concatenate((self.monitor_angles, self.monitor_ids, self.monitoring_mat.astype(np.float32)),axis=1)
+            return new_obs
 
         
         monitor_locs = self.monitor_locs
