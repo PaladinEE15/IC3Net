@@ -203,6 +203,7 @@ def save(path):
 
 def load(path):
     d = torch.load(path)
+    print((d['log'])['comm_entropy'].data)
     # log.clear()
     policy_net.load_state_dict(d['policy_net'])
     trainer.load_state_dict(d['trainer'])
