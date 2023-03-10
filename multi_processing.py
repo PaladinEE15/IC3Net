@@ -144,6 +144,11 @@ class MultiProcessTrainer(object):
         entropy = -np.sum(probs*np.log(probs))
         return entropy
 
+    def special_test(self,times=10):
+        np.set_printoptions(precision=2)
+        for idx in range(10):
+            self.trainer.get_episode(2000, True)
+
     def test_batch(self,times):
         for comm in self.comms:
             comm.send(['test_batch', times])        

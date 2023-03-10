@@ -409,6 +409,8 @@ if __name__ == '__main__':
                     distribution_acc += distributions
                 else:
                     distribution_acc = distributions
+            elif args.test_type == -1:
+                trainer.special_test(args.test_times)
             else:
                 channel_msg_len, success, steps = trainer.test_batch(args.test_times)
                 msg_len_set.append(channel_msg_len)
@@ -421,7 +423,7 @@ if __name__ == '__main__':
             print('success: ', np.mean(success_set),' std: ', np.std(success_set) )
             print('steps: ', np.mean(steps_set),' std: ', np.std(steps_set))     
             print('channel msg avg len:', np.mean(msg_len_set))         
-        else:
+        elif args.test_type == 0:
             entropy_set = np.array(entropy_set)
             success_set = np.array(success_set)
             steps_set = np.array(steps_set)

@@ -11,6 +11,10 @@ from action_utils import *
 Transition = namedtuple('Transition', ('state', 'action', 'action_out', 'value', 'episode_mask', 'episode_mini_mask', 'next_state',
                                        'reward', 'misc'))
 
+def myquant(x):
+    for k in range(9):
+        x[(x>k*0.25-1.125)&(x<k*0.25-0.875)] = k*0.25 - 1
+
 class Trainer(object):
     def __init__(self, args, policy_net, env):
         self.args = args
@@ -34,7 +38,7 @@ class Trainer(object):
         probs = counts/input_comm.shape[1]
         return probs
 
-    def get_episode(self, epoch):
+    def get_episode(self, epoch, details = False):
         episode = []
         reset_args = getfullargspec(self.env.reset).args
         if 'epoch' in reset_args:
@@ -88,11 +92,21 @@ class Trainer(object):
             else:
                 comm_stat = torch.zeros(1)
 
-
             action = select_action(self.args, action_out)
             action, actual = translate_action(self.args, self.env, action)
             next_state, reward, done, info = self.env.step(actual)
             next_state = torch.from_numpy(next_state).double().to(torch.device("cuda"))
+            if details:
+                ready_comm = comm.view(self.args.nagents,-1).detach().cpu().numpy()
+                myquant(ready_comm)
+                print('timestep:',t)
+                for idx in range(self.args.nagents):
+                    arr_str = ','.join(str(x) for x in ready_comm[idx])
+                    print(arr_str)
+                print('new env info - predator locs:',info['predator_locs'])
+                print('new env info - prey locs:',info['prey_locs'])
+                if done:
+                    print('done!!!')
 
             #here, begin env data display
             if self.args.detailed_info:
