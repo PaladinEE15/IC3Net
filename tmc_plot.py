@@ -218,9 +218,9 @@ plt.savefig('D:/Git/IC3Net/sem_1.pdf',bbox_inches='tight')
 
 fig, (ax1, ax2, ax3) = plt.subplots(ncols=3)
 plt.subplots_adjust(wspace=-0.8, hspace=0.2)
-data1 = np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0,-0.25,0.0,0.0,0.0,-0.25,-0.5,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]).reshape((16,2))
+data3 = np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0,-0.25,0.0,0.0,0.0,-0.25,-0.5,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]).reshape((16,2))
 data2 = np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]).reshape((16,2))
-data3 = np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]).reshape((16,2))
+data1 = np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]).reshape((16,2))
 
 seaborn.heatmap(data1, center=0, cmap='Blues', vmin=-1, vmax=1,  ax=ax1, square=True, cbar=False)
 seaborn.heatmap(data2, center=0, cmap='Blues', vmin=-1, vmax=1,  ax=ax2, square=True, cbar=False)
@@ -240,3 +240,6 @@ _ = plt.colorbar(ax3.collections[0], cax=cbar_ax)
 #plt.show()
 plt.savefig('D:/Git/IC3Net/sem_2.pdf',bbox_inches='tight')
 '''
+
+
+
