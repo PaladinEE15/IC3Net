@@ -31,7 +31,7 @@ imac_thb = [36.58,33,36.95,36.81,37.54]
 imac_ppa = [10.87,10.60,10.51,12.24,16.56]
 imac_ppb = [17.75,15.63,18.62,24.74,28.24]
 imac_tja = [0.85,0.85,0.85,0.85,0.85]
-imac_tjb = [0.90,]
+imac_tjb = [0.90,,,,0.83]
 
 do_tha = [8.16,10.03,10.89,12.37,15.50]
 do_thb = [19.56,23.11,25.28,30.02,33.20]
@@ -59,31 +59,32 @@ plt.title('Treasure Hunt A',fontsize=22)
 plt.show()
 '''
 
-'''
-quantization experiments
-tha_ent = []
-tha_steps = []
-thb_ent = []
-thb_steps = []
-ppa_ent = []
-ppa_steps = []
-ppb_ent = []
-ppb_steps = []
-tja_ent = []
-tja_steps = []
-tjb_ent = []
-tjb_steps = []
+#quantization experiments
+tha_ent = [2.39,1.72,1.09,0.56]
+tha_steps = [8.225,8.228,8.355,8.38,12.91]
+thb_ent = [2.03,1.38,0.76,0.31]
+thb_steps = [19.44,19.51,20.25,24.46,36.15]
+ppa_ent = [2.02,1.38,0.69,0.07]
+ppa_steps = [9.89,9.99,9.99,10.96,14.51]
+ppb_ent = [2.10,1.47,0.47,0.19]
+ppb_steps = [15.285,15.11,15.19,21.415,22.075]
+tja_ent = [1.82,1.46,1.13,1.02]
+tja_steps = [0.94,0.94,0.96,0.94,0.94]
+tjb_ent = [1.37,1.16,1.04,0.93]
+tjb_steps = [0.89,0.89,0.89,0.89,0.89]
 
 
 x1 = np.arange(5)
 x2 = np.arange(1,5)
 bar_width = 0.3
 xticks = [0,0.125,0.25,0.5,1]
+
+
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-bar1 = ax1.bar(x1-0.5*bar_width, tha_steps[idx],bar_width,bottom = 0, label='timesteps', ec='black',color='#d5d6d8')
+bar1 = ax1.bar(x1-0.5*bar_width, tha_steps,bar_width,bottom = 0, label='timesteps', ec='black',color='#7cd6cf')
 ax2 = ax1.twinx()
-bar2 = ax2.bar(x2+0.5*bar_width, tha_ent[idx],bar_width,bottom = 0, label='entropy', ec='black', color='#555555')
+bar2 = ax2.bar(x2+0.5*bar_width, tha_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
 ax1.set_ylabel('timesteps↓',fontsize=18)
 ax2.set_ylabel('entropy↓(nat)',fontsize=18)
 ax1.set_xlabel('value of $\Delta$',fontsize=18)
@@ -95,13 +96,109 @@ lines, labels = ax1.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
 ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
 
-ax1.set_title('Trasure Hunt A',fontsize=18)
-plt.show()
+ax1.set_title('Treasure Hunt A',fontsize=18)
+#plt.show()
+plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/tha_quant.pdf',bbox_inches='tight')
 
-'''
-'''
-hot map plot
-'''
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+bar1 = ax1.bar(x1-0.5*bar_width, thb_steps,bar_width,bottom = 0, label='timesteps', ec='black',color='#7cd6cf')
+ax2 = ax1.twinx()
+bar2 = ax2.bar(x2+0.5*bar_width, thb_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
+ax1.set_ylabel('timesteps↓',fontsize=18)
+ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax1.set_xlabel('value of $\Delta$',fontsize=18)
+ax1.set_xticks(ticks=x1)
+ax1.set_xticklabels(xticks)
+lns = bar1 + bar2
+labs = [l.get_label() for l in lns]
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
+
+ax1.set_title('Treasure Hunt B',fontsize=18)
+#plt.show()
+plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/thb_quant.pdf',bbox_inches='tight')
+
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+bar1 = ax1.bar(x1-0.5*bar_width, ppa_steps,bar_width,bottom = 0, label='timesteps', ec='black',color='#7cd6cf')
+ax2 = ax1.twinx()
+bar2 = ax2.bar(x2+0.5*bar_width, ppa_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
+ax1.set_ylabel('timesteps↓',fontsize=18)
+ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax1.set_xlabel('value of $\Delta$',fontsize=18)
+ax1.set_xticks(ticks=x1)
+ax1.set_xticklabels(xticks)
+lns = bar1 + bar2
+labs = [l.get_label() for l in lns]
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
+
+ax1.set_title('Predator Prey A',fontsize=18)
+#plt.show()
+plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/ppa_quant.pdf',bbox_inches='tight')
+
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+bar1 = ax1.bar(x1-0.5*bar_width, ppb_steps,bar_width,bottom = 0, label='timesteps', ec='black',color='#7cd6cf')
+ax2 = ax1.twinx()
+bar2 = ax2.bar(x2+0.5*bar_width, ppb_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
+ax1.set_ylabel('timesteps↓',fontsize=18)
+ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax1.set_xlabel('value of $\Delta$',fontsize=18)
+ax1.set_xticks(ticks=x1)
+ax1.set_xticklabels(xticks)
+lns = bar1 + bar2
+labs = [l.get_label() for l in lns]
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
+
+ax1.set_title('Predator Prey B',fontsize=18)
+#plt.show()
+plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/ppb_quant.pdf',bbox_inches='tight')
+
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+bar1 = ax1.bar(x1-0.5*bar_width, tja_steps,bar_width,bottom = 0, label='success rates', ec='black',color='#7cd6cf')
+ax2 = ax1.twinx()
+bar2 = ax2.bar(x2+0.5*bar_width, tja_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
+ax1.set_ylabel('success rates↑',fontsize=18)
+ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax1.set_xlabel('value of $\Delta$',fontsize=18)
+ax1.set_xticks(ticks=x1)
+ax1.set_xticklabels(xticks)
+lns = bar1 + bar2
+labs = [l.get_label() for l in lns]
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
+
+ax1.set_title('Traffic Junction A',fontsize=18)
+#plt.show()
+plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/tja_quant.pdf',bbox_inches='tight')
+
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+bar1 = ax1.bar(x1-0.5*bar_width, tjb_steps,bar_width,bottom = 0, label='success rates', ec='black',color='#7cd6cf')
+ax2 = ax1.twinx()
+bar2 = ax2.bar(x2+0.5*bar_width, tjb_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
+ax1.set_ylabel('success rates↑',fontsize=18)
+ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax1.set_xlabel('value of $\Delta$',fontsize=18)
+ax1.set_xticks(ticks=x1)
+ax1.set_xticklabels(xticks)
+lns = bar1 + bar2
+labs = [l.get_label() for l in lns]
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
+
+ax1.set_title('Traffic Junction B',fontsize=18)
+#plt.show()
+plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/tjb_quant.pdf',bbox_inches='tight')
 
 '''
 sem
