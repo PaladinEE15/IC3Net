@@ -1,14 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn
-'''
-main experiments
-'''
-'''
+import matplotlib.ticker as ticker
+#main experiments
+
+
+
 sem_tha = [8.16,8.49,8.48,8.42,9.13]
 sem_thb = [19.56,20.16,20.31,20.75,35.95]
-sem_ppa = [9.94,10.46,10.20,10.44,10.03]
-sem_ppb = [15.30,17.98,17.22,17.55,18.23]
+sem_ppa = [9.94,10.16,10.20,10.44,10.53]
+sem_ppb = [15.30,17.02,17.22,17.55,18.23]
 sem_tja = [0.94,0.94,0.94,0.94,0.94]
 sem_tjb = [0.89,0.89,0.89,0.89,0.89]
 
@@ -20,43 +21,134 @@ fn_tja = [0.95,0.95,0.3,0.3,0.3]
 fn_tjb = [0.89,0.89,0.72,0.72,0.72]
 
 etc_tha = [8.29,10.07,10.67,11.71,14.77]
-etc_thb = [20.48,25.98,24.31,39.82,39.64]
-etc_ppa = [9.93,12.38,12.24,13.18,15.56]
-etc_ppb = [15.25,22.70,22.39,21.68,27.81]
+etc_thb = [20.48,24.31,25.98,39.82,39.64]
+etc_ppa = [9.93,12.24,12.38,13.18,15.56]
+etc_ppb = [15.25,21.68,22.39,23.22,27.81]
 etc_tja = [0.95,0.94,0.94,0.94,0.94]
 etc_tjb = [0.844,0.71,0.71,0.71,0.71]
 
 imac_tha = [8.78,8.98,9.00,9.20,12.00]
-imac_thb = [36.58,33,36.95,36.81,37.54]
-imac_ppa = [10.87,10.60,10.51,12.24,16.56]
-imac_ppb = [17.75,15.63,18.62,24.74,28.24]
+imac_thb = [33,36.58,36.95,36.81,37.54]
+imac_ppa = [10.51,10.60,10.87,12.24,16.56]
+imac_ppb = [17.75,17.83,18.62,24.74,28.24]
 imac_tja = [0.85,0.85,0.85,0.85,0.85]
-imac_tjb = [0.90,]
+imac_tjb = [0.90,0.89,0.89,0.88,0.83]
 
 do_tha = [8.16,10.03,10.89,12.37,15.50]
 do_thb = [19.56,23.11,25.28,30.02,33.20]
 do_ppa = [9.94,10.85,11.59,12.96,15.19]
 do_ppb = [15.30,16.38,17.65,17.75,23.24]
 do_tja = [0.95,0.923,0.752,0.503,0.357]
-do_tjb = [0.89,0.743,0.711,0.696,0.703]
+do_tjb = [0.89,0.743,0.711,0.703,0.696]
 
-colors = ['#63b2ee','#76da91','#f8cb7f','#f89588','#9192ab']
-labels = ['SEM','FN','ETC','IMAC','DO']
+colors = ['#194f97','#555555','#bd6b08','#00686b','#c82d31']
+labels = ['SEM+SBM','FN','ETCNET','IMAC','DO']
 #tha
 ys = [sem_tha,fn_tha,etc_tha,imac_tha,do_tha]
+fig, ax = plt.subplots()
+x = [1,2,3,4,5]
+for idx in range(5):
+    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+
+plt.ylabel('timesteps↓',fontsize=17)
+#plt.ylim(5,20)
+plt.xticks(x,['100%','75%','50%','25%','10%'])
+plt.xlabel('bandwidth limits',fontsize=17)
+plt.xlim(0.5,5.5)
+plt.legend(fontsize=12,loc="upper left")
+plt.title('Treasure Hunt A',fontsize=20)
+plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/thamain.pdf',bbox_inches='tight')
+
+#thb
+ys = [sem_thb,fn_thb,etc_thb,imac_thb,do_thb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],'-o',color=colors[idx],label=labels[idx],lw=2)
+    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
 
-plt.ylabel('timesteps↓',fontsize=18)
-plt.ylim(5,20)
+plt.ylabel('timesteps↓',fontsize=17)
+#plt.ylim(5,20)
 plt.xticks(x,['100%','75%','50%','25%','10%'])
-plt.xlabel('bandwidth limits',fontsize=18)
+plt.xlabel('bandwidth limits',fontsize=17)
 plt.xlim(0.5,5.5)
-plt.legend(fontsize=14,loc="upper left")
-plt.title('Treasure Hunt A',fontsize=22)
-plt.show()
+plt.legend(fontsize=12,loc="upper left")
+plt.title('Treasure Hunt B',fontsize=20)
+plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/thbmain.pdf',bbox_inches='tight')
+
+
+#ppa
+ys = [sem_ppa,fn_ppa,etc_ppa,imac_ppa,do_ppa]
+fig = plt.figure()
+x = [1,2,3,4,5]
+for idx in range(5):
+    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+
+plt.ylabel('timesteps↓',fontsize=17)
+#plt.ylim(5,20)
+plt.xticks(x,['100%','75%','50%','25%','10%'])
+plt.xlabel('bandwidth limits',fontsize=17)
+plt.xlim(0.5,5.5)
+plt.legend(fontsize=12,loc="upper left")
+plt.title('Predator Prey A',fontsize=20)
+plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/ppamain.pdf',bbox_inches='tight')
+
+#ppb
+ys = [sem_ppb,fn_ppb,etc_ppb,imac_ppb,do_ppb]
+fig = plt.figure()
+x = [1,2,3,4,5]
+for idx in range(5):
+    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+
+plt.ylabel('timesteps↓',fontsize=17)
+#plt.ylim(5,20)
+plt.xticks(x,['100%','75%','50%','25%','10%'])
+plt.xlabel('bandwidth limits',fontsize=17)
+plt.xlim(0.5,5.5)
+plt.legend(fontsize=12,loc="upper left")
+plt.title('Predator Prey B',fontsize=20)
+plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/ppbmain.pdf',bbox_inches='tight')
+
+#tja
+ys = [sem_tja,fn_tja,etc_tja,imac_tja,do_tja]
+fig = plt.figure()
+x = [1,2,3,4,5]
+for idx in range(5):
+    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+
+plt.ylabel('success rates↑',fontsize=17)
+#plt.ylim(5,20)
+plt.xticks(x,['100%','75%','50%','25%','10%'])
+plt.xlabel('bandwidth limits',fontsize=17)
+plt.xlim(0.5,5.5)
+plt.legend(fontsize=12,loc="lower left")
+plt.title('Traffic Junction A',fontsize=20)
+plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/tjamain.pdf',bbox_inches='tight')
+
+#tjb
+ys = [sem_tjb,fn_tjb,etc_tjb,imac_tjb,do_tjb]
+fig = plt.figure()
+x = [1,2,3,4,5]
+for idx in range(5):
+    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+
+plt.ylabel('success rates↑',fontsize=17)
+#plt.ylim(5,20)
+plt.xticks(x,['100%','75%','50%','25%','10%'])
+plt.xlabel('bandwidth limits',fontsize=17)
+plt.xlim(0.5,5.5)
+plt.legend(fontsize=12,loc="lower left")
+plt.title('Traffic Junction B',fontsize=20)
+plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/tjbmain.pdf',bbox_inches='tight')
+
+
+'''
+
 '''
 
 '''
