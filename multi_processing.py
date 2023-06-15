@@ -67,10 +67,13 @@ class MultiProcessWorker(ctx.Process):
                     entro_stat = {'comm_entropy':final_entropy}
                     merge_stat(entro_stat, stat)
                 self.trainer.optimizer.zero_grad()
-                if epoch>=self.args.loss_start:
-                    s = self.trainer.compute_grad(comm_info, batch, self.args.loss_alpha)
+                if self.args.increase_alpha:
+                    now_alpha = self.args.loss_alpha*epoch/self.args.num_epochs
+                    s = self.trainer.compute_grad(comm_info_acc, batch, now_alpha)
+                elif epoch>=self.args.loss_start:
+                    s = self.trainer.compute_grad(comm_info_acc, batch, self.args.loss_alpha)
                 else:
-                    s = self.trainer.compute_grad(comm_info, batch, 0)
+                    s = self.trainer.compute_grad(comm_info_acc, batch, 0)
                 merge_stat(s, stat)
                 self.comm.send(stat)
             elif task == 'test_batch':
@@ -189,7 +192,10 @@ class MultiProcessTrainer(object):
         # run its own trainer
         batch, stat, comm_info_acc = self.trainer.run_batch(epoch)
         self.trainer.optimizer.zero_grad()
-        if epoch>=self.args.loss_start:
+        if self.args.increase_alpha:
+            now_alpha = self.args.loss_alpha*epoch/self.args.num_epochs
+            s = self.trainer.compute_grad(comm_info_acc, batch, now_alpha)
+        elif epoch>=self.args.loss_start:
             s = self.trainer.compute_grad(comm_info_acc, batch, self.args.loss_alpha)
         else:
             s = self.trainer.compute_grad(comm_info_acc, batch, 0)

@@ -226,6 +226,15 @@ class ETCNETMLP(nn.Module):
             # Choose current or prev depending on recurrent
             raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
             comm, broad_comm = self.generate_comm(raw_comm)
+            if self.args.drop_prob > 0:
+                random_mat = torch.rand(batch_size, n).to(torch.device("cuda"))
+                judge_ref_mat = self.args.drop_prob*torch.ones((batch_size, n)).to(torch.device("cuda"))
+                raw_msg_weight = (random_mat>judge_ref_mat).reshape(batch_size, n, 1).int()
+                fake_comm = torch.zeros(batch_size, n, self.args.msg_size).to(torch.device("cuda"))
+                fake_msg_weight = (random_mat<=judge_ref_mat).reshape(batch_size,n, 1).int()
+                comm_agents = torch.sum(raw_msg_weight)
+                comm = comm*raw_msg_weight + fake_comm*fake_msg_weight
+                assert (batch_size==1)
             if info['activate_gate']:
                 larg_val, pelt_val, gate_sfm = self.get_gate(raw_comm)
                 gate_array = torch.multinomial(gate_sfm.view(-1, 2),1).detach()

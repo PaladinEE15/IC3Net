@@ -217,6 +217,14 @@ class TARMACMLP(nn.Module):
             comm, broad_comm, key = self.generate_comm(raw_comm)
             if self.args.test_type > 0:
                 comm, broad_comm = modify_message(comm, self.args.test_type, self.args.error_rate)
+            if self.args.drop_prob > 0:
+                random_mat = torch.rand(n).to(torch.device("cuda"))
+                judge_ref_mat = self.args.drop_prob*torch.ones(n).to(torch.device("cuda"))
+                raw_msg_weight = (random_mat>judge_ref_mat).reshape(n, 1).int()
+                fake_comm = torch.zeros(n, self.args.v_size+self.args.qk_size).to(torch.device("cuda"))
+                fake_msg_weight = (random_mat<=judge_ref_mat).reshape(n, 1).int()
+                comm = comm*raw_msg_weight + fake_comm*fake_msg_weight
+                assert (batch_size==1)
             #comm shape: n x msg_size
             #key shape: n x qk_size
             # Get the next communication vector based on next hidden state

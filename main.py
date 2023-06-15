@@ -161,6 +161,8 @@ parser.add_argument('--no_input_grad', default=False, action='store_true',
                     help='whether treat encoding input as no-grad. True: no grad. False: grad')
 parser.add_argument('--distribution_output_type', default=0, type=int, 
                     help='whether output distributions of messages. 0: do not output; 1: output distributions of each digit; 2 :output distributions of the whole messages')
+parser.add_argument('--increase_alpha', default=False, action='store_true', 
+                    help='whether increase_alpha linearly. ')
 # Configs for gumbel-softmax
 parser.add_argument('--gumbel_gamma', default=1, type=float,
                     help='gamma of gumbel-softmax')
