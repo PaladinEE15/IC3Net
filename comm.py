@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torch import nn
 import math
 from action_utils import select_action, translate_action
+import time
 
 class CommNetMLP(nn.Module):
     """
@@ -167,6 +168,7 @@ class CommNetMLP(nn.Module):
         return x, hidden_state, cell_state
 
     def generate_comm(self,raw_comm):
+        generate_start_t = time.time()
         if self.args.comm_detail == 'raw':
             comm = raw_comm
         else :
@@ -189,6 +191,8 @@ class CommNetMLP(nn.Module):
         #the message range is (-1, 1)
         comm = self.args.compress_msg*comm
         comm_info = self.args.compress_msg*comm_info
+        self.generate_time = time.time() - generate_start_t
+        quant_start_t = time.time()
         if self.quant:
             qt_comm = (comm+1)*0.5
             qt_comm = qt_comm*(self.args.quant_levels-1)
@@ -196,6 +200,8 @@ class CommNetMLP(nn.Module):
             qt_comm = qt_comm/(self.args.quant_levels-1)
             qt_comm = qt_comm*2-1
             comm_inuse = (qt_comm-comm).detach()+comm
+        self.quant_time = time.time() - quant_start_t
+        
         if self.args.no_comm:
             return torch.zeros_like(comm_inuse), torch.zeros_like(comm_info)
         return 1/self.args.compress_msg*comm_inuse, comm_info
@@ -252,9 +258,11 @@ class CommNetMLP(nn.Module):
         for i in range(self.comm_passes): #decide how many times to communicate, default 1
             # Choose current or prev depending on recurrent
             raw_comm = hidden_state.view(batch_size, n, self.hid_size) if self.args.recurrent else hidden_state
+            self.generate_time = 0
+            self.quant_time = 0
             comm, broad_comm = self.generate_comm(raw_comm)
             # Get the next communication vector based on next hidden state
-
+            process_start_t = time.time()
             if self.args.drop_prob > 0:
                 random_mat = torch.rand(batch_size, n).to(torch.device("cuda"))
                 judge_ref_mat = self.args.drop_prob*torch.ones((batch_size, n)).to(torch.device("cuda"))
@@ -331,12 +339,15 @@ class CommNetMLP(nn.Module):
         else:
             # discrete actions
             action = [F.log_softmax(head(h), dim=-1) for head in self.heads]
-
+        time_dict = {}
+        time_dict['quant'] = self.quant_time
+        time_dict['generate'] = self.generate_time
+        time_dict['process'] = time.time() - process_start_t
         if self.args.recurrent :
             if self.args.rnn_type == 'LSTM':
-                return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone())
+                return broad_comm, action, value_head, (hidden_state.clone(), cell_state.clone()), time_dict
             else:
-                return broad_comm, action, value_head, hidden_state.clone()
+                return broad_comm, action, value_head, hidden_state.clone(), time_dict
         else:
             return broad_comm, action, value_head
 

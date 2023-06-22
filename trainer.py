@@ -60,6 +60,10 @@ class Trainer(object):
 
         prev_hid = torch.zeros(1, self.args.nagents, self.args.hid_size).to(torch.device("cuda"))
 
+        stat['quant_time'] = 0
+        stat['generate_time'] = 0
+        stat['process_time'] = 0
+        stat['interact_time'] = 0
         for t in range(self.args.max_steps):
             misc = dict()
             if t == 0 and self.args.hard_attn and self.args.commnet:
@@ -71,7 +75,7 @@ class Trainer(object):
                     prev_hid = self.policy_net.init_hidden(batch_size=state.shape[0])
 
                 x = [state, prev_hid]
-                comm, action_out, value, prev_hid = self.policy_net(x, info, quant)
+                comm, action_out, value, prev_hid, time_dict = self.policy_net(x, info, quant)
 
                 if (t + 1) % self.args.detach_gap == 0:
                     if self.args.rnn_type == 'LSTM':
@@ -94,7 +98,13 @@ class Trainer(object):
 
             action = select_action(self.args, action_out)
             action, actual = translate_action(self.args, self.env, action)
+            interact_start_t = time.time()
             next_state, reward, done, info = self.env.step(actual)
+
+            stat['quant_time'] += time_dict['quant']
+            stat['generate_time'] += time_dict['generate']
+            stat['process_time'] += time_dict['process']
+            stat['interact_time'] += time.time() - interact_start_t
             next_state = torch.from_numpy(next_state).double().to(torch.device("cuda"))
             if details:
                 ready_comm = comm.view(self.args.nagents,-1).detach().cpu().numpy()
@@ -157,7 +167,6 @@ class Trainer(object):
                 break
         stat['num_steps'] = t + 1
         stat['steps_taken'] = stat['num_steps']
-
         if hasattr(self.env, 'reward_terminal'):
             reward = self.env.reward_terminal()
             # We are not multiplying in case of reward terminal with alive agent
