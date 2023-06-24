@@ -252,6 +252,16 @@ def run(num_epochs):
             print('Epoch {}\tReward {}\tTime {:.2f}s'.format(
                     epoch, stat['reward'], epoch_time
             ))
+            if 'process_time' in stat.keys():
+                print('process_time: {:.3f}'.format(stat['process_time']))
+            if 'interact_time' in stat.keys():
+                print('interact_time: {:.3f}'.format(stat['interact_time']))
+            if 'quant_time' in stat.keys():
+                print('quant_time: {:.3f}'.format(stat['quant_time']))
+            if 'generate_time' in stat.keys():
+                print('generate_time: {:.3f}'.format(stat['generate_time']))
+            if 'train_time' in stat.keys():
+                print('train_time: {:.3f}'.format(stat['train_time']))
             if 'comm_entropy' in stat.keys():
                 print('comm_entropy: {}'.format(stat['comm_entropy']))
             if 'enemy_reward' in stat.keys():

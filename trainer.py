@@ -5,6 +5,7 @@ import math
 import torch
 from torch import optim
 import torch.nn as nn
+import time
 from utils import *
 from action_utils import *
 
@@ -190,7 +191,7 @@ class Trainer(object):
         stat = dict()
         num_actions = self.args.num_actions
         dim_actions = self.args.dim_actions
-
+        train_start_t = time.time()
         n = self.args.nagents
         batch_size = len(batch.state)
 
@@ -358,7 +359,7 @@ class Trainer(object):
         loss = loss + comm_entro_loss*loss_alpha #we want to maximize comm_entro
 
         loss.backward()
-
+        stat['train_time'] = time.time() - train_start_t
         return stat
 
     def test(self, run_times):
