@@ -69,11 +69,11 @@ class MultiProcessWorker(ctx.Process):
                 self.trainer.optimizer.zero_grad()
                 if self.args.increase_alpha:
                     now_alpha = self.args.loss_alpha*epoch/self.args.num_epochs
-                    s = self.trainer.compute_grad(comm_info_acc, batch, now_alpha)
+                    s = self.trainer.compute_grad(comm_info, batch, now_alpha)
                 elif epoch>=self.args.loss_start:
-                    s = self.trainer.compute_grad(comm_info_acc, batch, self.args.loss_alpha)
+                    s = self.trainer.compute_grad(comm_info, batch, self.args.loss_alpha)
                 else:
-                    s = self.trainer.compute_grad(comm_info_acc, batch, 0)
+                    s = self.trainer.compute_grad(comm_info, batch, 0)
                 merge_stat(s, stat)
                 self.comm.send(stat)
             elif task == 'test_batch':

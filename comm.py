@@ -199,8 +199,10 @@ class CommNetMLP(nn.Module):
             qt_comm = torch.round(qt_comm)
             qt_comm = qt_comm/(self.args.quant_levels-1)
             qt_comm = qt_comm*2-1
+            self.quant_time = time.time() - quant_start_t
             comm_inuse = (qt_comm-comm).detach()+comm
-        self.quant_time = time.time() - quant_start_t
+        else:
+            self.quant_time = 0
         
         if self.args.no_comm:
             return torch.zeros_like(comm_inuse), torch.zeros_like(comm_info)
