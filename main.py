@@ -173,7 +173,8 @@ parser.add_argument('--no_comm', default=False, action='store_true',
                     
 parser.add_argument("--map_name", type=str, default="3s_vs_4z", choices=["3s_vs_4z", "5m_vs_6m"], help='map name for starcraft')
 parser.add_argument("--redirect_path", type=str, default= None, help='log of sc env')
-
+parser.add_argument('--value_based', default=False, action='store_true', 
+                    help='whether used value_based methods ')
 #test_parameters
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')
@@ -188,6 +189,14 @@ parser.add_argument('--detailed_info', default=False, action='store_true',
 parser.add_argument('--compress_msg', default=1.0, type=float, 
                     help='compress msg to meet bandwidth restriction')      
 
+parser.add_argument('--explore_start_val', default=0.3, type=float, 
+                    help='explore rate start')     
+parser.add_argument('--explore_end_val', default=0.05, type=float, 
+                    help='explore rate end')  
+parser.add_argument('--explore_start_epoch', default=0, type=int, 
+                    help='explore_start_epoch')    
+parser.add_argument('--explore_end_epoch', default=50, type=int, 
+                    help='explore_end_epoch')            
 
 
 init_args_for_env(parser)
@@ -333,7 +342,7 @@ if __name__ == '__main__':
 
     num_inputs = env.observation_dim
     args.num_actions = env.num_actions
-
+    args.total_actions = env.num_actions
     # Multi-action
     if not isinstance(args.num_actions, (list, tuple)): # single action case
         args.num_actions = [args.num_actions]

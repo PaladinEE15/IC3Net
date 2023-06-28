@@ -27,7 +27,8 @@ class Trainer(object):
             self.optimizer = optim.Adam(policy_net.parameters(),lr = args.lrate)
         elif self.args.optim_type == 'rmsprop':
             self.optimizer = optim.RMSprop(policy_net.parameters(), lr = args.lrate, alpha=0.97, eps=1e-6)
-        
+        if self.args.value_based:
+            self.random_act = np.arange(args.total_actions)
         self.params = [p for p in self.policy_net.parameters()]
         self.mark_reftensor = False #mark whether the reftensor is created
     
@@ -97,75 +98,118 @@ class Trainer(object):
             else:
                 comm_stat = torch.zeros(1)
 
-            action = select_action(self.args, action_out)
-            action, actual = translate_action(self.args, self.env, action)
-            interact_start_t = time.time()
-            next_state, reward, done, info = self.env.step(actual)
+            if self.args.value_based:
+                actual = torch.argmax(action_out,dim=-1).detach().cpu().numpy().flatten()
+                #get explore prob
+                if epoch <= self.args.explore_start_epoch:
+                    explore_prob = self.args.explore_start_val
+                elif epoch >= self.args.explore_end_epoch:
+                    explore_prob = self.args.explore_end_val
+                else:
+                    diff = self.args.explore_start_val - self.args.explore_end_val
+                    ratio = (epoch - self.args.explore_start_epoch) / (self.args.explore_end_epoch - self.args.explore_start_epoch)
+                    explore_prob = self.args.explore_start_val - ratio*diff
+                if explore_prob > 0:
+                    random_actions = np.random.choice(self.random_act, size=(self.args.nagents,))
+                    random_judge = np.random.binomial(1,explore_prob,size=(self.args.nagents,)) 
+                    
+                    actual = random_actions*random_judge + actual*(1-random_judge)
+                next_state, reward, done, info = self.env.step([actual])
+                next_state = torch.from_numpy(next_state).double().to(torch.device("cuda"))
 
-            stat['quant_time'] += time_dict['quant']
-            stat['generate_time'] += time_dict['generate']
-            stat['process_time'] += time_dict['process']
-            stat['interact_time'] += time.time() - interact_start_t
-            next_state = torch.from_numpy(next_state).double().to(torch.device("cuda"))
-            if details:
-                ready_comm = comm.view(self.args.nagents,-1).detach().cpu().numpy()
-                myquant(ready_comm)
-                print('timestep:',t)
-                for idx in range(self.args.nagents):
-                    arr_str = ','.join(str(x) for x in ready_comm[idx])
-                    print(arr_str)
-                print('new env info - predator locs:',info['predator_locs'])
-                print('new env info - prey locs:',info['prey_locs'])
-                if done:
-                    print('done!!!')
-
-            #here, begin env data display
-            if self.args.detailed_info:
-                print('info begin!timestep:',t)
-                print('predator locs:', info['predator_locs'])
-                print('prey locs:', info['prey_locs'])
-                print('comm info:',self.get_distribution_simple(comm.view(self.args.nagents,-1).detach().cpu().numpy()))
-
-            # store comm_action in info for next step
-            if self.args.hard_attn and self.args.commnet:
-                info['comm_action'] = action[-1] if not self.args.comm_action_one else np.ones(self.args.nagents, dtype=int)
-
-                stat['comm_action'] = stat.get('comm_action', 0) + info['comm_action'][:self.args.nfriendly]
+                stat['reward'] = stat.get('reward', 0) + reward[:self.args.nfriendly]
                 if hasattr(self.args, 'enemy_comm') and self.args.enemy_comm:
-                    stat['enemy_comm']  = stat.get('enemy_comm', 0)  + info['comm_action'][self.args.nfriendly:]
+                    stat['enemy_reward'] = stat.get('enemy_reward', 0) + reward[self.args.nfriendly:]
 
+                done = done or t == self.args.max_steps - 1
 
-            if 'alive_mask' in info:
-                misc['alive_mask'] = info['alive_mask'].reshape(reward.shape)
+                episode_mask = np.ones(reward.shape)
+                episode_mini_mask = np.ones(reward.shape)
+
+                if done:
+                    episode_mask = np.zeros(reward.shape)
+                else:
+                    if 'is_completed' in info:
+                        episode_mini_mask = 1 - info['is_completed'].reshape(-1)
+
+                if should_display:
+                    self.env.display()
+
+                trans = Transition(state, actual, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
+                episode.append(trans)
+                state = next_state
+                if done:
+                    break
             else:
-                misc['alive_mask'] = np.ones_like(reward)
+                action = select_action(self.args, action_out)
+                action, actual = translate_action(self.args, self.env, action)
+                interact_start_t = time.time()
+                next_state, reward, done, info = self.env.step(actual)
 
-            # env should handle this make sure that reward for dead agents is not counted
-            # reward = reward * misc['alive_mask']
+                stat['quant_time'] += time_dict['quant']
+                stat['generate_time'] += time_dict['generate']
+                stat['process_time'] += time_dict['process']
+                stat['interact_time'] += time.time() - interact_start_t
+                next_state = torch.from_numpy(next_state).double().to(torch.device("cuda"))
+                if details:
+                    ready_comm = comm.view(self.args.nagents,-1).detach().cpu().numpy()
+                    myquant(ready_comm)
+                    print('timestep:',t)
+                    for idx in range(self.args.nagents):
+                        arr_str = ','.join(str(x) for x in ready_comm[idx])
+                        print(arr_str)
+                    print('new env info - predator locs:',info['predator_locs'])
+                    print('new env info - prey locs:',info['prey_locs'])
+                    if done:
+                        print('done!!!')
 
-            stat['reward'] = stat.get('reward', 0) + reward[:self.args.nfriendly]
-            if hasattr(self.args, 'enemy_comm') and self.args.enemy_comm:
-                stat['enemy_reward'] = stat.get('enemy_reward', 0) + reward[self.args.nfriendly:]
+                #here, begin env data display
+                if self.args.detailed_info:
+                    print('info begin!timestep:',t)
+                    print('predator locs:', info['predator_locs'])
+                    print('prey locs:', info['prey_locs'])
+                    print('comm info:',self.get_distribution_simple(comm.view(self.args.nagents,-1).detach().cpu().numpy()))
 
-            done = done or t == self.args.max_steps - 1
+                # store comm_action in info for next step
+                if self.args.hard_attn and self.args.commnet:
+                    info['comm_action'] = action[-1] if not self.args.comm_action_one else np.ones(self.args.nagents, dtype=int)
 
-            episode_mask = np.ones(reward.shape)
-            episode_mini_mask = np.ones(reward.shape)
+                    stat['comm_action'] = stat.get('comm_action', 0) + info['comm_action'][:self.args.nfriendly]
+                    if hasattr(self.args, 'enemy_comm') and self.args.enemy_comm:
+                        stat['enemy_comm']  = stat.get('enemy_comm', 0)  + info['comm_action'][self.args.nfriendly:]
 
-            if done:
-                episode_mask = np.zeros(reward.shape)
-            else:
-                if 'is_completed' in info:
-                    episode_mini_mask = 1 - info['is_completed'].reshape(-1)
 
-            if should_display:
-                self.env.display()
+                if 'alive_mask' in info:
+                    misc['alive_mask'] = info['alive_mask'].reshape(reward.shape)
+                else:
+                    misc['alive_mask'] = np.ones_like(reward)
 
-            trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
-            episode.append(trans)
-            state = next_state
-            if done:
-                break
+                # env should handle this make sure that reward for dead agents is not counted
+                # reward = reward * misc['alive_mask']
+
+                stat['reward'] = stat.get('reward', 0) + reward[:self.args.nfriendly]
+                if hasattr(self.args, 'enemy_comm') and self.args.enemy_comm:
+                    stat['enemy_reward'] = stat.get('enemy_reward', 0) + reward[self.args.nfriendly:]
+
+                done = done or t == self.args.max_steps - 1
+
+                episode_mask = np.ones(reward.shape)
+                episode_mini_mask = np.ones(reward.shape)
+
+                if done:
+                    episode_mask = np.zeros(reward.shape)
+                else:
+                    if 'is_completed' in info:
+                        episode_mini_mask = 1 - info['is_completed'].reshape(-1)
+
+                if should_display:
+                    self.env.display()
+
+                trans = Transition(state, action, action_out, value, episode_mask, episode_mini_mask, next_state, reward, misc)
+                episode.append(trans)
+                state = next_state
+                if done:
+                    break
         stat['num_steps'] = t + 1
         stat['steps_taken'] = stat['num_steps']
         if hasattr(self.env, 'reward_terminal'):
@@ -188,42 +232,6 @@ class Trainer(object):
 
 
     def compute_grad(self, comm_info, batch, loss_alpha):
-        stat = dict()
-        num_actions = self.args.num_actions
-        dim_actions = self.args.dim_actions
-        train_start_t = time.time()
-        n = self.args.nagents
-        batch_size = len(batch.state)
-
-        rewards = torch.Tensor(batch.reward).to(torch.device("cuda"))
-        episode_masks = torch.Tensor(batch.episode_mask).to(torch.device("cuda"))
-        episode_mini_masks = torch.Tensor(batch.episode_mini_mask).to(torch.device("cuda"))
-        actions = torch.Tensor(batch.action).to(torch.device("cuda"))
-        actions = actions.transpose(1, 2).view(-1, n, dim_actions)
-
-        # old_actions = torch.Tensor(np.concatenate(batch.action, 0))
-        # old_actions = old_actions.view(-1, n, dim_actions)
-        # print(old_actions == actions)
-
-        # can't do batch forward.
-        values = torch.cat(batch.value, dim=0)
-        action_out = list(zip(*batch.action_out))
-        action_out = [torch.cat(a, dim=0) for a in action_out]
-
-        alive_masks = torch.Tensor(np.concatenate([item['alive_mask'] for item in batch.misc])).view(-1).to(torch.device("cuda"))
-
-        coop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
-        ncoop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
-        returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
-        deltas = torch.Tensor(batch_size, n).to(torch.device("cuda"))
-        advantages = torch.Tensor(batch_size, n).to(torch.device("cuda"))
-        values = values.view(batch_size, n)
-
-        prev_coop_return = 0
-        prev_ncoop_return = 0
-        prev_value = 0
-        prev_advantage = 0
-        
         if loss_alpha > 0:
             if self.args.comm_detail == 'triangle':
                 ref_info = (comm_info+1)*0.5
@@ -294,73 +302,132 @@ class Trainer(object):
                 comm_entro_loss = torch.mean(loss_mat)     
         else:
             comm_entro_loss = torch.Tensor([0]).cuda()
-
         
-        for i in reversed(range (rewards.size(0))):
-            coop_returns[i] = rewards[i] + self.args.gamma * prev_coop_return * episode_masks[i]
-            ncoop_returns[i] = rewards[i] + self.args.gamma * prev_ncoop_return * episode_masks[i] * episode_mini_masks[i]
+        stat = dict()
+        num_actions = self.args.num_actions
+        dim_actions = self.args.dim_actions    
+        rewards = torch.Tensor(batch.reward).to(torch.device("cuda"))
+        episode_masks = torch.Tensor(batch.episode_mask).to(torch.device("cuda"))
+        episode_mini_masks = torch.Tensor(batch.episode_mini_mask).to(torch.device("cuda"))
+        actions = torch.Tensor(batch.action).to(torch.device("cuda"))        
+        
+        if self.args.value_based:
+            #use now action to calculate this timestep q
+            #use q value from the next state to calculate target
+            useful_out = torch.cat(batch.action_out)
+            action_idx = actions.unsqueeze(-1).long()
+            present_q = torch.gather(useful_out,2,action_idx).squeeze()
+            q_max = torch.max(useful_out,dim=-1)[0].detach()
 
-            prev_coop_return = coop_returns[i].clone()
-            prev_ncoop_return = ncoop_returns[i].clone()
-
-            returns[i] = (self.args.mean_ratio * coop_returns[i].mean()) \
-                        + ((1 - self.args.mean_ratio) * ncoop_returns[i])
-
-
-        for i in reversed(range(rewards.size(0))):
-            advantages[i] = returns[i] - values.data[i]
-
-        if self.args.normalize_rewards:
-            advantages = (advantages - advantages.mean()) / advantages.std()
-
-        if self.args.continuous:
-            action_means, action_log_stds, action_stds = action_out
-            log_prob = normal_log_density(actions, action_means, action_log_stds, action_stds)
+            next_max = torch.zeros_like(q_max).to(torch.device("cuda"))
+            next_max[:-1,:] = q_max[1:,:]
+            next_max = next_max * episode_masks
+            target = rewards + 0.99*next_max
+            q_loss = torch.sum((target - present_q).pow(2))
+            loss = q_loss + comm_entro_loss*loss_alpha
+            stat['value_loss'] = q_loss.item()
+            stat['comm_entro_loss'] = comm_entro_loss.item()
+            loss.backward()
+            return stat
         else:
-            log_p_a = [action_out[i].view(-1, num_actions[i]) for i in range(dim_actions)]
-            actions = actions.contiguous().view(-1, dim_actions)
+            train_start_t = time.time()
+            n = self.args.nagents
+            batch_size = len(batch.state)
+
+
+            actions = actions.transpose(1, 2).view(-1, n, dim_actions)
+
+            # old_actions = torch.Tensor(np.concatenate(batch.action, 0))
+            # old_actions = old_actions.view(-1, n, dim_actions)
+            # print(old_actions == actions)
+
+            # can't do batch forward.
+            values = torch.cat(batch.value, dim=0)
+            action_out = list(zip(*batch.action_out))
+            action_out = [torch.cat(a, dim=0) for a in action_out]
+
+            alive_masks = torch.Tensor(np.concatenate([item['alive_mask'] for item in batch.misc])).view(-1).to(torch.device("cuda"))
+
+            coop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+            ncoop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+            returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+            deltas = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+            advantages = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+            values = values.view(batch_size, n)
+
+            prev_coop_return = 0
+            prev_ncoop_return = 0
+            prev_value = 0
+            prev_advantage = 0
+            
+
+
+            
+            for i in reversed(range (rewards.size(0))):
+                coop_returns[i] = rewards[i] + self.args.gamma * prev_coop_return * episode_masks[i]
+                ncoop_returns[i] = rewards[i] + self.args.gamma * prev_ncoop_return * episode_masks[i] * episode_mini_masks[i]
+
+                prev_coop_return = coop_returns[i].clone()
+                prev_ncoop_return = ncoop_returns[i].clone()
+
+                returns[i] = (self.args.mean_ratio * coop_returns[i].mean()) \
+                            + ((1 - self.args.mean_ratio) * ncoop_returns[i])
+
+
+            for i in reversed(range(rewards.size(0))):
+                advantages[i] = returns[i] - values.data[i]
+
+            if self.args.normalize_rewards:
+                advantages = (advantages - advantages.mean()) / advantages.std()
+
+            if self.args.continuous:
+                action_means, action_log_stds, action_stds = action_out
+                log_prob = normal_log_density(actions, action_means, action_log_stds, action_stds)
+            else:
+                log_p_a = [action_out[i].view(-1, num_actions[i]) for i in range(dim_actions)]
+                actions = actions.contiguous().view(-1, dim_actions)
+
+                if self.args.advantages_per_action:
+                    log_prob = multinomials_log_densities(actions, log_p_a)
+                else:
+                    log_prob = multinomials_log_density(actions, log_p_a)
 
             if self.args.advantages_per_action:
-                log_prob = multinomials_log_densities(actions, log_p_a)
+                action_loss = -advantages.view(-1).unsqueeze(-1) * log_prob
+                action_loss *= alive_masks.unsqueeze(-1)
             else:
-                log_prob = multinomials_log_density(actions, log_p_a)
+                action_loss = -advantages.view(-1) * log_prob.squeeze()
+                action_loss *= alive_masks
 
-        if self.args.advantages_per_action:
-            action_loss = -advantages.view(-1).unsqueeze(-1) * log_prob
-            action_loss *= alive_masks.unsqueeze(-1)
-        else:
-            action_loss = -advantages.view(-1) * log_prob.squeeze()
-            action_loss *= alive_masks
+            action_loss = action_loss.sum()
+            stat['action_loss'] = action_loss.item()
 
-        action_loss = action_loss.sum()
-        stat['action_loss'] = action_loss.item()
+            # value loss term
+            targets = returns
+            value_loss = (values - targets).pow(2).view(-1)
+            value_loss *= alive_masks
+            value_loss = value_loss.sum()
 
-        # value loss term
-        targets = returns
-        value_loss = (values - targets).pow(2).view(-1)
-        value_loss *= alive_masks
-        value_loss = value_loss.sum()
+            stat['value_loss'] = value_loss.item()
+            loss = action_loss + self.args.value_coeff * value_loss
 
-        stat['value_loss'] = value_loss.item()
-        loss = action_loss + self.args.value_coeff * value_loss
+            comm_entro_loss = comm_entro_loss*batch_size #to keep in pace with other loss
 
-        comm_entro_loss = comm_entro_loss*batch_size #to keep in pace with other loss
+            if not self.args.continuous:
+                # entropy regularization term
+                if self.args.entr > 0:
+                    entropy = 0
+                    for i in range(len(log_p_a)):
+                        entropy -= (log_p_a[i] * log_p_a[i].exp()).sum()
+                    stat['entropy'] = entropy.item()
+                    loss -= self.args.entr * entropy
+            stat['other_loss'] = loss.item()
+            stat['comm_entro_loss'] = comm_entro_loss.item()*loss_alpha
+            loss = loss + comm_entro_loss*loss_alpha #we want to maximize comm_entro
 
-        if not self.args.continuous:
-            # entropy regularization term
-            if self.args.entr > 0:
-                entropy = 0
-                for i in range(len(log_p_a)):
-                    entropy -= (log_p_a[i] * log_p_a[i].exp()).sum()
-                stat['entropy'] = entropy.item()
-                loss -= self.args.entr * entropy
-        stat['other_loss'] = loss.item()
-        stat['comm_entro_loss'] = comm_entro_loss.item()*loss_alpha
-        loss = loss + comm_entro_loss*loss_alpha #we want to maximize comm_entro
-
-        loss.backward()
-        stat['train_time'] = time.time() - train_start_t
-        return stat
+            loss.backward()
+            stat['train_time'] = time.time() - train_start_t
+            return stat
 
     def test(self, run_times):
         steps_taken = []

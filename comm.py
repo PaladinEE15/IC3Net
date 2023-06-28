@@ -28,7 +28,9 @@ class CommNetMLP(nn.Module):
         self.recurrent = args.recurrent
 
         self.continuous = args.continuous
-        if self.continuous:
+        if args.value_based:
+            self.action_generate = nn.Linear(args.hid_size, args.total_actions)
+        elif self.continuous:
             self.action_mean = nn.Linear(args.hid_size, args.dim_actions)
             self.action_log_std = nn.Parameter(torch.zeros(1, args.dim_actions)).to(torch.device("cuda"))
         else:
@@ -332,7 +334,11 @@ class CommNetMLP(nn.Module):
         value_head = self.value_head(hidden_state)
         h = hidden_state.view(batch_size, n, self.hid_size)
 
-        if self.continuous:
+        
+
+        if self.args.value_based:
+            action = self.action_generate(h)
+        elif self.continuous:
             action_mean = self.action_mean(h)
             action_log_std = self.action_log_std.expand_as(action_mean)
             action_std = torch.exp(action_log_std)
