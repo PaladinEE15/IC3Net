@@ -175,6 +175,8 @@ parser.add_argument("--map_name", type=str, default="3s_vs_4z", choices=["3s_vs_
 parser.add_argument("--redirect_path", type=str, default= None, help='log of sc env')
 parser.add_argument('--value_based', default=False, action='store_true', 
                     help='whether used value_based methods ')
+parser.add_argument('--mcq', default=False, action='store_true', 
+                    help='use Monte-Carlo methods to compute Q')
 #test_parameters
 parser.add_argument('--test_times', default=0, type=int, 
                     help='test times')

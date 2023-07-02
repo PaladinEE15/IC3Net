@@ -312,23 +312,64 @@ class Trainer(object):
         actions = torch.Tensor(batch.action).to(torch.device("cuda"))        
         
         if self.args.value_based:
-            #use now action to calculate this timestep q
-            #use q value from the next state to calculate target
-            useful_out = torch.cat(batch.action_out)
-            action_idx = actions.unsqueeze(-1).long()
-            present_q = torch.gather(useful_out,2,action_idx).squeeze()
-            q_max = torch.max(useful_out,dim=-1)[0].detach()
+            if self.args.mcq:
+                n = self.args.nagents
+                batch_size = len(batch.state)
+                coop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+                ncoop_returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+                returns = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+                deltas = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+                advantages = torch.Tensor(batch_size, n).to(torch.device("cuda"))
+                values = torch.cat(batch.value, dim=0)
+                values = values.view(batch_size, n)
+                useful_out = torch.cat(batch.action_out)
+                action_idx = actions.unsqueeze(-1).long()
+                present_q = torch.gather(useful_out,2,action_idx).squeeze()
+                prev_coop_return = 0
+                prev_ncoop_return = 0
+                for i in reversed(range (rewards.size(0))):
+                    coop_returns[i] = rewards[i] + self.args.gamma * prev_coop_return * episode_masks[i]
+                    ncoop_returns[i] = rewards[i] + self.args.gamma * prev_ncoop_return * episode_masks[i] * episode_mini_masks[i]
 
-            next_max = torch.zeros_like(q_max).to(torch.device("cuda"))
-            next_max[:-1,:] = q_max[1:,:]
-            next_max = next_max * episode_masks
-            target = rewards + 0.99*next_max
-            q_loss = torch.sum((target - present_q).pow(2))
-            loss = q_loss + comm_entro_loss*loss_alpha
-            stat['value_loss'] = q_loss.item()
-            stat['comm_entro_loss'] = comm_entro_loss.item()
-            loss.backward()
-            return stat
+                    prev_coop_return = coop_returns[i].clone()
+                    prev_ncoop_return = ncoop_returns[i].clone()
+
+                    returns[i] = (self.args.mean_ratio * coop_returns[i].mean()) \
+                                + ((1 - self.args.mean_ratio) * ncoop_returns[i])
+
+                for i in reversed(range(rewards.size(0))):
+                    advantages[i] = returns[i] - values.data[i]
+                
+                targets = returns
+                value_loss = (values - targets).pow(2).view(-1)
+                value_loss = value_loss.sum()
+
+                action_loss = (present_q - advantages.detach()).pow(2).sum()
+                stat['value_loss'] = value_loss.item()
+                stat['comm_entro_loss'] = comm_entro_loss.item()
+                stat['action_loss'] = action_loss.item()
+
+                loss = action_loss + self.args.value_coeff * value_loss + comm_entro_loss*loss_alpha
+                loss.backward()
+                return stat
+            else:
+                #use now action to calculate this timestep q
+                #use q value from the next state to calculate target
+                useful_out = torch.cat(batch.action_out)
+                action_idx = actions.unsqueeze(-1).long()
+                present_q = torch.gather(useful_out,2,action_idx).squeeze()
+                q_max = torch.max(useful_out,dim=-1)[0].detach()
+
+                next_max = torch.zeros_like(q_max).to(torch.device("cuda"))
+                next_max[:-1,:] = q_max[1:,:]
+                next_max = next_max * episode_masks
+                target = rewards + 0.99*next_max
+                q_loss = torch.sum((target - present_q).pow(2))
+                loss = q_loss + comm_entro_loss*loss_alpha
+                stat['value_loss'] = q_loss.item()
+                stat['comm_entro_loss'] = comm_entro_loss.item()
+                loss.backward()
+                return stat
         else:
             train_start_t = time.time()
             n = self.args.nagents
