@@ -363,7 +363,7 @@ class Trainer(object):
                 next_max = torch.zeros_like(q_max).to(torch.device("cuda"))
                 next_max[:-1,:] = q_max[1:,:]
                 next_max = next_max * episode_masks
-                target = rewards + 0.99*next_max
+                target = rewards + self.args.gamma*next_max
                 q_loss = torch.sum((target - present_q).pow(2))
                 loss = q_loss + comm_entro_loss*loss_alpha
                 stat['value_loss'] = q_loss.item()
