@@ -43,12 +43,13 @@ do_tjb = [0.89,0.743,0.711,0.703,0.696]
 
 colors = ['#194f97','#555555','#bd6b08','#00686b','#c82d31']
 labels = ['SEM+SBM','FN','ETCNET','IMAC','DO']
+markers = ['-D','-v','-p','-s','-o']
 #tha
 ys = [sem_tha,fn_tha,etc_tha,imac_tha,do_tha]
 fig, ax = plt.subplots()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -65,7 +66,7 @@ ys = [sem_thb,fn_thb,etc_thb,imac_thb,do_thb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -83,7 +84,7 @@ ys = [sem_ppa,fn_ppa,etc_ppa,imac_ppa,do_ppa]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -100,7 +101,7 @@ ys = [sem_ppb,fn_ppb,etc_ppb,imac_ppb,do_ppb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -117,7 +118,7 @@ ys = [sem_tja,fn_tja,etc_tja,imac_tja,do_tja]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
 
 plt.ylabel('success rates↑',fontsize=17)
 #plt.ylim(5,20)
@@ -134,7 +135,7 @@ ys = [sem_tjb,fn_tjb,etc_tjb,imac_tjb,do_tjb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],'-s',color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
 
 plt.ylabel('success rates↑',fontsize=17)
 #plt.ylim(5,20)
@@ -149,7 +150,7 @@ plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/tjbmain.pdf',bbox_inche
 
 '''
 
-'''
+
 
 #quantization experiments
 tha_ent = [2.39,1.72,1.09,0.56]
@@ -291,7 +292,7 @@ ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
 ax1.set_title('Traffic Junction B',fontsize=18)
 #plt.show()
 plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/tjb_quant.pdf',bbox_inches='tight')
-
+'''
 '''
 sem
 predator locs: [[3 4]

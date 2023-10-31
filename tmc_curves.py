@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 os.environ["CUDA_VISIBLE_DEVICES"] = '3'
-ref_model = ['models/th/sem/n3_100_s1_new','models/th/sem/n3_10_s1_new','models/pp/sem/n3_100_s1_new', 'models/pp/sem/n3_10_s1_new', 'models/pp/sem/n5_100_s2_new','models/th/sem/n5_25_s2_new','models/th/sem/n5_100_s1_new','models/pp/sem/n5_10_s10_q_01', 'models/tj/sem/a_s1', 'models/tj/sem/a_10_s1_cur1000', 'models/tj/sem/b_s10_base_cur1000','models/tj/sem/b_s1_10_cur1000']
+ref_model = ['models/th/sem/n3_100_s1_new','models/th/sem/n3_10_s1_new','models/pp/sem/n3_100_s1_new', 'models/pp/sem/n3_10_s1_new2', 'models/pp/sem/n5_100_s2_new','models/th/sem/n5_25_s2_new','models/th/sem/n5_100_s1_new','models/pp/sem/n5_10_s10_q_01', 'models/tj/sem/a_s1', 'models/tj/sem/a_10_s1_cur1000', 'models/tj/sem/b_s10_base_cur1000','models/tj/sem/b_s1_10_cur1000']
 
 
-model_comp = 'models/pp/sem/n3_10_s1_new'
+model_comp = 'models/pp/sem/n3_10_s1_new2'
 model_sem_1 = 'models/pp/sem/n3_all01'
 model_sem_2 = 'models/pp/sem/n3_all0001'
 
@@ -117,9 +117,9 @@ plt.title('PP-B Entropy',fontsize=22)
 plt.savefig('figs/ppb_ab2.pdf',bbox_inches='tight')
 
 
-#ppblog
-model_raw = 'models/pp/sem/n5_100_s2_new'
-model_sem = 'models/pp/sem/n5_10_s10_q_01'
+#ppalog
+model_raw = 'models/pp/sem/n3_100_s1_new'
+model_sem = 'models/pp/sem/n3_10_s1_new2'
 
 d = torch.load(model_raw)
 raw_comm = (d['log'])['comm_entropy'].data
@@ -149,14 +149,14 @@ ax1.set_xlabel('training epochs',fontsize=17)
 ax1.set_ylabel('timesteps↓',fontsize=17)
 ax2.set_ylabel('entropy↓',fontsize=17)
 
-ax1.set_ylim(0,40)
+ax1.set_ylim(0,20)
 ax2.set_ylim(0,2)
-plt.axhline(y=0.15, color='#bd6b08', linestyle='-.')
-plt.text(150,0.18, 'entropy limit', color='#bd6b08', fontsize=12)
+plt.axhline(y=0.14, color='#bd6b08', linestyle='-.')
+plt.text(150,0.17, 'entropy limit', color='#bd6b08', fontsize=12)
 ax1.legend(handles, labels, fontsize=12, loc='upper right')
 
-plt.title('Predator Prey B',fontsize=20)
-plt.savefig('figs/ppb_curve.pdf',bbox_inches='tight')
+plt.title('Predator Prey A',fontsize=20)
+plt.savefig('figs/ppa_curve.pdf',bbox_inches='tight')
 
 '''
 #thalog
@@ -248,7 +248,7 @@ plt.savefig('figs/thb_curve.pdf',bbox_inches='tight')
 
 #ppalog
 model_raw = 'models/pp/sem/n3_100_s1_new'
-model_sem = 'models/pp/sem/n3_10_s1_new'
+model_sem = 'models/pp/sem/n3_10_s1_new2'
 
 d = torch.load(model_raw)
 raw_comm = (d['log'])['comm_entropy'].data
