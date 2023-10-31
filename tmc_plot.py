@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn
 import matplotlib.ticker as ticker
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
 #main experiments
 
 
@@ -43,13 +45,13 @@ do_tjb = [0.89,0.743,0.711,0.703,0.696]
 
 colors = ['#194f97','#555555','#bd6b08','#00686b','#c82d31']
 labels = ['SEM+SBM','FN','ETCNET','IMAC','DO']
-markers = ['-D','-v','-p','-s','-o']
+markers = ['-s','-v','-*','-P','-X']
 #tha
 ys = [sem_tha,fn_tha,etc_tha,imac_tha,do_tha]
 fig, ax = plt.subplots()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -59,14 +61,14 @@ plt.xlim(0.5,5.5)
 plt.legend(fontsize=12,loc="upper left")
 plt.title('Treasure Hunt A',fontsize=20)
 plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
-plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/thamain.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/thamain.pdf',bbox_inches='tight')
 
 #thb
 ys = [sem_thb,fn_thb,etc_thb,imac_thb,do_thb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -76,7 +78,7 @@ plt.xlim(0.5,5.5)
 plt.legend(fontsize=12,loc="upper left")
 plt.title('Treasure Hunt B',fontsize=20)
 plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
-plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/thbmain.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/thbmain.pdf',bbox_inches='tight')
 
 
 #ppa
@@ -84,7 +86,7 @@ ys = [sem_ppa,fn_ppa,etc_ppa,imac_ppa,do_ppa]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -94,14 +96,14 @@ plt.xlim(0.5,5.5)
 plt.legend(fontsize=12,loc="upper left")
 plt.title('Predator Prey A',fontsize=20)
 plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
-plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/ppamain.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/ppamain.pdf',bbox_inches='tight')
 
 #ppb
 ys = [sem_ppb,fn_ppb,etc_ppb,imac_ppb,do_ppb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -111,14 +113,14 @@ plt.xlim(0.5,5.5)
 plt.legend(fontsize=12,loc="upper left")
 plt.title('Predator Prey B',fontsize=20)
 plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
-plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/ppbmain.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/ppbmain.pdf',bbox_inches='tight')
 
 #tja
 ys = [sem_tja,fn_tja,etc_tja,imac_tja,do_tja]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
 
 plt.ylabel('success rates↑',fontsize=17)
 #plt.ylim(5,20)
@@ -128,14 +130,14 @@ plt.xlim(0.5,5.5)
 plt.legend(fontsize=12,loc="lower left")
 plt.title('Traffic Junction A',fontsize=20)
 plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
-plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/tjamain.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/tjamain.pdf',bbox_inches='tight')
 
 #tjb
 ys = [sem_tjb,fn_tjb,etc_tjb,imac_tjb,do_tjb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
 
 plt.ylabel('success rates↑',fontsize=17)
 #plt.ylim(5,20)
@@ -145,7 +147,7 @@ plt.xlim(0.5,5.5)
 plt.legend(fontsize=12,loc="lower left")
 plt.title('Traffic Junction B',fontsize=20)
 plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
-plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/tjbmain.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/tjbmain.pdf',bbox_inches='tight')
 
 
 '''
