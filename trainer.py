@@ -232,6 +232,7 @@ class Trainer(object):
 
 
     def compute_grad(self, comm_info, batch, loss_alpha):
+        train_start_t = time.time()
         if loss_alpha > 0:
             if self.args.comm_detail == 'triangle':
                 ref_info = (comm_info+1)*0.5
@@ -371,7 +372,7 @@ class Trainer(object):
                 loss.backward()
                 return stat
         else:
-            train_start_t = time.time()
+            
             n = self.args.nagents
             batch_size = len(batch.state)
 
