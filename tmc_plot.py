@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import seaborn
 import matplotlib.ticker as ticker
 import matplotlib
-matplotlib.rcParams['pdf.fonttype'] = 42
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
 #main experiments
-
+'''
 
 
 sem_tha = [8.16,8.49,8.48,8.42,9.13]
@@ -181,7 +182,7 @@ bar1 = ax1.bar(x1-0.5*bar_width, tha_steps,bar_width,bottom = 0, label='timestep
 ax2 = ax1.twinx()
 bar2 = ax2.bar(x2+0.5*bar_width, tha_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
 ax1.set_ylabel('timesteps↓',fontsize=18)
-ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax2.set_ylabel('entropy↓',fontsize=18)
 ax1.set_xlabel('value of $\Delta$',fontsize=18)
 ax1.set_xticks(ticks=x1)
 ax1.set_xticklabels(xticks)
@@ -193,7 +194,7 @@ ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
 
 ax1.set_title('Treasure Hunt A',fontsize=18)
 #plt.show()
-plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/tha_quant.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/tha_quant.pdf',bbox_inches='tight')
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
@@ -201,7 +202,7 @@ bar1 = ax1.bar(x1-0.5*bar_width, thb_steps,bar_width,bottom = 0, label='timestep
 ax2 = ax1.twinx()
 bar2 = ax2.bar(x2+0.5*bar_width, thb_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
 ax1.set_ylabel('timesteps↓',fontsize=18)
-ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax2.set_ylabel('entropy↓',fontsize=18)
 ax1.set_xlabel('value of $\Delta$',fontsize=18)
 ax1.set_xticks(ticks=x1)
 ax1.set_xticklabels(xticks)
@@ -213,7 +214,7 @@ ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
 
 ax1.set_title('Treasure Hunt B',fontsize=18)
 #plt.show()
-plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/thb_quant.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/thb_quant.pdf',bbox_inches='tight')
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
@@ -221,7 +222,7 @@ bar1 = ax1.bar(x1-0.5*bar_width, ppa_steps,bar_width,bottom = 0, label='timestep
 ax2 = ax1.twinx()
 bar2 = ax2.bar(x2+0.5*bar_width, ppa_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
 ax1.set_ylabel('timesteps↓',fontsize=18)
-ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax2.set_ylabel('entropy↓',fontsize=18)
 ax1.set_xlabel('value of $\Delta$',fontsize=18)
 ax1.set_xticks(ticks=x1)
 ax1.set_xticklabels(xticks)
@@ -233,7 +234,7 @@ ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
 
 ax1.set_title('Predator Prey A',fontsize=18)
 #plt.show()
-plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/ppa_quant.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/ppa_quant.pdf',bbox_inches='tight')
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
@@ -241,7 +242,7 @@ bar1 = ax1.bar(x1-0.5*bar_width, ppb_steps,bar_width,bottom = 0, label='timestep
 ax2 = ax1.twinx()
 bar2 = ax2.bar(x2+0.5*bar_width, ppb_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
 ax1.set_ylabel('timesteps↓',fontsize=18)
-ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax2.set_ylabel('entropy↓',fontsize=18)
 ax1.set_xlabel('value of $\Delta$',fontsize=18)
 ax1.set_xticks(ticks=x1)
 ax1.set_xticklabels(xticks)
@@ -253,7 +254,7 @@ ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
 
 ax1.set_title('Predator Prey B',fontsize=18)
 #plt.show()
-plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/ppb_quant.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/ppb_quant.pdf',bbox_inches='tight')
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
@@ -261,7 +262,7 @@ bar1 = ax1.bar(x1-0.5*bar_width, tja_steps,bar_width,bottom = 0, label='success 
 ax2 = ax1.twinx()
 bar2 = ax2.bar(x2+0.5*bar_width, tja_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
 ax1.set_ylabel('success rates↑',fontsize=18)
-ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax2.set_ylabel('entropy↓',fontsize=18)
 ax1.set_xlabel('value of $\Delta$',fontsize=18)
 ax1.set_xticks(ticks=x1)
 ax1.set_xticklabels(xticks)
@@ -273,7 +274,7 @@ ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
 
 ax1.set_title('Traffic Junction A',fontsize=18)
 #plt.show()
-plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/tja_quant.pdf',bbox_inches='tight')
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/tja_quant.pdf',bbox_inches='tight')
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
@@ -281,7 +282,7 @@ bar1 = ax1.bar(x1-0.5*bar_width, tjb_steps,bar_width,bottom = 0, label='success 
 ax2 = ax1.twinx()
 bar2 = ax2.bar(x2+0.5*bar_width, tjb_ent,bar_width,bottom = 0, label='entropy', ec='black', color='#9192ab')
 ax1.set_ylabel('success rates↑',fontsize=18)
-ax2.set_ylabel('entropy↓(nat)',fontsize=18)
+ax2.set_ylabel('entropy↓',fontsize=18)
 ax1.set_xlabel('value of $\Delta$',fontsize=18)
 ax1.set_xticks(ticks=x1)
 ax1.set_xticklabels(xticks)
@@ -293,8 +294,8 @@ ax2.legend(lines + lines2, labels + labels2, loc='lower left',fontsize=16)
 
 ax1.set_title('Traffic Junction B',fontsize=18)
 #plt.show()
-plt.savefig('C:/Users/isaac/OneDrive/Paperwork/【TMC2023】/tjb_quant.pdf',bbox_inches='tight')
-'''
+plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/tjb_quant.pdf',bbox_inches='tight')
+
 '''
 sem
 predator locs: [[3 4]
