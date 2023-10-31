@@ -6,7 +6,7 @@ import matplotlib
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 #main experiments
-'''
+
 
 
 sem_tha = [8.16,8.49,8.48,8.42,9.13]
@@ -52,7 +52,7 @@ ys = [sem_tha,fn_tha,etc_tha,imac_tha,do_tha]
 fig, ax = plt.subplots()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=3,alpha=0.8,markersize=10)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -69,7 +69,7 @@ ys = [sem_thb,fn_thb,etc_thb,imac_thb,do_thb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=3,alpha=0.8,markersize=10)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -87,7 +87,7 @@ ys = [sem_ppa,fn_ppa,etc_ppa,imac_ppa,do_ppa]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=3,alpha=0.8,markersize=10)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -104,7 +104,7 @@ ys = [sem_ppb,fn_ppb,etc_ppb,imac_ppb,do_ppb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=3,alpha=0.8,markersize=10)
 
 plt.ylabel('timesteps↓',fontsize=17)
 #plt.ylim(5,20)
@@ -121,7 +121,7 @@ ys = [sem_tja,fn_tja,etc_tja,imac_tja,do_tja]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=3,alpha=0.8,markersize=10)
 
 plt.ylabel('success rates↑',fontsize=17)
 #plt.ylim(5,20)
@@ -138,7 +138,7 @@ ys = [sem_tjb,fn_tjb,etc_tjb,imac_tjb,do_tjb]
 fig = plt.figure()
 x = [1,2,3,4,5]
 for idx in range(5):
-    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=2.5,alpha=0.8,markersize=10)
+    plt.plot(x,ys[idx],markers[idx],color=colors[idx],label=labels[idx],lw=3,alpha=0.8,markersize=10)
 
 plt.ylabel('success rates↑',fontsize=17)
 #plt.ylim(5,20)
@@ -296,7 +296,7 @@ ax1.set_title('Traffic Junction B',fontsize=18)
 #plt.show()
 plt.savefig('C:/Users/1/OneDrive/Paperwork/【TMC2023】/minor2/tjb_quant.pdf',bbox_inches='tight')
 
-'''
+
 sem
 predator locs: [[3 4]
  [1 1]

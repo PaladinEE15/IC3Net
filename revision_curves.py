@@ -6,7 +6,7 @@ plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 #ref_model = ['models/th/sem/n3_100_s1_new','models/th/sem/n3_10_s1_new','models/pp/sem/n3_100_s1_new', 'models/pp/sem/n3_10_s1_new', 'models/pp/sem/n5_100_s2_new','models/th/sem/n5_25_s2_new','models/th/sem/n5_100_s1_new','models/pp/sem/n5_10_s10_q_01', 'models/tj/sem/a_s1', 'models/tj/sem/a_10_s1_cur1000', 'models/tj/sem/b_s10_base_cur1000','models/tj/sem/b_s1_10_cur1000']
-'''
+
 #thalog
 model_raw = 'models/th/sem/n3_100_s1_new'
 model_sem = 'models/th/sem/n3_10_s1_new'
@@ -24,11 +24,11 @@ ax2 = ax1.twinx()
 
 x = np.arange(len(sem_comm))
 
-p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=2,label='baseline, timesteps')
-p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=2,label='ours, timesteps')
+p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=3,label='baseline, timesteps')
+p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=3,label='ours, timesteps')
 
-p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=2,label='baseline, entropy')
-p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=2,label='ours, entropy')
+p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=3,label='baseline, entropy')
+p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=3,label='ours, entropy')
 
 handles, labels = [], []
 for p in [p1[0], p2[0], p3[0], p4[0]]:
@@ -42,7 +42,7 @@ ax2.set_ylabel('entropy↓',fontsize=17)
 ax1.set_ylim(0,20)
 ax2.set_ylim(0,2)
 
-plt.axhline(y=0.17, color='#bd6b08',lw=2,linestyle='-.')
+plt.axhline(y=0.17, color='#bd6b08',lw=3,linestyle='-.')
 plt.text(150,0.2, 'entropy limit', color='#bd6b08', fontsize=12)
 
 
@@ -71,11 +71,11 @@ ax2 = ax1.twinx()
 
 x = np.arange(len(sem_comm))
 
-p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=2,label='baseline, timesteps')
-p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=2,label='ours, timesteps')
+p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=3,label='baseline, timesteps')
+p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=3,label='ours, timesteps')
 
-p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=2,label='baseline, entropy')
-p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=2,label='ours, entropy')
+p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=3,label='baseline, entropy')
+p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=3,label='ours, entropy')
 
 handles, labels = [], []
 for p in [p1[0], p2[0], p3[0], p4[0]]:
@@ -89,7 +89,7 @@ ax2.set_ylabel('entropy↓',fontsize=17)
 ax1.set_ylim(0,40)
 ax2.set_ylim(0,2)
 
-plt.axhline(y=0.36, color='#bd6b08', lw=2,linestyle='-.')
+plt.axhline(y=0.36, color='#bd6b08', lw=3,linestyle='-.')
 plt.text(150,0.39, 'entropy limit', color='#bd6b08', fontsize=12)
 
 plt.legend(handles, labels, fontsize=12, loc='upper right', framealpha=0.5)
@@ -114,11 +114,11 @@ ax2 = ax1.twinx()
 
 x = np.arange(len(sem_comm))
 
-p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=2,label='baseline, timesteps')
-p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=2,label='ours, timesteps')
+p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=3,label='baseline, timesteps')
+p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=3,label='ours, timesteps')
 
-p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=2,label='baseline, entropy')
-p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=2,label='ours, entropy')
+p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=3,label='baseline, entropy')
+p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=3,label='ours, entropy')
 
 handles, labels = [], []
 for p in [p1[0], p2[0], p3[0], p4[0]]:
@@ -131,7 +131,7 @@ ax2.set_ylabel('entropy↓',fontsize=17)
 
 ax1.set_ylim(0,20)
 ax2.set_ylim(0,2)
-plt.axhline(y=0.14, color='#bd6b08', lw=2,linestyle='-.')
+plt.axhline(y=0.14, color='#bd6b08', lw=3,linestyle='-.')
 plt.text(150,0.17, 'entropy limit', color='#bd6b08', fontsize=12)
 plt.legend(handles, labels, fontsize=12, loc='upper right', framealpha=0.5)
 
@@ -155,11 +155,11 @@ ax2 = ax1.twinx()
 
 x = np.arange(len(sem_comm))
 
-p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=2,label='baseline, timesteps')
-p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=2,label='ours, timesteps')
+p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=3,label='baseline, timesteps')
+p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=3,label='ours, timesteps')
 
-p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=2,label='baseline, entropy')
-p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=2,label='ours, entropy')
+p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=3,label='baseline, entropy')
+p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=3,label='ours, entropy')
 
 handles, labels = [], []
 for p in [p1[0], p2[0], p3[0], p4[0]]:
@@ -172,7 +172,7 @@ ax2.set_ylabel('entropy↓',fontsize=17)
 
 ax1.set_ylim(0,40)
 ax2.set_ylim(0,2)
-plt.axhline(y=0.15, color='#bd6b08', lw=2,linestyle='-.')
+plt.axhline(y=0.15, color='#bd6b08', lw=3,linestyle='-.')
 plt.text(150,0.18, 'entropy limit', color='#bd6b08', fontsize=12)
 plt.legend(handles, labels, fontsize=12, loc='upper right', framealpha=0.5)
 
@@ -207,11 +207,11 @@ ax2 = ax1.twinx()
 
 x = np.arange(len(sem_comm))
 
-p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=2,label='baseline, timesteps')
-p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=2,label='ours, timesteps')
+p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=3,label='baseline, timesteps')
+p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=3,label='ours, timesteps')
 
-p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=2,label='baseline, entropy')
-p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=2,label='ours, entropy')
+p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=3,label='baseline, entropy')
+p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=3,label='ours, entropy')
 
 handles, labels = [], []
 for p in [p1[0], p2[0], p3[0], p4[0]]:
@@ -224,7 +224,7 @@ ax2.set_ylabel('entropy↓',fontsize=17)
 ax1.set_ylim(0,1)
 ax2.set_ylim(0,2)
 
-plt.axhline(y=0.15, color='#bd6b08', lw=2,linestyle='-.')
+plt.axhline(y=0.15, color='#bd6b08', lw=3,linestyle='-.')
 plt.text(900,0.18, 'entropy limit', color='#bd6b08', fontsize=12)
 plt.legend(handles, labels, fontsize=12, loc='lower left', framealpha=0.5)
 plt.title('Traffic Junction A',fontsize=20)
@@ -258,11 +258,11 @@ ax2 = ax1.twinx()
 
 x = np.arange(len(sem_comm))
 
-p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=2,label='baseline, timesteps')
-p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=2,label='ours, timesteps')
+p1 = ax1.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=3,label='baseline, timesteps')
+p2 = ax1.plot(x,sem_steps,color='#194f97',linestyle='-',alpha=0.8,lw=3,label='ours, timesteps')
 
-p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=2,label='baseline, entropy')
-p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=2,label='ours, entropy')
+p3 = ax2.plot(x,raw_comm,color='#fa8080',linestyle='--',alpha=0.8,lw=3,label='baseline, entropy')
+p4 = ax2.plot(x,sem_comm,color='#5b9bd5',linestyle='--',alpha=0.8,lw=3,label='ours, entropy')
 
 handles, labels = [], []
 for p in [p1[0], p2[0], p3[0], p4[0]]:
@@ -275,7 +275,7 @@ ax2.set_ylabel('entropy↓',fontsize=17)
 ax1.set_ylim(0,1)
 ax2.set_ylim(0,2)
 
-plt.axhline(y=0.12, color='#bd6b08', lw=2,linestyle='-.')
+plt.axhline(y=0.12, color='#bd6b08', lw=3,linestyle='-.')
 plt.text(900,0.15, 'entropy limit', color='#bd6b08', fontsize=12)
 plt.legend(handles, labels, fontsize=12, loc='lower left', framealpha=0.5)
 plt.title('Traffic Junction B',fontsize=20)
@@ -284,7 +284,7 @@ plt.savefig('figs/tjb_curve.pdf',bbox_inches='tight')
 #ax1.set_ylim(5,20)
 #ax2.set_ylim(0,2)
 
-'''
+
 #below are ablation study log
 model_comp = 'models/pp/sem/n3_10_s1_new'
 model_sem_1 = 'models/pp/sem/n3_all01'
@@ -315,11 +315,11 @@ sem3_steps = (d['log'])['steps_taken'].data
 x = np.arange(len(comp_comm))
 
 plt.figure()
-plt.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=2,label='baseline')
-plt.plot(x,comp_steps,color='#194f97',linestyle='-',alpha=0.8,lw=2,label='SEM+SBM')
-plt.plot(x,sem1_steps,color='#bd6b08',linestyle='-',alpha=0.8,lw=2,label='SEM-1')
-plt.plot(x,sem2_steps,color='#007f54',linestyle='-',alpha=0.8,lw=2,label='SEM-2')
-plt.plot(x,sem3_steps,color='#844bb3',linestyle='-',alpha=0.8,lw=2,label='SEM-3')
+plt.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=3,label='baseline')
+plt.plot(x,comp_steps,color='#194f97',linestyle='-',alpha=0.8,lw=3,label='SEM+SBM')
+plt.plot(x,sem1_steps,color='#bd6b08',linestyle='-',alpha=0.8,lw=3,label='SEM-1')
+plt.plot(x,sem2_steps,color='#007f54',linestyle='-',alpha=0.8,lw=3,label='SEM-2')
+plt.plot(x,sem3_steps,color='#844bb3',linestyle='-',alpha=0.8,lw=3,label='SEM-3')
 
 plt.xlabel('training epochs',fontsize=18)
 plt.ylabel('timesteps↓',fontsize=18)
@@ -332,11 +332,11 @@ plt.savefig('figs/ppa_ab1.pdf',bbox_inches='tight')
 x = np.arange(len(comp_comm))
 
 plt.figure()
-plt.plot(x,raw_comm,color='#c82d31',linestyle='--',alpha=0.8,lw=2,label='baseline')
-plt.plot(x,comp_comm,color='#194f97',linestyle='--',alpha=0.8,lw=2,label='SEM+SBM')
-plt.plot(x,sem1_comm,color='#bd6b08',linestyle='--',alpha=0.8,lw=2,label='SEM-1')
-plt.plot(x,sem2_comm,color='#007f54',linestyle='--',alpha=0.8,lw=2,label='SEM-2')
-plt.plot(x,sem3_comm,color='#844bb3',linestyle='--',alpha=0.8,lw=2,label='SEM-3')
+plt.plot(x,raw_comm,color='#c82d31',linestyle='--',alpha=0.8,lw=3,label='baseline')
+plt.plot(x,comp_comm,color='#194f97',linestyle='--',alpha=0.8,lw=3,label='SEM+SBM')
+plt.plot(x,sem1_comm,color='#bd6b08',linestyle='--',alpha=0.8,lw=3,label='SEM-1')
+plt.plot(x,sem2_comm,color='#007f54',linestyle='--',alpha=0.8,lw=3,label='SEM-2')
+plt.plot(x,sem3_comm,color='#844bb3',linestyle='--',alpha=0.8,lw=3,label='SEM-3')
 
 plt.xlabel('training epochs',fontsize=18)
 plt.ylabel('entropy↓',fontsize=18)
@@ -375,11 +375,11 @@ sem3_steps = (d['log'])['steps_taken'].data
 x = np.arange(len(comp_comm))
 
 plt.figure()
-plt.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=2,label='baseline')
-plt.plot(x,comp_steps,color='#194f97',linestyle='-',alpha=0.8,lw=2,label='SEM+SBM')
-plt.plot(x,sem1_steps,color='#bd6b08',linestyle='-',alpha=0.8,lw=2,label='SEM-1')
-plt.plot(x,sem2_steps,color='#007f54',linestyle='-',alpha=0.8,lw=2,label='SEM-2')
-plt.plot(x,sem3_steps,color='#844bb3',linestyle='-',alpha=0.8,lw=2,label='SEM-3')
+plt.plot(x,raw_steps,color='#c82d31',linestyle='-',alpha=0.8,lw=3,label='baseline')
+plt.plot(x,comp_steps,color='#194f97',linestyle='-',alpha=0.8,lw=3,label='SEM+SBM')
+plt.plot(x,sem1_steps,color='#bd6b08',linestyle='-',alpha=0.8,lw=3,label='SEM-1')
+plt.plot(x,sem2_steps,color='#007f54',linestyle='-',alpha=0.8,lw=3,label='SEM-2')
+plt.plot(x,sem3_steps,color='#844bb3',linestyle='-',alpha=0.8,lw=3,label='SEM-3')
 
 plt.xlabel('training epochs',fontsize=18)
 plt.ylabel('timesteps↓',fontsize=18)
@@ -392,11 +392,11 @@ plt.savefig('figs/ppb_ab1.pdf',bbox_inches='tight')
 x = np.arange(len(comp_comm))
 
 plt.figure()
-plt.plot(x,raw_comm,color='#c82d31',linestyle='--',alpha=0.8,lw=2,label='baseline')
-plt.plot(x,comp_comm,color='#194f97',linestyle='--',alpha=0.8,lw=2,label='SEM+SBM')
-plt.plot(x,sem1_comm,color='#bd6b08',linestyle='--',alpha=0.8,lw=2,label='SEM-1')
-plt.plot(x,sem2_comm,color='#007f54',linestyle='--',alpha=0.8,lw=2,label='SEM-2')
-plt.plot(x,sem3_comm,color='#844bb3',linestyle='--',alpha=0.8,lw=2,label='SEM-3')
+plt.plot(x,raw_comm,color='#c82d31',linestyle='--',alpha=0.8,lw=3,label='baseline')
+plt.plot(x,comp_comm,color='#194f97',linestyle='--',alpha=0.8,lw=3,label='SEM+SBM')
+plt.plot(x,sem1_comm,color='#bd6b08',linestyle='--',alpha=0.8,lw=3,label='SEM-1')
+plt.plot(x,sem2_comm,color='#007f54',linestyle='--',alpha=0.8,lw=3,label='SEM-2')
+plt.plot(x,sem3_comm,color='#844bb3',linestyle='--',alpha=0.8,lw=3,label='SEM-3')
 
 plt.xlabel('training epochs',fontsize=18)
 plt.ylabel('entropy↓',fontsize=18)
