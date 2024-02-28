@@ -1,0 +1,733 @@
+
+%% bare_jrnl_compsoc.tex
+%% V1.4b
+%% 2015/08/26
+%% by Michael Shell
+%% See:
+%% http://www.michaelshell.org/
+%% for current contact information.
+%%
+%% This is a skeleton file demonstrating the use of IEEEtran.cls
+%% (requires IEEEtran.cls version 1.8b or later) with an IEEE
+%% Computer Society journal paper.
+%%
+%% Support sites:
+%% http://www.michaelshell.org/tex/ieeetran/
+%% http://www.ctan.org/pkg/ieeetran
+%% and
+%% http://www.ieee.org/
+
+%%*************************************************************************
+%% Legal Notice:
+%% This code is offered as-is without any warranty either expressed or
+%% implied; without even the implied warranty of MERCHANTABILITY or
+%% FITNESS FOR A PARTICULAR PURPOSE! 
+%% User assumes all risk.
+%% In no event shall the IEEE or any contributor to this code be liable for
+%% any damages or losses, including, but not limited to, incidental,
+%% consequential, or any other damages, resulting from the use or misuse
+%% of any information contained here.
+%%
+%% All comments are the opinions of their respective authors and are not
+%% necessarily endorsed by the IEEE.
+%%
+%% This work is distributed under the LaTeX Project Public License (LPPL)
+%% ( http://www.latex-project.org/ ) version 1.3, and may be freely used,
+%% distributed and modified. A copy of the LPPL, version 1.3, is included
+%% in the base LaTeX documentation of all distributions of LaTeX released
+%% 2003/12/01 or later.
+%% Retain all contribution notices and credits.
+%% ** Modified files should be clearly indicated as such, including  **
+%% ** renaming them and changing author support contact information. **
+%%*************************************************************************
+
+
+% *** Authors should verify (and, if needed, correct) their LaTeX system  ***
+% *** with the testflow diagnostic prior to trusting their LaTeX platform ***
+% *** with production work. The IEEE's font choices and paper sizes can   ***
+% *** trigger bugs that do not appear when using other class files.       ***                          ***
+% The testflow support page is at:
+% http://www.michaelshell.org/tex/testflow/
+
+
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+\usepackage{amsmath,amsfonts}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{array}
+% \usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{subcaption}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{multirow}
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+%
+% If IEEEtran.cls has not been installed into the LaTeX system files,
+% manually specify the path to it like:
+% \documentclass[10pt,journal,compsoc]{../sty/IEEEtran}
+
+
+
+
+
+% Some very useful LaTeX packages include:
+% (uncomment the ones you want to load)
+
+
+% *** MISC UTILITY PACKAGES ***
+%
+%\usepackage{ifpdf}
+% Heiko Oberdiek's ifpdf.sty is very useful if you need conditional
+% compilation based on whether the output is pdf or dvi.
+% usage:
+% \ifpdf
+%   % pdf code
+% \else
+%   % dvi code
+% \fi
+% The latest version of ifpdf.sty can be obtained from:
+% http://www.ctan.org/pkg/ifpdf
+% Also, note that IEEEtran.cls V1.7 and later provides a builtin
+% \ifCLASSINFOpdf conditional that works the same way.
+% When switching from latex to pdflatex and vice-versa, the compiler may
+% have to be run twice to clear warning/error messages.
+
+
+
+
+
+
+% *** CITATION PACKAGES ***
+%
+\ifCLASSOPTIONcompsoc
+  % IEEE Computer Society needs nocompress option
+  % requires cite.sty v4.0 or later (November 2003)
+  \usepackage[nocompress]{cite}
+\else
+  % normal IEEE
+  \usepackage{cite}
+\fi
+% cite.sty was written by Donald Arseneau
+% V1.6 and later of IEEEtran pre-defines the format of the cite.sty package
+% \cite{} output to follow that of the IEEE. Loading the cite package will
+% result in citation numbers being automatically sorted and properly
+% "compressed/ranged". e.g., [1], [9], [2], [7], [5], [6] without using
+% cite.sty will become [1], [2], [5]--[7], [9] using cite.sty. cite.sty's
+% \cite will automatically add leading space, if needed. Use cite.sty's
+% noadjust option (cite.sty V3.8 and later) if you want to turn this off
+% such as if a citation ever needs to be enclosed in parenthesis.
+% cite.sty is already installed on most LaTeX systems. Be sure and use
+% version 5.0 (2009-03-20) and later if using hyperref.sty.
+% The latest version can be obtained at:
+% http://www.ctan.org/pkg/cite
+% The documentation is contained in the cite.sty file itself.
+%
+% Note that some packages require special options to format as the Computer
+% Society requires. In particular, Computer Society  papers do not use
+% compressed citation ranges as is done in typical IEEE papers
+% (e.g., [1]-[4]). Instead, they list every citation separately in order
+% (e.g., [1], [2], [3], [4]). To get the latter we need to load the cite
+% package with the nocompress option which is supported by cite.sty v4.0
+% and later. Note also the use of a CLASSOPTION conditional provided by
+% IEEEtran.cls V1.7 and later.
+
+
+
+
+
+% *** GRAPHICS RELATED PACKAGES ***
+%
+\ifCLASSINFOpdf
+  % \usepackage[pdftex]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../pdf/}{../jpeg/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\else
+  % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
+  % will default to the driver specified in the system graphics.cfg if no
+  % driver is specified.
+  % \usepackage[dvips]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../eps/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.eps}
+\fi
+% graphicx was written by David Carlisle and Sebastian Rahtz. It is
+% required if you want graphics, photos, etc. graphicx.sty is already
+% installed on most LaTeX systems. The latest version and documentation
+% can be obtained at: 
+% http://www.ctan.org/pkg/graphicx
+% Another good source of documentation is "Using Imported Graphics in
+% LaTeX2e" by Keith Reckdahl which can be found at:
+% http://www.ctan.org/pkg/epslatex
+%
+% latex, and pdflatex in dvi mode, support graphics in encapsulated
+% postscript (.eps) format. pdflatex in pdf mode supports graphics
+% in .pdf, .jpeg, .png and .mps (metapost) formats. Users should ensure
+% that all non-photo figures use a vector format (.eps, .pdf, .mps) and
+% not a bitmapped formats (.jpeg, .png). The IEEE frowns on bitmapped formats
+% which can result in "jaggedy"/blurry rendering of lines and letters as
+% well as large increases in file sizes.
+%
+% You can find documentation about the pdfTeX application at:
+% http://www.tug.org/applications/pdftex
+
+
+
+
+
+
+% *** MATH PACKAGES ***
+%
+%\usepackage{amsmath}
+% A popular package from the American Mathematical Society that provides
+% many useful and powerful commands for dealing with mathematics.
+%
+% Note that the amsmath package sets \interdisplaylinepenalty to 10000
+% thus preventing page breaks from occurring within multiline equations. Use:
+%\interdisplaylinepenalty=2500
+% after loading amsmath to restore such page breaks as IEEEtran.cls normally
+% does. amsmath.sty is already installed on most LaTeX systems. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/amsmath
+
+
+
+
+
+% *** SPECIALIZED LIST PACKAGES ***
+%
+%\usepackage{algorithmic}
+% algorithmic.sty was written by Peter Williams and Rogerio Brito.
+% This package provides an algorithmic environment fo describing algorithms.
+% You can use the algorithmic environment in-text or within a figure
+% environment to provide for a floating algorithm. Do NOT use the algorithm
+% floating environment provided by algorithm.sty (by the same authors) or
+% algorithm2e.sty (by Christophe Fiorio) as the IEEE does not use dedicated
+% algorithm float types and packages that provide these will not provide
+% correct IEEE style captions. The latest version and documentation of
+% algorithmic.sty can be obtained at:
+% http://www.ctan.org/pkg/algorithms
+% Also of interest may be the (relatively newer and more customizable)
+% algorithmicx.sty package by Szasz Janos:
+% http://www.ctan.org/pkg/algorithmicx
+
+
+
+
+% *** ALIGNMENT PACKAGES ***
+%
+%\usepackage{array}
+% Frank Mittelbach's and David Carlisle's array.sty patches and improves
+% the standard LaTeX2e array and tabular environments to provide better
+% appearance and additional user controls. As the default LaTeX2e table
+% generation code is lacking to the point of almost being broken with
+% respect to the quality of the end results, all users are strongly
+% advised to use an enhanced (at the very least that provided by array.sty)
+% set of table tools. array.sty is already installed on most systems. The
+% latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/array
+
+
+% IEEEtran contains the IEEEeqnarray family of commands that can be used to
+% generate multiline equations as well as matrices, tables, etc., of high
+% quality.
+
+
+
+
+% *** SUBFIGURE PACKAGES ***
+%\ifCLASSOPTIONcompsoc
+%  \usepackage[caption=false,font=footnotesize,labelfont=sf,textfont=sf]{subfig}
+%\else
+%  \usepackage[caption=false,font=footnotesize]{subfig}
+%\fi
+% subfig.sty, written by Steven Douglas Cochran, is the modern replacement
+% for subfigure.sty, the latter of which is no longer maintained and is
+% incompatible with some LaTeX packages including fixltx2e. However,
+% subfig.sty requires and automatically loads Axel Sommerfeldt's caption.sty
+% which will override IEEEtran.cls' handling of captions and this will result
+% in non-IEEE style figure/table captions. To prevent this problem, be sure
+% and invoke subfig.sty's "caption=false" package option (available since
+% subfig.sty version 1.3, 2005/06/28) as this is will preserve IEEEtran.cls
+% handling of captions.
+% Note that the Computer Society format requires a sans serif font rather
+% than the serif font used in traditional IEEE formatting and thus the need
+% to invoke different subfig.sty package options depending on whether
+% compsoc mode has been enabled.
+%
+% The latest version and documentation of subfig.sty can be obtained at:
+% http://www.ctan.org/pkg/subfig
+
+
+
+
+% *** FLOAT PACKAGES ***
+%
+%\usepackage{fixltx2e}
+% fixltx2e, the successor to the earlier fix2col.sty, was written by
+% Frank Mittelbach and David Carlisle. This package corrects a few problems
+% in the LaTeX2e kernel, the most notable of which is that in current
+% LaTeX2e releases, the ordering of single and double column floats is not
+% guaranteed to be preserved. Thus, an unpatched LaTeX2e can allow a
+% single column figure to be placed prior to an earlier double column
+% figure.
+% Be aware that LaTeX2e kernels dated 2015 and later have fixltx2e.sty's
+% corrections already built into the system in which case a warning will
+% be issued if an attempt is made to load fixltx2e.sty as it is no longer
+% needed.
+% The latest version and documentation can be found at:
+% http://www.ctan.org/pkg/fixltx2e
+
+
+%\usepackage{stfloats}
+% stfloats.sty was written by Sigitas Tolusis. This package gives LaTeX2e
+% the ability to do double column floats at the bottom of the page as well
+% as the top. (e.g., "\begin{figure*}[!b]" is not normally possible in
+% LaTeX2e). It also provides a command:
+%\fnbelowfloat
+% to enable the placement of footnotes below bottom floats (the standard
+% LaTeX2e kernel puts them above bottom floats). This is an invasive package
+% which rewrites many portions of the LaTeX2e float routines. It may not work
+% with other packages that modify the LaTeX2e float routines. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/stfloats
+% Do not use the stfloats baselinefloat ability as the IEEE does not allow
+% \baselineskip to stretch. Authors submitting work to the IEEE should note
+% that the IEEE rarely uses double column equations and that authors should try
+% to avoid such use. Do not be tempted to use the cuted.sty or midfloat.sty
+% packages (also by Sigitas Tolusis) as the IEEE does not format its papers in
+% such ways.
+% Do not attempt to use stfloats with fixltx2e as they are incompatible.
+% Instead, use Morten Hogholm'a dblfloatfix which combines the features
+% of both fixltx2e and stfloats:
+%
+% \usepackage{dblfloatfix}
+% The latest version can be found at:
+% http://www.ctan.org/pkg/dblfloatfix
+
+
+
+
+%\ifCLASSOPTIONcaptionsoff
+%  \usepackage[nomarkers]{endfloat}
+% \let\MYoriglatexcaption\caption
+% \renewcommand{\caption}[2][\relax]{\MYoriglatexcaption[#2]{#2}}
+%\fi
+% endfloat.sty was written by James Darrell McCauley, Jeff Goldberg and 
+% Axel Sommerfeldt. This package may be useful when used in conjunction with 
+% IEEEtran.cls'  captionsoff option. Some IEEE journals/societies require that
+% submissions have lists of figures/tables at the end of the paper and that
+% figures/tables without any captions are placed on a page by themselves at
+% the end of the document. If needed, the draftcls IEEEtran class option or
+% \CLASSINPUTbaselinestretch interface can be used to increase the line
+% spacing as well. Be sure and use the nomarkers option of endfloat to
+% prevent endfloat from "marking" where the figures would have been placed
+% in the text. The two hack lines of code above are a slight modification of
+% that suggested by in the endfloat docs (section 8.4.1) to ensure that
+% the full captions always appear in the list of figures/tables - even if
+% the user used the short optional argument of \caption[]{}.
+% IEEE papers do not typically make use of \caption[]'s optional argument,
+% so this should not be an issue. A similar trick can be used to disable
+% captions of packages such as subfig.sty that lack options to turn off
+% the subcaptions:
+% For subfig.sty:
+% \let\MYorigsubfloat\subfloat
+% \renewcommand{\subfloat}[2][\relax]{\MYorigsubfloat[]{#2}}
+% However, the above trick will not work if both optional arguments of
+% the \subfloat command are used. Furthermore, there needs to be a
+% description of each subfigure *somewhere* and endfloat does not add
+% subfigure captions to its list of figures. Thus, the best approach is to
+% avoid the use of subfigure captions (many IEEE journals avoid them anyway)
+% and instead reference/explain all the subfigures within the main caption.
+% The latest version of endfloat.sty and its documentation can obtained at:
+% http://www.ctan.org/pkg/endfloat
+%
+% The IEEEtran \ifCLASSOPTIONcaptionsoff conditional can also be used
+% later in the document, say, to conditionally put the References on a 
+% page by themselves.
+
+
+
+
+% *** PDF, URL AND HYPERLINK PACKAGES ***
+%
+%\usepackage{url}
+% url.sty was written by Donald Arseneau. It provides better support for
+% handling and breaking URLs. url.sty is already installed on most LaTeX
+% systems. The latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/url
+% Basically, \url{my_url_here}.
+
+
+
+
+
+% *** Do not adjust lengths that control margins, column widths, etc. ***
+% *** Do not use packages that alter fonts (such as pslatex).         ***
+% There should be no need to do such things with IEEEtran.cls V1.6 and later.
+% (Unless specifically asked to do so by the journal or conference you plan
+% to submit to, of course. )
+
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+
+\begin{document}
+%
+% paper title
+% Titles are generally capitalized except for words such as a, an, and, as,
+% at, but, by, for, in, nor, of, on, or, the, to and up, which are usually
+% not capitalized unless they are the first or last word of the title.
+% Linebreaks \\ can be used within to get better formatting as desired.
+% Do not put math or special symbols in the title.
+%
+%
+% author names and IEEE memberships
+% note positions of commas and nonbreaking spaces ( ~ ) LaTeX will not break
+% a structure at a ~ so this keeps an author's name from being broken across
+% two lines.
+% use \thanks{} to gain access to the first footnote area
+% a separate \thanks must be used for each paragraph as LaTeX2e's \thanks
+% was not built to handle multiple paragraphs
+%
+%
+%\IEEEcompsocenumeratethanks is a special \thanks that produces the bulleted
+% lists the Computer Society journals use for "first footnote" author
+% affiliations. Use \IEEEcompsocthanksitem which works much like \item
+% for each affiliation group. When not in compsoc mode,
+% \IEEEcompsocenumeratethanks becomes like \thanks and
+% \IEEEcompsocthanksitem becomes a line break with idention. This
+% facilitates dual compilation, although admittedly the differences in the
+% desired content of \author between the different types of papers makes a
+% one-size-fits-all approach a daunting prospect. For instance, compsoc 
+% journal papers have the author affiliations above the "Manuscript
+% received ..."  text while in non-compsoc journals this is reversed. Sigh.
+
+
+% note the % following the last \IEEEmembership and also \thanks - 
+% these prevent an unwanted space from occurring between the last author name
+% and the end of the author line. i.e., if you had this:
+% 
+% \author{....lastname \thanks{...} \thanks{...} }
+%                     ^------------^------------^----Do not want these spaces!
+%
+% a space would be appended to the last name and could cause every name on that
+% line to be shifted left slightly. This is one of those "LaTeX things". For
+% instance, "\textbf{A} \textbf{B}" will typeset as "A B" not "AB". To get
+% "AB" then you have to do: "\textbf{A}\textbf{B}"
+% \thanks is no different in this regard, so shield the last } of each \thanks
+% that ends a line with a % and do not let a space in before the next \thanks.
+% Spaces after \IEEEmembership other than the last one are OK (and needed) as
+% you are supposed to have spaces between the names. For what it is worth,
+% this is a minor point as most people would not even notice if the said evil
+% space somehow managed to creep in.
+
+
+
+% The paper headers
+\markboth{IEEE Transactions on Mobile Computing}%
+{Yu \MakeLowercase{\textit{et al.}}: Effective Multi-Agent Communication Under Limited Bandwidth}
+% The only time the second header will appear is for the odd numbered pages
+% after the title page when using the twoside option.
+% 
+% *** Note that you probably will NOT want to include the author's ***
+% *** name in the headers of peer review papers.                   ***
+% You can use \ifCLASSOPTIONpeerreview for conditional compilation here if
+% you desire.
+
+
+
+% The publisher's ID mark at the bottom of the page is less important with
+% Computer Society journal papers as those publications place the marks
+% outside of the main text columns and, therefore, unlike regular IEEE
+% journals, the available text space is not reduced by their presence.
+% If you want to put a publisher's ID mark on the page you can do it like
+% this:
+%\IEEEpubid{0000--0000/00\$00.00~\copyright~2015 IEEE}
+% or like this to get the Computer Society new two part style.
+%\IEEEpubid{\makebox[\columnwidth]{\hfill 0000--0000/00/\$00.00~\copyright~2015 IEEE}%
+%\hspace{\columnsep}\makebox[\columnwidth]{Published by the IEEE Computer Society\hfill}}
+% Remember, if you use this you must call \IEEEpubidadjcol in the second
+% column for its text to clear the IEEEpubid mark (Computer Society jorunal
+% papers don't need this extra clearance.)
+
+
+
+% use for special paper notices
+%\IEEEspecialpapernotice{(Invited Paper)}
+
+
+
+% for Computer Society papers, we must declare the abstract and index terms
+% PRIOR to the title within the \IEEEtitleabstractindextext IEEEtran
+% command as these need to go into the title area created by \maketitle.
+% As a general rule, do not put math, special symbols or citations
+% in the abstract or keywords.
+
+
+
+
+
+% For peer review papers, you can put extra information on the cover
+% page as needed:
+% \ifCLASSOPTIONpeerreview
+% \begin{center} \bfseries EDICS Category: 3-BBND \end{center}
+% \fi
+%
+% For peerreview papers, this IEEEtran command inserts a page break and
+% creates the second title. It will be ignored for other modes.
+
+
+
+
+% The very first letter is a 2 line initial drop letter followed
+% by the rest of the first word in caps (small caps for compsoc).
+% 
+% form to use if the first word consists of a single letter:
+% \IEEEPARstart{A}{demo} file is ....
+% 
+% form to use if you need the single drop letter followed by
+% normal text (unknown if ever used by the IEEE):
+% \IEEEPARstart{A}{}demo file is ....
+% 
+% Some journals put the first two words in caps:
+% \IEEEPARstart{T}{his demo} file is ....
+% 
+% Here we have the typical use of a "T" for an initial drop letter
+% and "HIS" in caps to complete the first word.
+
+\appendices{}
+\section{Proof of Theorem 1}
+\label{subsection:p1}
+
+The theorem is presented below for ease of reading.
+\begin{theorem}
+\label{theorem:1}
+$H(M)$ decreases synchronously with $\hat{H}(M)$ for their values are closely related, i.e., 
+
+\begin{equation}
+    \begin{split}
+    H(M) &< \hat{H}(M) + \frac{(K+1)\epsilon}{N_s}\left(1+\log \left(\frac{1}{K+1}+\frac{\epsilon}{N_s}\right)\right),\\
+        H(M) &> \hat{H}(M)+ \frac{(K+1)\epsilon}{N_s} \log\frac{\epsilon}{N_s}. 
+    \end{split}
+\end{equation}
+\end{theorem}
+\begin{IEEEproof}
+For clear expression, let
+\begin{equation}
+    D_k = \frac{N_k+\epsilon}{N_s} \log\frac{N_k+\epsilon}{N_s} - \frac{N_k}{N_s}\log\frac{N_k}{N_s}.
+\end{equation}
+According to the mean value theorem, 
+\begin{equation}
+    \exists u \in \left(\frac{N_k}{N_s}, \frac{N_k+\epsilon}{N_s}\right) \ \ s.t. \ \    D_k = \frac{\epsilon}{N_s} f'(u),
+\end{equation}
+where $f(u) = u\log u$ and $f'(u) = 1+\log u$. Note that $f''(u)>0$, hence
+\begin{equation}
+\epsilon f'(u_{min}) < D_k < \epsilon f'(u_{max}),
+\end{equation}
+where $u_{min}=N_k/N_s$ and $u_{max}=(N_k+\epsilon)/N_s$. Then
+\begin{equation}
+\frac{\epsilon}{N_s} \left(1+\log \frac{N_k}{N_s}\right) < D_k < \frac{\epsilon}{N_s} \left(1+\log \frac{N_k+\epsilon}{N_s}\right).
+\end{equation}
+The above equation provides upper and lower bounds for $D_k$. However, $\log (N_k/N_s)$ might be $-\infty$ as $N_k$ might be $0$. Therefore, we need another lower bound for $D_k$. Note that $\partial D_k/\partial N_k>0$, then 
+\begin{equation}
+    \begin{split}
+      \min D_k &= D_k|_{N_k=0} \\
+            &=\frac{\epsilon}{N_s}\log\frac{\epsilon}{N_s},
+    \end{split}
+\end{equation}
+and consequently
+\begin{equation}
+\frac{\epsilon}{N_s} \log\frac{\epsilon}{N_s} \le D_k < \frac{\epsilon}{N_s} \left(1+\log \frac{N_k+\epsilon}{N_s}\right).
+\end{equation}
+Note that
+\begin{equation}
+    \begin{split}
+     H(M) - \hat{H}(M)&= \sum_{k=0}^K D_k, \\
+     \sum_{k=0}^{K} N_k &= N_s,
+    \end{split}
+\end{equation}
+then
+\begin{equation}
+    H(M) - \hat{H}(M) > \frac{(K+1)\epsilon}{N_s} \log\frac{\epsilon}{N_s},
+\end{equation}
+and 
+\begin{equation}
+    H(M) - \hat{H}(M) < \frac{\epsilon}{N_s}\left(K+1+ \log \prod_k \frac{N_k+\epsilon}{N_s}\right).
+\end{equation}
+According to the inequality of arithmetic and geometric means,
+\begin{equation}
+    H(M) - \hat{H}(M)< \frac{(K+1)\epsilon}{N_s}\left(1+\log \left(\frac{1}{K+1}+\frac{\epsilon}{N_s}\right)\right).
+\end{equation}
+\end{IEEEproof}
+
+\section{Proof of Theorem 2}
+\label{subsection:p2}
+The theorem is presented below for ease of reading.
+\begin{theorem}
+\label{theorem:2}
+If $\eta$ is \textbf{sufficiently small} and $m'_n = m_n - \eta \nabla^s_{m_n}f_H$,
+\begin{equation}
+    f_H(m_1,...,m'_n,...,m_{N_s}) \le f_H(m_1,...,m_n,...,m_{N_s}).
+\end{equation}
+Here \textbf{sufficiently small} means
+\begin{equation}
+\label{eqa:ss}
+    \eta < \frac{N_s\Delta^2}{\pi \log\frac{N_s+\epsilon}{\epsilon}}.
+\end{equation}
+\end{theorem}
+We present our derivation by providing two lemmas. 
+\begin{lemma}
+\label{lemma:1}
+If $m_n \in [v\Delta-1, (v+1)\Delta-1]$, then 
+\begin{enumerate}
+    \item If $\hat{N}_{v+1} > \hat{N}_{v}$, then $m'_n > m_n$.
+    \item If $\hat{N}_{v+1} < \hat{N}_{v}$, then $m'_n < m_n$.
+    \item If $\hat{N}_{v+1} = \hat{N}_{v}$, then $m'_n = m_n$.
+\end{enumerate}
+\end{lemma}
+
+\begin{IEEEproof}
+  $\nabla^s_{m_n} f_H$ is calculated as follows:
+\begin{equation}
+\label{eqa:defdem}
+    \begin{split}
+        \nabla^s_{m_n} f_H &= \nabla^s_{m_n}\left(-\sum_{k=0}^K \frac{\hat{N}_k}{N_s}\log\frac{\hat{N}_k}{N_s}\right) \\
+        &= -\frac{1}{N_s}\sum_{k=0}^K\left(1+\log\frac{\hat{N}_k}{N_s}\right)\nabla^s_{m_n}\hat{N}_k \\
+        &= -\frac{1}{N_s}\sum_{k=0}^K\left(1+\log\frac{\hat{N}_k}{N_s}\right)\nabla_{m_n} q_k(m_n).
+    \end{split}
+\end{equation}
+Since $m_n \in [v\Delta-1, (v+1)\Delta-1]$, only $\nabla_{m_n} q_v(m_n)$ and $\nabla_{m_n} q_{v+1}(m_n)$ remain nonzero for $\nabla_{m_n}q_k(m_n), k\in \mathbb{N}_K$. Additionally, $q_k(\cdot)$ defined below:
+\begin{equation}
+\label{eqa:qk}
+q_k(x) = \frac{1}{2}(1+cos(\frac{\pi}{\Delta}(x-k\Delta+1)))\cdot u_k(x),
+\end{equation}
+satisfies:
+\begin{equation}
+    \nabla_{m_n} q_v(m_n) + \nabla_{m_n} q_{v+1}(m_n) = 0.
+\end{equation}
+Then $\nabla^s_{m_n} f_H$ is simplified as:
+\begin{equation}
+    \nabla^s_{m_n} f_H = \frac{1}{N_s} \log\frac{\hat{N}_{v+1}}{\hat{N}_{v}} \nabla_{m_n} q_v(m_n).
+\end{equation}
+Note that $q_v(m_n)$ also satisfies 
+\begin{equation}
+    \nabla_{m_n} q_v(m_n) \le 0, \ \ \forall m_n\in [v\Delta-1, (v+1)\Delta-1],
+\end{equation}
+therefore, the sign of the derivative is determined by $\log(\hat{N}_{v+1}/\hat{N}_{v})$. Consequently, we obtain Lemma~\ref{lemma:1}.
+\end{IEEEproof}
+
+\begin{lemma}
+\label{lemma:2}
+If $m_n$ is updated to $m'_n$ with a \textbf{sufficiently small} step size $\eta$: 
+\begin{equation}
+    m'_n = m_n - \eta \nabla^s_{m_n} f_H,
+\end{equation}
+then for $\hat{N}_k, k\in\mathbb{N}_K$ obtained by 
+\begin{equation}
+    \hat{N}_k = \epsilon + \sum_{n=1}^{N_s} \hat{w}_k(m_n),
+\end{equation}
+only $\hat{N}_v$ and $\hat{N}_{v+1}$ might be changed, whose new values are denoted by $\hat{N}'_v$ and $\hat{N}'_{v+1}$. 
+
+To be specific, if $\hat{N}_v > \hat{N}_{v+1}$, the update leads to only two consequences:
+\begin{enumerate}
+    \item $\hat{N}'_v = \hat{N}_v +1$ and $\hat{N}'_{v+1} = \hat{N}_{v+1} -1$.
+    \item $\hat{N}'_v = \hat{N}_v$ and $\hat{N}'_{v+1} = \hat{N}_{v+1}$.
+\end{enumerate}
+
+Similarly, if $\hat{N}_v < \hat{N}_{v+1}$, the update leads to only two consequences:
+\begin{enumerate}
+    \item $\hat{N}'_v = \hat{N}_v - 1$ and $\hat{N}'_{v+1} = \hat{N}_{v+1} + 1$.
+    \item $\hat{N}'_v = \hat{N}_v$ and $\hat{N}'_{v+1} = \hat{N}_{v+1}$.
+\end{enumerate}
+\end{lemma}
+
+
+\begin{IEEEproof}
+Note that
+\begin{equation}
+\begin{split}
+    \max\left|\nabla^s_{m_n} f_H\right| &= \max\left|\frac{1}{N_s}\nabla_{m_n} q_v(m_n)\log\frac{\hat{N}_{v+1}}{\hat{N}_{v}}\right|, \\
+    &= \frac{1}{N_s} \frac{\pi}{2\Delta} \log\frac{N_s+\epsilon}{\epsilon}.
+\end{split}
+\end{equation}
+Since $\eta$ is \textbf{sufficiently small} as is defined in (\ref{eqa:ss}),  $\max|\eta\nabla^s_{m_n} f_H| <0.5\Delta$. Then 
+\begin{equation}
+\begin{split}
+    &\forall v\in \mathbb{N}_K, \forall m_n\in [v\Delta-1, (v+1)\Delta-1] \\
+    &m'_n\in [(v-0.5)\Delta-1, (v+1.5)\Delta-1].
+\end{split}
+\end{equation}
+Therefore, only $\hat{N}_v$ and $\hat{N}_{v+1}$ might be changed by the update of $m_n$. 
+
+To be specific, if $\hat{N}_v > \hat{N}_{v+1}$, then $m'_n<m_n$, and the update leads to two consequences: 
+\begin{enumerate}
+    \item If the quantized $m_n$ changes: $m^{\Delta}_n \neq m'^{\Delta}_n$, which means $m^{\Delta}_n = (v+1)\Delta-1$ and $m'^{\Delta}_n = v\Delta-1$, then $\hat{N}'_v = \hat{N}_v +1 $ and  $\hat{N}'_{v+1} = \hat{N}_{v+1} - 1$.
+    \item if the quantized $m_n$ remains the same, then $\hat{N}'_v = \hat{N}_v $ and $\hat{N}'_{v+1} = \hat{N}_{v+1}$. 
+\end{enumerate}
+
+If $\hat{N}_v < \hat{N}_{v+1}$, the proof is similar.
+\end{IEEEproof}
+With the help of the above two lemmas, Theorem~\ref{theorem:2} can be proved as follows.
+
+\newpage
+\begin{IEEEproof}
+For convenience, we use $f_H$ to denote $f_H(m_0,...,m_n,...)$ and $f'_H$ to denote $f_H(m_0,...,m'_n,...)$. $f'_H - f_H$ is calculated as:
+\begin{equation}
+\begin{split}
+f'_H - f_H &= \frac{\hat{N}_v}{N_s}\log\frac{\hat{N}_v}{N_s} + \frac{\hat{N}_{v+1}}{N_s}\log\frac{\hat{N}_{v+1}}{N_s} \\ &- \frac{\hat{N}'_v}{N_s}\log\frac{\hat{N}'_v}{N_s} - \frac{\hat{N}'_{v+1}}{N_s}\log\frac{\hat{N}'_{v+1}}{N_s}.
+\end{split}
+\end{equation}
+
+There are three possibilities about the values of $\hat{N}_v$, $\hat{N}_{v+1}$, $\hat{N}'_v$ and $\hat{N}'_{v+1}$:
+\begin{enumerate}
+    \item $\hat{N}'_v = \hat{N}_v$ and $\hat{N}'_{v+1} = \hat{N}_{v+1}$. In this case, $f'_H - f_H = 0$.
+    \item $\hat{N}'_v = \hat{N}_v + 1$, $\hat{N}'_{v+1} = \hat{N}_{v+1} -1$ and $\hat{N}_v>\hat{N}_{v+1}$. In this case, we use $x_1$ to denote $\hat{N}_{v}/N_s$, $x_2$ to denote $\hat{N}_{v+1}/N_s$, $\psi$ to denote $1/N_s$ and define $f(x) = x\log x$. Then 
+\begin{equation}
+    f'_H - f_H = f(x_1)+f(x_2)-f(x_1+\psi)-f(x_2-\psi),
+\end{equation}
+where $x_1>x_2$. According to the mean value theorem,
+\begin{equation}
+    \begin{split}
+        &\exists x'_1\in (x_1, x_1+\psi) \ \ s.t. \ \ f(x_1+\psi) = f(x_1)+\psi f'(x'_1), \\
+        &\exists x'_2\in (x_2-\psi, x_2) \ \ s.t. \ \ f(x_2-\psi) = f(x_2)-\psi f'(x'_2).
+    \end{split}
+\end{equation}
+Then
+\begin{equation}
+    f'_H - f_H = \psi f'(x'_2) - \psi f'(x'_1).
+\end{equation}
+Since $f''(x)>0,\forall x \in (0,1)$ and $x'_2<x_2<x_1<x'_1$, it is obvious that $f'(x'_2)<f'(x'_1)$. Therefore, in this case, $f'_H - f_H < 0$
+    \item $\hat{N}'_v = \hat{N}_v - 1$, $\hat{N}'_{v+1} = \hat{N}_{v+1} +1$ and $\hat{N}_v<\hat{N}_{v+1}$. Similarly, $f'_H - f_H < 0$ in this case.
+\end{enumerate}
+
+And finally we have $f'_H \leq f_H$.
+\end{IEEEproof}
+% You can push biographies down or up by placing
+% a \vfill before or after them. The appropriate
+% use of \vfill depends on what kind of text is
+% on the last page and whether or not the columns
+% are being equalized.
+
+%\vfill
+
+% Can be used to pull up biographies so that the bottom of the last one
+% is flush with the other column.
+%\enlargethispage{-5in}
+
+
+
+% that's all folks
+\end{document}
+
+
