@@ -108,3 +108,4 @@ ENV/
 *.png
 *.eps
 *.svgz
+revision_plot.py
